@@ -23,6 +23,15 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "pickupdeal"
+    "scheme": "pickupdeal",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "내 주변 마감 할인 매장을 보여주기 위해 현재 위치를 사용합니다."
+        }
+      ]
+    ]
   }
 }
