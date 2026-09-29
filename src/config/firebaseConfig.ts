@@ -20,6 +20,9 @@ const env = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
+// 선택 값: 비어 있어도 초기화에 문제가 없으므로 필수 검사에서 제외합니다.
+const measurementId = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID;
+
 const missing = Object.entries(env)
   .filter(([, value]) => !value)
   .map(([key]) => key);
@@ -31,7 +34,10 @@ if (missing.length > 0) {
   );
 }
 
-const firebaseConfig = env as Record<keyof typeof env, string>;
+const firebaseConfig = {
+  ...(env as Record<keyof typeof env, string>),
+  ...(measurementId ? { measurementId } : {}),
+};
 
 // Fast Refresh 로 모듈이 재평가돼도 앱을 중복 초기화하지 않습니다.
 export const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
