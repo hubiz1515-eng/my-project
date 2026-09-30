@@ -8,7 +8,15 @@ import { formatWon } from '../../utils/format';
 import { orderSummary } from '../../utils/orderRules';
 
 /** 고객이 보여준 6자리 코드 입력 → 6번째 숫자에서 자동 확인 (3초 픽업) */
-export function PickupCodeBox({ ownerId }: { ownerId: string }) {
+export function PickupCodeBox({
+  ownerId,
+  showScanButton = true,
+  autoFocus = false,
+}: {
+  ownerId: string;
+  showScanButton?: boolean;
+  autoFocus?: boolean;
+}) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
@@ -36,11 +44,15 @@ export function PickupCodeBox({ ownerId }: { ownerId: string }) {
     <View style={styles.box}>
       <View style={styles.head}>
         <Text style={styles.title}>픽업 확인</Text>
-        <Pressable onPress={() => router.push('/scan')} style={styles.scanBtn} accessibilityRole="button">
-          <Text style={styles.scanText}>📷 QR 스캔</Text>
-        </Pressable>
+        {showScanButton && (
+          <Pressable onPress={() => router.push('/scan')} style={styles.scanBtn} accessibilityRole="button">
+            <Text style={styles.scanText}>📷 QR 스캔</Text>
+          </Pressable>
+        )}
       </View>
-      <Text style={styles.sub}>손님 QR 을 스캔하거나 6자리 코드를 입력하면 바로 픽업 완료돼요</Text>
+      <Text style={styles.sub}>
+        {showScanButton ? '손님 QR 을 스캔하거나 6자리 코드를 입력하면 바로 픽업 완료돼요' : '손님 화면의 6자리 코드를 입력하면 바로 픽업 완료돼요'}
+      </Text>
       <View style={styles.inputRow}>
         <TextInput
           value={code}
@@ -50,6 +62,7 @@ export function PickupCodeBox({ ownerId }: { ownerId: string }) {
           keyboardType="number-pad"
           maxLength={6}
           editable={!busy}
+          autoFocus={autoFocus}
           style={styles.input}
           accessibilityLabel="픽업 코드 입력"
         />

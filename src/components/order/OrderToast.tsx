@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   toast: {
     position: 'absolute', left: 12, right: 12, zIndex: 100,
     borderRadius: radius.lg, padding: 14, gap: 2,
-    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
   },
   seller: { backgroundColor: colors.text },
   customer: { backgroundColor: colors.primary },

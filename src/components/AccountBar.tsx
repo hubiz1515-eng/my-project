@@ -75,10 +75,10 @@ const styles = StyleSheet.create({
   name: { fontSize: 13, fontWeight: '700', color: colors.text, flexShrink: 1 },
   role: {
     fontSize: 10, fontWeight: '800', color: colors.primary, backgroundColor: colors.primarySoft,
-    paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, overflow: 'hidden',
+    paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, overflow: 'hidden', flexShrink: 0,
   },
   roleSeller: { color: '#fff', backgroundColor: colors.text },
-  logout: { fontSize: 12, color: colors.textMuted },
+  logout: { fontSize: 12, color: colors.textMuted, flexShrink: 0 },
   track: { flexDirection: 'row', backgroundColor: colors.background, borderRadius: radius.pill, padding: 3 },
   seg: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.pill },
   segCustomer: { backgroundColor: colors.primary },

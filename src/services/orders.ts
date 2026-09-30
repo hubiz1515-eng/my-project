@@ -55,7 +55,15 @@ export function subscribeStoreOrders(ownerId: string, onChange: (orders: Order[]
 }
 
 export function subscribeOrder(orderId: string, onChange: (order: Order | null) => void, onError?: ErrorHandler): Unsubscribe {
-  return onSnapshot(orderDoc(orderId), (snap) => onChange(snap.exists() ? snap.data() : null), onError);
+  return onSnapshot(
+    orderDoc(orderId),
+    (snap) => onChange(snap.exists() ? snap.data() : null),
+    (e) => {
+      // 없는 주문·남의 주문은 보안 규칙상 permission-denied 로 온다 → '찾을 수 없음'으로 처리
+      if ((e as { code?: string }).code === 'permission-denied') onChange(null);
+      else onError?.(e);
+    },
+  );
 }
 
 export interface CreateOrderInput {

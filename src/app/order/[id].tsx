@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import QRCode from 'react-native-qrcode-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmButton } from '../../components/ConfirmButton';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { OrderStatusBadge } from '../../components/order/OrderStatusBadge';
 import { colors, radius } from '../../constants/theme';
 import { useLiveQuery } from '../../hooks/useLiveQuery';
@@ -92,7 +93,9 @@ export default function OrderDetailScreen() {
           <View style={[styles.card, styles.codeCard]}>
             <Text style={styles.codeLabel}>매장에서 QR 을 보여주세요</Text>
             <View style={styles.qr} accessibilityLabel="픽업 QR 코드">
-              <QRCode value={buildPickupQr(order.orderId, order.pickupCode)} size={200} backgroundColor="#fff" color={colors.text} />
+              <ErrorBoundary fallback={<Text style={styles.muted}>QR 을 표시할 수 없어요. 아래 코드를 보여주세요.</Text>}>
+                <QRCode value={buildPickupQr(order.orderId, order.pickupCode)} size={200} backgroundColor="#fff" color={colors.text} />
+              </ErrorBoundary>
             </View>
             <Text style={styles.codeLabel}>또는 픽업 코드</Text>
             <Text style={styles.code} accessibilityLabel={`픽업 코드 ${order.pickupCode.split('').join(' ')}`}>

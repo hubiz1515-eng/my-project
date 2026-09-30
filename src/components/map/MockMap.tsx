@@ -44,8 +44,7 @@ export function MockMap({ user, pins, selectedId, onSelectPin }: PickupMapProps)
             return (
               <View
                 key={pin.id}
-                pointerEvents="box-none"
-                style={[styles.pinSlot, { left: x - PIN_SLOT / 2, top: y - 14, zIndex: selected ? 2 : 1 }]}
+                style={[styles.pinSlot, { pointerEvents: 'box-none' }, { left: x - PIN_SLOT / 2, top: y - 14, zIndex: selected ? 2 : 1 }]}
               >
                 <Pressable
                   onPress={() => onSelectPin(pin.id)}

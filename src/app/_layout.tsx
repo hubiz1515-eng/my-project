@@ -1,4 +1,4 @@
-import { router, Stack } from 'expo-router';
+import { router, Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 
 /** AccountBar 높이 (토스트를 바로 아래에 띄우기 위함) */
 const ACCOUNT_BAR_HEIGHT = 46;
+const AUTH_ROUTES = ['/login', '/signup', '/profile-setup'];
 
 function Shell() {
   const insets = useSafeAreaInsets();
@@ -18,13 +19,17 @@ function Shell() {
   const isSeller = ready && state.profile.role === 'seller';
   const uid = ready ? state.user.uid : null;
 
-  // 사장님은 로그인 직후 매장 관리 화면에서 시작
+  // 사장님은 로그인 직후(홈에 도착했을 때만) 매장 관리 화면에서 시작.
+  // 새로고침·딥링크로 다른 화면(/scan, /order/..)에 들어온 경우는 그대로 둔다.
+  const pathname = usePathname();
   const landedFor = useRef<string | null>(null);
   useEffect(() => {
     if (!isSeller || !uid || landedFor.current === uid) return;
+    // 인증 가드가 로그인/가입 화면에서 빠져나갈 때까지 기다렸다가 판단
+    if (AUTH_ROUTES.includes(pathname)) return;
     landedFor.current = uid;
-    requestAnimationFrame(() => router.replace('/seller'));
-  }, [isSeller, uid]);
+    if (pathname === '/') requestAnimationFrame(() => router.replace('/seller'));
+  }, [isSeller, uid, pathname]);
 
   if (state.status === 'loading') {
     return (
