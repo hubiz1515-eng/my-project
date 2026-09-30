@@ -26,6 +26,12 @@ Firebase 규칙/인덱스 배포: `npx firebase-tools deploy --only firestore`
 - 재고·상태 규칙은 `src/utils/foodItemRules.ts` (재고 0 → 품절, 사장님이 +1 하면 판매 재개, 자동 재판매 없음)
 - 두 화면은 같은 Mock 저장소(`src/services/foodItems.ts`)를 구독하므로 사장님의 변경이 소비자 화면에 즉시 반영됩니다.
 
+## 픽업 예약·결제·주문 처리 (4단계)
+- **소비자**: 카드 탭 → 상품 상세(`/item/[id]`) → 수량 + 같은 매장 메뉴 함께 담기(Cross-selling) → 토스페이/카카오페이(테스트) 결제 → 주문 상세(`/order/[id]`)에서 6자리 픽업 코드·진행 상태 확인, 수락 전 취소 가능. `내 주문`(`/orders`) 목록.
+- **사장님**: `주문 관리` 탭 — 수락 대기 주문 [수락/거절], 픽업 코드 6자리 입력 시 자동 픽업 완료. 테스트용 매장 전환 칩.
+- **실시간 알림**: 새 주문 → 사장님 알림, 수락/픽업/거절 → 고객 알림 (인앱 토스트, 추후 FCM). 모드 스위치에 수락 대기 배지.
+- 결제는 Mock(`src/services/payments.ts`, `MockPaymentSheet`)이며 PortOne 연동 지점에 TODO 가 있습니다. 주문 규칙은 `src/utils/orderRules.ts`.
+
 ## 구조
 - `src/config/firebaseConfig.ts` — Firebase 초기화 (`app`, `auth`, `db`)
 - `src/config/collections.ts` — 타입이 적용된 컬렉션/문서 참조

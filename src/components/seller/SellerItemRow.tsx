@@ -63,12 +63,14 @@ export const SellerItemRow = memo(function SellerItemRow({ item, nowMs, onStock,
       </View>
 
       <View style={styles.actions}>
-        {item.status === 'paused' ? (
-          <Action label="판매 재개" onPress={() => onStatus('resume')} primary />
-        ) : item.status === 'selling' ? (
+        {item.status === 'selling' ? (
           <Action label="판매중지" onPress={() => onStatus('pause')} />
+        ) : item.stock > 0 ? (
+          <Action label="판매 재개" onPress={() => onStatus('resume')} primary />
         ) : (
-          <Text style={styles.hint}>+1 로 재고를 추가하면 판매가 재개돼요</Text>
+          <Text style={styles.hint}>
+            {item.status === 'sold_out' ? '+1 로 재고를 추가하면 판매가 재개돼요' : '+1 로 재고를 먼저 추가해 주세요'}
+          </Text>
         )}
         {item.status !== 'sold_out' && <Action label="품절 처리" onPress={() => onStatus('sold_out')} danger />}
       </View>

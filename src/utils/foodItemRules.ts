@@ -16,6 +16,14 @@ export function applyStockDelta(item: Pick<FoodItem, 'stock' | 'status'>, delta:
   return { stock, status };
 }
 
+/**
+ * 주문 취소/거절로 재고를 되돌릴 때. 수량만 복구하고 상태는 그대로 둔다.
+ * (품절 상태였다면 사장님이 직접 '판매 재개'를 눌러야 다시 노출 — 자동 재판매 금지)
+ */
+export function restoreStock(item: Pick<FoodItem, 'stock' | 'status'>, quantity: number) {
+  return { stock: item.stock + quantity, status: item.status };
+}
+
 export type StatusAction = 'pause' | 'resume' | 'sold_out';
 
 export function applyStatusAction(

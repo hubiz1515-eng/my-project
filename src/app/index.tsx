@@ -1,17 +1,22 @@
+import { router } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FoodCard } from '../components/FoodCard';
 import { PickupMap } from '../components/map/PickupMap';
 import { SortChips, type SortKey } from '../components/SortChips';
 import { colors } from '../constants/theme';
+import { useLiveQuery } from '../hooks/useLiveQuery';
 import { useNearbyFoodItems } from '../hooks/useNearbyFoodItems';
 import { useNow } from '../hooks/useNow';
 import { useUserLocation } from '../hooks/useUserLocation';
+import { subscribeMyOrders } from '../services/orders';
+import { MOCK_CUSTOMER } from '../services/session';
 import type { MapPin } from '../types/map';
-import type { FoodItem } from '../types/models';
+import type { FoodItem, Order } from '../types/models';
 import { discountPercent } from '../utils/format';
 import { distanceMeters } from '../utils/geo';
+import { isActiveOrder } from '../utils/orderRules';
 
 interface Row {
   item: FoodItem;
@@ -27,6 +32,8 @@ export default function HomeScreen() {
   /** 지도 핀은 매장 단위이므로 선택도 매장 단위 */
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const listRef = useRef<FlatList<Row>>(null);
+  const { data: myOrders } = useLiveQuery<Order[]>((cb) => subscribeMyOrders(MOCK_CUSTOMER.uid, cb), [], []);
+  const activeOrders = myOrders.filter(isActiveOrder).length;
 
   // 판매 중 · 재고 있음 · 마감 전 상품만 노출하고 정렬
   const rows = useMemo<Row[]>(() => {
@@ -76,19 +83,21 @@ export default function HomeScreen() {
     [rows],
   );
 
-  const reserve = useCallback((item: FoodItem) => {
-    Alert.alert('픽업 예약', `${item.title}\n결제와 QR 픽업은 4단계에서 연결됩니다.`);
-  }, []);
+  const openItem = useCallback((item: FoodItem) => router.push(`/item/${item.itemId}`), []);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.title}>우리 동네 마감 할인</Text>
           <Text style={styles.sub}>
             {source === 'default' ? '기본 위치(강남역) 기준' : '내 주변'} · 배달비 0원 · 100% 픽업
           </Text>
         </View>
+        <Pressable onPress={() => router.push('/orders')} style={styles.ordersBtn} accessibilityLabel="내 주문">
+          <Text style={styles.ordersText}>내 주문</Text>
+          {activeOrders > 0 && <Text style={styles.ordersBadge}>{activeOrders}</Text>}
+        </Pressable>
       </View>
 
       <View style={styles.map}>
@@ -123,8 +132,8 @@ export default function HomeScreen() {
               distanceM={r.distanceM}
               nowMs={now}
               selected={r.item.storeId === selectedStoreId}
-              onPress={() => select(r.item.storeId)}
-              onReserve={() => reserve(r.item)}
+              onPress={() => openItem(r.item)}
+              onReserve={() => openItem(r.item)}
             />
           )}
         />
@@ -135,7 +144,16 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: colors.surface },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: colors.surface },
+  ordersBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: 999, borderWidth: 1, borderColor: colors.border,
+  },
+  ordersText: { fontSize: 13, fontWeight: '700', color: colors.text },
+  ordersBadge: {
+    minWidth: 18, textAlign: 'center', fontSize: 11, fontWeight: '800', color: '#fff',
+    backgroundColor: colors.accent, borderRadius: 9, overflow: 'hidden', paddingHorizontal: 5,
+  },
   title: { fontSize: 20, fontWeight: '800', color: colors.text },
   sub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   map: { height: 240 },

@@ -73,7 +73,14 @@ export interface FoodItem {
 }
 
 // ── orders/{orderId} ─────────────────────────────────────────
-export type OrderStatus = 'paid' | 'picked_up' | 'canceled';
+/**
+ * paid      : 결제 완료, 사장님 수락 대기
+ * accepted  : 사장님 수락, 고객 방문 대기
+ * picked_up : 핀코드/QR 확인 후 픽업 완료
+ * canceled  : 고객 취소(수락 전) 또는 사장님 거절 → 환불
+ */
+export type OrderStatus = 'paid' | 'accepted' | 'picked_up' | 'canceled';
+export type PaymentMethod = 'tosspay' | 'kakaopay';
 
 /** 주문 시점 스냅샷. 이후 사장님이 가격/이름을 바꿔도 주문 내역은 변하지 않는다. */
 export interface OrderLine {
@@ -94,7 +101,11 @@ export interface Order {
   totalPrice: Won;
   /** 결제 시 함께 구매한 매장 추가 메뉴(Cross-selling). 없으면 빈 배열. */
   addOns: OrderLine[];
-  /** 6자리 숫자 핀코드. QR 에는 `orderId.pickupCode` 형태로 인코딩. */
+  /**
+   * 6자리 숫자 핀코드. QR 에는 `orderId.pickupCode` 형태로 인코딩.
+   * ⚠️ 운영에서는 사장님이 읽을 수 없는 위치(예: orders/{id}/private/pickup)로 분리하고
+   *    confirmPickup Cloud Function 에서만 대조해야 한다.
+   */
   pickupCode: string;
   status: OrderStatus;
 
@@ -102,13 +113,19 @@ export interface Order {
   storeOwnerId: string;
   storeName: string;
   itemTitle: string;
+  /** 대표 상품 주문 시점 단가 */
+  unitPrice: Won;
+  customerName: string;
 
   // ── 결제 (PortOne) ──
   paymentId: string;
+  paymentMethod: PaymentMethod;
   paidAt: Timestamp;
   pickupEndTime: Timestamp;
+  acceptedAt?: Timestamp;
   pickedUpAt?: Timestamp;
   canceledAt?: Timestamp;
+  canceledBy?: 'customer' | 'seller';
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

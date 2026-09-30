@@ -54,12 +54,25 @@ users/{uid} ─(1:N)→ stores/{storeId} ─(1:N)→ food_items/{itemId}
 | orderId, customerId, storeId, itemId | string | itemId = 대표 상품 |
 | quantity | number | 대표 상품 수량 |
 | totalPrice | number | 대표 + addOns 합계 = 실제 결제액 (서버가 계산·검증) |
-| pickupCode | string | 6자리 핀코드. QR 페이로드는 `orderId.pickupCode` |
-| status | `'paid' \| 'picked_up' \| 'canceled'` | |
+| pickupCode | string | 6자리 핀코드(매장 내 활성 주문끼리 중복 없음). QR 페이로드는 `orderId.pickupCode`. ⚠️ 아래 '픽업 코드 보안' 참고 |
+| status | `'paid' \| 'accepted' \| 'picked_up' \| 'canceled'` | `accepted` *(4단계 추가)*: 사장님 수락 |
 | addOns | `{itemId,title,unitPrice,quantity}[]` | Cross-selling 구매 내역 스냅샷 *(추가)* |
-| storeOwnerId, storeName, itemTitle | string | 조회·권한용 비정규화 *(추가)* |
+| storeOwnerId, storeName, itemTitle, customerName | string | 조회·권한용 비정규화 *(추가)* |
+| unitPrice | number | 대표 상품 주문 시점 단가 *(추가)* |
 | paymentId | string | PortOne 결제 ID(멱등성 키) *(추가)* |
-| paidAt, pickupEndTime, pickedUpAt?, canceledAt?, createdAt, updatedAt | Timestamp | *(추가)* |
+| paymentMethod | `'tosspay' \| 'kakaopay'` | *(추가)* |
+| canceledBy? | `'customer' \| 'seller'` | *(추가)* |
+| paidAt, pickupEndTime, acceptedAt?, pickedUpAt?, canceledAt?, createdAt, updatedAt | Timestamp | pickupEndTime = 담은 상품 중 가장 이른 마감 *(추가)* |
+
+### 주문 상태 전이 (`src/utils/orderRules.ts`)
+```
+paid ──accept──▶ accepted ──pickup(코드 일치)──▶ picked_up
+ │  └─pickup(수락 전 방문도 허용)─────────────────▲
+ ├─customer_cancel (수락 전만) ─▶ canceled
+ └─reject (paid·accepted) ──────▶ canceled
+```
+- 취소/거절 시 결제 취소(환불) + **재고 수량만 복구, 상품 상태는 유지**. 품절됐던 상품은 사장님이 '판매 재개'를 눌러야 다시 노출됩니다(자동 재판매 금지).
+- 픽업 시간이 지난 미수령 주문은 자동 처리하지 않고 사장님 화면에 '픽업 시간 지남'으로 표시합니다. 노쇼 정책(환불 여부)은 결정 필요.
 
 ## 주요 쿼리 & 인덱스 (`firestore.indexes.json`)
 | 화면 | 쿼리 |
@@ -76,10 +89,16 @@ Firestore는 서로 다른 필드의 범위 조건을 하나의 쿼리에 못 �
 - `stores`, `food_items`: 전체 공개 읽기, 소유 사장님만 쓰기(재고 ≥ 0, 가격 검증)
 - `orders`: 구매자/해당 사장님만 읽기, **클라이언트 쓰기 전면 금지**
 
-## 4단계(결제·픽업)를 위한 서버 책임 — 미리 정해두는 결정 사항
-1. `createOrder` (Callable Function): PortOne `paymentId` 서버 검증 → 트랜잭션으로 재고 차감 + 주문 생성 + 핀코드 발급. 재고 부족 시 자동 결제 취소. `paymentId`로 멱등 처리.
-2. `confirmPickup` (Callable Function): 사장님이 QR/핀코드 제출 → `paid → picked_up`.
-3. Cloud Functions는 Firebase **Blaze(종량제)** 요금제가 필요합니다.
+## 결제·주문 서버 책임 (현재 Mock → Cloud Functions 로 이전할 부분)
+현재 `src/services/orders.ts`·`payments.ts` 가 클라이언트에서 흉내 내는 로직이며, 운영에서는 아래 Callable Function 이 같은 규칙(`orderRules.ts`, `foodItemRules.ts`)으로 실행합니다.
+1. `createOrder`: PortOne `paymentId` 서버 검증(금액·상태) → 서버에서 금액 재계산해 결제액과 비교 → 트랜잭션으로 재고 차감 + 주문 생성 + 핀코드 발급. 실패 시 결제 취소 API 호출. `paymentId`로 멱등 처리.
+2. `updateOrderStatus`: 수락 / 거절 / 고객 취소. 취소류는 결제 취소 + 재고 복구.
+3. `confirmPickup`: 사장님이 핀코드(또는 QR) 제출 → 매장의 활성 주문과 대조 → `picked_up`.
+4. 상태 변경 시 FCM 푸시 발송(현재는 인앱 토스트 `OrderToast`로 대체).
+5. Cloud Functions는 Firebase **Blaze(종량제)** 요금제가 필요합니다.
+
+### 픽업 코드 보안
+`orders` 문서는 사장님도 읽을 수 있으므로 `pickupCode` 를 그대로 두면 사장님(또는 탈취된 사장님 계정)이 코드를 볼 수 있습니다. 운영 전환 시 `orders/{id}/private/pickup` 처럼 **구매자만 읽을 수 있는 하위 문서**로 옮기고, `confirmPickup` Function 에서만 대조하세요. (Mock 사장님 화면은 코드를 표시하지 않습니다.)
 
 ## 알아둘 점
 - **FCM**: Firebase JS SDK는 React Native에서 `messaging`을 지원하지 않습니다. 푸시는 `expo-notifications`(FCM 자격증명 연동) 또는 `@react-native-firebase/messaging`(Dev Build 필요) 중 선택해야 하며, 토큰을 `users.pushTokens`에 저장합니다. 3단계 이전에 결정하면 됩니다.
