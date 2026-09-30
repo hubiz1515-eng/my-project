@@ -3,7 +3,9 @@ import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react
 import { colors, radius } from '../../constants/theme';
 import type { PickupMapProps } from '../../types/map';
 
-const PAD = 36;
+const PAD = 40;
+/** 핀 라벨 길이가 달라도 좌표 중앙에 오도록 고정 폭 슬롯 안에서 가운데 정렬 */
+const PIN_SLOT = 100;
 
 /** 카카오 JS 키가 없을 때 쓰는 대체 지도. 좌표를 화면 위치로 단순 투영해 핀을 그린다. */
 export function MockMap({ user, pins, selectedId, onSelectPin }: PickupMapProps) {
@@ -40,14 +42,19 @@ export function MockMap({ user, pins, selectedId, onSelectPin }: PickupMapProps)
             const { x, y } = project(pin.latitude, pin.longitude);
             const selected = pin.id === selectedId;
             return (
-              <Pressable
+              <View
                 key={pin.id}
-                onPress={() => onSelectPin(pin.id)}
-                hitSlop={8}
-                style={[styles.pin, selected && styles.pinSelected, { left: x - 24, top: y - 14, zIndex: selected ? 2 : 1 }]}
+                pointerEvents="box-none"
+                style={[styles.pinSlot, { left: x - PIN_SLOT / 2, top: y - 14, zIndex: selected ? 2 : 1 }]}
               >
-                <Text style={[styles.pinText, selected && styles.pinTextSelected]}>{pin.label}</Text>
-              </Pressable>
+                <Pressable
+                  onPress={() => onSelectPin(pin.id)}
+                  hitSlop={8}
+                  style={[styles.pin, selected && styles.pinSelected]}
+                >
+                  <Text style={[styles.pinText, selected && styles.pinTextSelected]}>{pin.label}</Text>
+                </Pressable>
+              </View>
             );
           })}
         </>
@@ -65,8 +72,9 @@ const styles = StyleSheet.create({
     position: 'absolute', width: 16, height: 16, borderRadius: 8,
     backgroundColor: '#2563eb', borderWidth: 3, borderColor: '#fff',
   },
+  pinSlot: { position: 'absolute', width: PIN_SLOT, alignItems: 'center' },
   pin: {
-    position: 'absolute', width: 48, height: 28, borderRadius: radius.pill,
+    minWidth: 48, height: 28, paddingHorizontal: 8, borderRadius: radius.pill,
     backgroundColor: '#fff', borderWidth: 2, borderColor: colors.accent,
     alignItems: 'center', justifyContent: 'center',
   },

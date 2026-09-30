@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FoodCard } from '../components/FoodCard';
 import { PickupMap } from '../components/map/PickupMap';
@@ -21,10 +21,11 @@ interface Row {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { coords: user, source } = useUserLocation();
-  const { items, loading, error, refetch } = useNearbyFoodItems(user, source !== 'loading');
+  const { items, loading } = useNearbyFoodItems(user, source !== 'loading');
   const now = useNow();
   const [sort, setSort] = useState<SortKey>('distance');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** 지도 핀은 매장 단위이므로 선택도 매장 단위 */
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const listRef = useRef<FlatList<Row>>(null);
 
   // 판매 중 · 재고 있음 · 마감 전 상품만 노출하고 정렬
@@ -42,24 +43,34 @@ export default function HomeScreen() {
     return visible.sort(by[sort]);
   }, [items, now, user, sort]);
 
-  const pins = useMemo<MapPin[]>(
-    () =>
-      rows.map(({ item }) => ({
-        id: item.itemId,
-        latitude: item.latitude,
-        longitude: item.longitude,
-        label: `-${discountPercent(item.originalPrice, item.discountPrice)}%`,
-      })),
-    [rows],
-  );
+  // 매장별로 핀 1개: 최대 할인율 + 상품 수 (한 매장에 상품이 여러 개여도 핀이 겹치지 않게)
+  const pins = useMemo<MapPin[]>(() => {
+    const byStore = new Map<string, { item: FoodItem; maxPercent: number; count: number }>();
+    for (const { item } of rows) {
+      const percent = discountPercent(item.originalPrice, item.discountPrice);
+      const g = byStore.get(item.storeId);
+      if (g) {
+        g.count += 1;
+        g.maxPercent = Math.max(g.maxPercent, percent);
+      } else {
+        byStore.set(item.storeId, { item, maxPercent: percent, count: 1 });
+      }
+    }
+    return [...byStore.values()].map(({ item, maxPercent, count }) => ({
+      id: item.storeId,
+      latitude: item.latitude,
+      longitude: item.longitude,
+      label: count > 1 ? `-${maxPercent}% · ${count}` : `-${maxPercent}%`,
+    }));
+  }, [rows]);
 
-  const selected = rows.find((r) => r.item.itemId === selectedId)?.item;
+  const selected = rows.find((r) => r.item.storeId === selectedStoreId)?.item;
   const center = selected ? { latitude: selected.latitude, longitude: selected.longitude } : user;
 
   const select = useCallback(
-    (id: string) => {
-      setSelectedId(id);
-      const index = rows.findIndex((r) => r.item.itemId === id);
+    (storeId: string) => {
+      setSelectedStoreId(storeId);
+      const index = rows.findIndex((r) => r.item.storeId === storeId);
       if (index >= 0) listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.3 });
     },
     [rows],
@@ -70,7 +81,7 @@ export default function HomeScreen() {
   }, []);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>우리 동네 마감 할인</Text>
@@ -81,7 +92,7 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.map}>
-        <PickupMap center={center} user={user} pins={pins} selectedId={selectedId} onSelectPin={select} />
+        <PickupMap center={center} user={user} pins={pins} selectedId={selectedStoreId} onSelectPin={select} />
       </View>
 
       <View style={styles.listHeader}>
@@ -89,11 +100,7 @@ export default function HomeScreen() {
         <SortChips value={sort} onChange={setSort} />
       </View>
 
-      {error ? (
-        <View style={styles.center}>
-          <Text style={styles.muted}>{error}</Text>
-        </View>
-      ) : loading && items.length === 0 ? (
+      {loading && items.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
         </View>
@@ -104,7 +111,6 @@ export default function HomeScreen() {
           keyExtractor={(r) => r.item.itemId}
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 16 }]}
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.primary} />}
           onScrollToIndexFailed={({ index }) => setTimeout(() => listRef.current?.scrollToIndex({ index, animated: true }), 200)}
           ListEmptyComponent={
             <View style={styles.center}>
@@ -116,8 +122,8 @@ export default function HomeScreen() {
               item={r.item}
               distanceM={r.distanceM}
               nowMs={now}
-              selected={r.item.itemId === selectedId}
-              onPress={() => select(r.item.itemId)}
+              selected={r.item.storeId === selectedStoreId}
+              onPress={() => select(r.item.storeId)}
               onReserve={() => reserve(r.item)}
             />
           )}

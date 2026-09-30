@@ -18,14 +18,17 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 
 export type LocationSource = 'loading' | 'device' | 'default';
 
+// 화면 전환(모드 스위치)으로 다시 마운트돼도 위치를 재조회하지 않도록 앱 실행 중 캐시
+let cached: { coords: Coords; source: LocationSource } | null = null;
+
 /** 현재 위치. 권한 거부/실패 시 기본 위치(강남역)로 대체한다. */
 export function useUserLocation(): { coords: Coords; source: LocationSource } {
-  const [state, setState] = useState<{ coords: Coords; source: LocationSource }>({
-    coords: DEFAULT_LOCATION,
-    source: 'loading',
-  });
+  const [state, setState] = useState<{ coords: Coords; source: LocationSource }>(
+    () => cached ?? { coords: DEFAULT_LOCATION, source: 'loading' },
+  );
 
   useEffect(() => {
+    if (cached) return;
     let cancelled = false;
     (async () => {
       try {
@@ -37,15 +40,11 @@ export function useUserLocation(): { coords: Coords; source: LocationSource } {
           })(),
           LOCATION_TIMEOUT_MS,
         );
-        if (!cancelled) {
-          setState({
-            coords: { latitude: pos.coords.latitude, longitude: pos.coords.longitude },
-            source: 'device',
-          });
-        }
+        cached = { coords: { latitude: pos.coords.latitude, longitude: pos.coords.longitude }, source: 'device' };
       } catch {
-        if (!cancelled) setState({ coords: DEFAULT_LOCATION, source: 'default' });
+        cached = { coords: DEFAULT_LOCATION, source: 'default' };
       }
+      if (!cancelled) setState(cached);
     })();
     return () => {
       cancelled = true;
