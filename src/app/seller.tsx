@@ -14,16 +14,18 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { OrdersPanel } from '../components/seller/OrdersPanel';
 import { QuickAddForm } from '../components/seller/QuickAddForm';
+import { sampleItems } from '../components/seller/sampleItems';
 import { SellerItemRow } from '../components/seller/SellerItemRow';
+import { StoreSetupForm } from '../components/seller/StoreSetupForm';
 import { colors, radius } from '../constants/theme';
+import { useProfile } from '../contexts/AuthContext';
 import { useLiveQuery } from '../hooks/useLiveQuery';
 import { useNow } from '../hooks/useNow';
-import { useStoreFoodItems } from '../hooks/useStoreFoodItems';
-import { MOCK_STORES } from '../mocks/foodItems';
-import { changeStock, createFoodItem, setItemStatus } from '../services/foodItems';
+import { changeStock, createFoodItem, setItemStatus, subscribeStoreFoodItems } from '../services/foodItems';
 import { subscribeStoreOrders } from '../services/orders';
-import { setSellerStore, useSellerStore } from '../services/session';
-import type { FoodItem, Order } from '../types/models';
+import { subscribeStore } from '../services/stores';
+import { toUserMessage } from '../services/types';
+import type { FoodItem, Order, Store } from '../types/models';
 import type { NewItemInput, StatusAction } from '../utils/foodItemRules';
 
 type Tab = 'orders' | 'products';
@@ -31,13 +33,46 @@ const STATUS_ORDER: Record<FoodItem['status'], number> = { selling: 0, paused: 1
 
 export default function SellerScreen() {
   const insets = useSafeAreaInsets();
+  const profile = useProfile();
+  const { data: store, loading, error } = useLiveQuery<Store | null>(
+    (cb, err) => subscribeStore(profile.uid, cb, err),
+    [profile.uid],
+    null,
+  );
+
+  if (!store) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
+        {loading ? (
+          <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>
+        ) : error ? (
+          <Text style={styles.error}>{error}</Text>
+        ) : (
+          <StoreSetupForm ownerId={profile.uid} />
+        )}
+      </ScrollView>
+    );
+  }
+  return <StoreManager store={store} />;
+}
+
+function StoreManager({ store }: { store: Store }) {
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ tab?: string }>();
-  const store = useSellerStore();
-  const { items, loading } = useStoreFoodItems(store.storeId);
-  const { data: orders } = useLiveQuery<Order[]>((cb) => subscribeStoreOrders(store.storeId, cb), [store.storeId], []);
+  const { data: items, loading } = useLiveQuery<FoodItem[]>(
+    (cb, err) => subscribeStoreFoodItems(store.storeId, cb, err),
+    [store.storeId],
+    [],
+  );
+  const { data: orders, error: ordersError } = useLiveQuery<Order[]>(
+    (cb, err) => subscribeStoreOrders(store.ownerId, cb, err),
+    [store.ownerId],
+    [],
+  );
   const now = useNow();
   const [tab, setTab] = useState<Tab>(params.tab === 'orders' ? 'orders' : 'products');
   const [itemError, setItemError] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
 
   // 알림 탭/모드 전환으로 ?tab=orders 가 들어오면 주문 탭으로
   useEffect(() => {
@@ -67,35 +102,43 @@ export default function SellerScreen() {
       .map(({ title, originalPrice, discountPrice }) => ({ title, originalPrice, discountPrice }));
   }, [items]);
 
-  const create = useCallback(async (input: NewItemInput) => {
-    await createFoodItem(input);
-  }, []);
+  const create = useCallback(
+    async (input: NewItemInput) => {
+      try {
+        await createFoodItem(store, input);
+      } catch (e) {
+        throw new Error(toUserMessage(e, '등록에 실패했어요.'));
+      }
+    },
+    [store],
+  );
 
   const run = useCallback((fn: () => Promise<unknown>) => {
     setItemError(null);
-    fn().catch((e: Error) => setItemError(e.message));
+    fn().catch((e: unknown) => setItemError(toUserMessage(e)));
   }, []);
+
+  const seed = async () => {
+    setSeeding(true);
+    setItemError(null);
+    try {
+      for (const input of sampleItems(Date.now())) await createFoodItem(store, input);
+    } catch (e) {
+      setItemError(toUserMessage(e));
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   const header = (
     <View style={styles.headerWrap}>
       <View>
         <Text style={styles.title}>{store.storeName}</Text>
+        <Text style={styles.sub} numberOfLines={1}>{store.address}</Text>
         <Text style={styles.sub}>
           판매중 {selling.length}개 상품 · 남은 수량 {sellingStock}개 · 진행 중 주문 {activeCount}건
         </Text>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stores}>
-        <Text style={styles.storesLabel}>테스트 매장</Text>
-        {MOCK_STORES.map((s) => (
-          <Pressable
-            key={s.storeId}
-            onPress={() => setSellerStore(s.storeId)}
-            style={[styles.storeChip, s.storeId === store.storeId && styles.storeChipOn]}
-          >
-            <Text style={[styles.storeChipText, s.storeId === store.storeId && styles.storeChipTextOn]}>{s.storeName}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
       <View style={styles.tabs}>
         {(['orders', 'products'] as const).map((t) => (
           <Pressable key={t} onPress={() => setTab(t)} style={[styles.tab, tab === t && styles.tabOn]}>
@@ -117,7 +160,8 @@ export default function SellerScreen() {
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
         >
           {header}
-          <OrdersPanel storeId={store.storeId} orders={orders} nowMs={now} />
+          {ordersError && <Text style={styles.error}>{ordersError}</Text>}
+          <OrdersPanel ownerId={store.ownerId} orders={orders} nowMs={now} />
         </ScrollView>
       </KeyboardAvoidingView>
     );
@@ -141,7 +185,16 @@ export default function SellerScreen() {
         }
         ListEmptyComponent={
           <View style={styles.center}>
-            {loading ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.muted}>아직 등록된 상품이 없어요.</Text>}
+            {loading ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <>
+                <Text style={styles.muted}>아직 등록된 상품이 없어요.</Text>
+                <Pressable onPress={seed} disabled={seeding} style={styles.seedBtn}>
+                  <Text style={styles.seedText}>{seeding ? '등록 중…' : '🧪 샘플 상품 3개 등록 (테스트용)'}</Text>
+                </Pressable>
+              </>
+            )}
           </View>
         }
         renderItem={({ item }) => (
@@ -163,15 +216,6 @@ const styles = StyleSheet.create({
   headerWrap: { gap: 12, marginBottom: 10 },
   title: { fontSize: 20, fontWeight: '800', color: colors.text },
   sub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  stores: { gap: 6, alignItems: 'center' },
-  storesLabel: { fontSize: 11, color: colors.textMuted, marginRight: 2 },
-  storeChip: {
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill,
-    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
-  },
-  storeChipOn: { backgroundColor: colors.text, borderColor: colors.text },
-  storeChipText: { fontSize: 12, color: colors.text },
-  storeChipTextOn: { color: '#fff', fontWeight: '700' },
   tabs: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: radius.md, padding: 4 },
   tab: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: radius.sm },
   tabOn: { backgroundColor: colors.text },
@@ -183,6 +227,8 @@ const styles = StyleSheet.create({
   },
   section: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 4 },
   error: { color: colors.accent, fontSize: 13 },
-  center: { paddingVertical: 40, alignItems: 'center' },
+  center: { paddingVertical: 40, alignItems: 'center', gap: 12 },
   muted: { color: colors.textMuted },
+  seedBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.pill, backgroundColor: colors.primarySoft },
+  seedText: { color: colors.primary, fontWeight: '700' },
 });

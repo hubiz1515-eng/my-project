@@ -5,7 +5,7 @@ import { OrderStatusBadge } from '../components/order/OrderStatusBadge';
 import { colors, radius } from '../constants/theme';
 import { useLiveQuery } from '../hooks/useLiveQuery';
 import { subscribeMyOrders } from '../services/orders';
-import { MOCK_CUSTOMER } from '../services/session';
+import { useProfile } from '../contexts/AuthContext';
 import type { Order } from '../types/models';
 import { formatClock, formatWon } from '../utils/format';
 import { goBack } from '../utils/nav';
@@ -13,7 +13,8 @@ import { orderSummary } from '../utils/orderRules';
 
 export default function MyOrdersScreen() {
   const insets = useSafeAreaInsets();
-  const { data: orders, loading } = useLiveQuery<Order[]>((cb) => subscribeMyOrders(MOCK_CUSTOMER.uid, cb), [], []);
+  const profile = useProfile();
+  const { data: orders, loading, error } = useLiveQuery<Order[]>((cb, err) => subscribeMyOrders(profile.uid, cb, err), [profile.uid], []);
 
   return (
     <View style={styles.container}>
@@ -30,7 +31,7 @@ export default function MyOrdersScreen() {
         contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 24 }}
         ListEmptyComponent={
           <View style={styles.center}>
-            {loading ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.muted}>아직 주문이 없어요.</Text>}
+            {loading ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.muted}>{error ?? '아직 주문이 없어요.'}</Text>}
           </View>
         }
         renderItem={({ item: o }) => (

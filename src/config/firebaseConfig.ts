@@ -2,12 +2,13 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import {
+  connectAuthEmulator,
   getAuth,
   getReactNativePersistence,
   initializeAuth,
   type Auth,
 } from 'firebase/auth';
-import { getFirestore, type Firestore } from 'firebase/firestore';
+import { connectFirestoreEmulator, getFirestore, type Firestore } from 'firebase/firestore';
 
 // Expo 는 `process.env.EXPO_PUBLIC_*` 를 빌드 시점에 정적 치환하므로
 // 동적 접근(process.env[key])이 아닌 리터럴로 참조해야 합니다.
@@ -40,7 +41,8 @@ const firebaseConfig = {
 };
 
 // Fast Refresh 로 모듈이 재평가돼도 앱을 중복 초기화하지 않습니다.
-export const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const isFirstInit = getApps().length === 0;
+export const app: FirebaseApp = isFirstInit ? initializeApp(firebaseConfig) : getApp();
 
 function createAuth(firebaseApp: FirebaseApp): Auth {
   // 웹은 기본 persistence(IndexedDB)를 사용합니다.
@@ -58,3 +60,17 @@ function createAuth(firebaseApp: FirebaseApp): Auth {
 
 export const auth: Auth = createAuth(app);
 export const db: Firestore = getFirestore(app);
+
+/**
+ * 로컬 Firebase 에뮬레이터 사용 (`npx firebase-tools emulators:start`).
+ * 실서버 데이터를 건드리지 않고 개발/테스트할 때 EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true.
+ */
+export const usingEmulator = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
+
+if (usingEmulator && isFirstInit) {
+  // 실기기에서는 PC 의 LAN IP 를 EXPO_PUBLIC_FIREBASE_EMULATOR_HOST 로 지정
+  const host =
+    process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST || (Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1');
+  connectAuthEmulator(auth, `http://${host}:9099`, { disableWarnings: true });
+  connectFirestoreEmulator(db, host, 8080);
+}

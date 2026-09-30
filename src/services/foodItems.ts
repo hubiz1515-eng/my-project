@@ -1,84 +1,117 @@
-import { Timestamp } from 'firebase/firestore';
+import {
+  doc,
+  endAt,
+  onSnapshot,
+  orderBy,
+  query,
+  runTransaction,
+  serverTimestamp,
+  setDoc,
+  startAt,
+  Timestamp,
+  where,
+} from 'firebase/firestore';
+import { distanceBetween, geohashQueryBounds } from 'geofire-common';
+import { foodItemDoc, foodItemsCol } from '../config/collections';
+import { db } from '../config/firebaseConfig';
 import type { Coords } from '../types/map';
-import type { FoodItem, FoodItemStatus } from '../types/models';
+import type { FoodItem, FoodItemStatus, Store } from '../types/models';
 import {
   applyStatusAction,
   applyStockDelta,
   type NewItemInput,
   type StatusAction,
 } from '../utils/foodItemRules';
-import { ensureSeeded, mockBase, mockDb, type Unsubscribe } from './mockDb';
-import { getSellerStore } from './session';
+import type { ErrorHandler, Unsubscribe } from './types';
+
+/** 소비자 화면에서 보여줄 반경 */
+export const NEARBY_RADIUS_M = 3000;
 
 /**
- * food_items 데이터 계층 (현재: 메모리 Mock, 구독 기반).
- * 소비자/사장님 화면이 같은 저장소를 구독하므로 한쪽의 변경이 다른 쪽에 즉시 반영된다.
- *
- * TODO(Firebase 연동): 아래 함수들의 구현만 교체하면 된다.
- *   - subscribe*  → onSnapshot(query(foodItemsCol, ...))
- *   - create/changeStock/setStatus → addDoc / runTransaction(applyStockDelta) / updateDoc
+ * 소비자: 반경 내 판매 중 상품 실시간 구독.
+ * geohash 범위 쿼리 여러 개를 합친 뒤 실제 거리로 한 번 더 거른다.
+ * (마감 시간·재고 필터는 화면에서 — Firestore 는 서로 다른 필드 범위 조건을 함께 못 씀)
  */
-export type { Unsubscribe };
-type Listener = (items: FoodItem[]) => void;
+export function subscribeNearbyFoodItems(center: Coords, onChange: (items: FoodItem[]) => void, onError?: ErrorHandler): Unsubscribe {
+  const origin: [number, number] = [center.latitude, center.longitude];
+  const bounds = geohashQueryBounds(origin, NEARBY_RADIUS_M);
+  const parts = new Map<number, FoodItem[]>();
 
-let seq = 0;
+  const emit = () => {
+    if (parts.size < bounds.length) return; // 모든 범위의 첫 결과가 올 때까지 대기
+    const byId = new Map<string, FoodItem>();
+    parts.forEach((list) => list.forEach((i) => byId.set(i.itemId, i)));
+    onChange(
+      [...byId.values()].filter((i) => distanceBetween([i.latitude, i.longitude], origin) * 1000 <= NEARBY_RADIUS_M),
+    );
+  };
 
-function find(itemId: string): FoodItem {
-  const item = mockDb.foodItems.get(itemId);
-  if (!item) throw new Error('상품을 찾을 수 없어요.');
-  return item;
+  const unsubs = bounds.map(([start, end], idx) =>
+    onSnapshot(
+      query(foodItemsCol, where('status', '==', 'selling'), orderBy('geohash'), startAt(start), endAt(end)),
+      (snap) => {
+        parts.set(idx, snap.docs.map((d) => d.data()));
+        emit();
+      },
+      onError,
+    ),
+  );
+  return () => unsubs.forEach((u) => u());
 }
 
-function update(itemId: string, patch: Partial<FoodItem>) {
-  mockDb.foodItems.patch(itemId, { ...patch, updatedAt: Timestamp.now() });
+/** 상품 1개 (상태와 무관) */
+export function subscribeFoodItem(itemId: string, onChange: (item: FoodItem | null) => void, onError?: ErrorHandler): Unsubscribe {
+  return onSnapshot(foodItemDoc(itemId), (snap) => onChange(snap.exists() ? snap.data() : null), onError);
 }
 
-/** 소비자: 내 주변 상품 (필터링은 화면에서 수행) */
-export function subscribeNearbyFoodItems(center: Coords, onChange: Listener): Unsubscribe {
-  ensureSeeded(center);
-  return mockDb.foodItems.subscribe(onChange);
+/** 매장의 전체 상품 (사장님 관리 화면, 소비자 '함께 담기' 후보) */
+export function subscribeStoreFoodItems(storeId: string, onChange: (items: FoodItem[]) => void, onError?: ErrorHandler): Unsubscribe {
+  return onSnapshot(
+    query(foodItemsCol, where('storeId', '==', storeId)),
+    (snap) => onChange(snap.docs.map((d) => d.data())),
+    onError,
+  );
 }
 
-/** 사장님: 내 매장 상품 */
-export function subscribeStoreFoodItems(storeId: string, onChange: Listener): Unsubscribe {
-  ensureSeeded();
-  return mockDb.foodItems.subscribe((all) => onChange(all.filter((i) => i.storeId === storeId)));
-}
-
-export async function createFoodItem(input: NewItemInput): Promise<FoodItem> {
-  ensureSeeded();
-  const now = Timestamp.now();
-  const store = getSellerStore();
-  const base = mockBase();
-  const item: FoodItem = {
-    itemId: `new_${Date.now()}_${seq++}`,
+export async function createFoodItem(store: Store, input: NewItemInput): Promise<string> {
+  const ref = doc(foodItemsCol);
+  await setDoc(ref, {
+    itemId: ref.id,
     storeId: store.storeId,
     ownerId: store.ownerId,
     storeName: store.storeName,
+    latitude: store.latitude,
+    longitude: store.longitude,
+    geohash: store.geohash,
     title: input.title.trim(),
     originalPrice: input.originalPrice,
     discountPrice: input.discountPrice,
     stock: input.stock,
     pickupEndTime: Timestamp.fromMillis(input.pickupEndMs),
     status: 'selling',
-    latitude: base.latitude + store.dLat,
-    longitude: base.longitude + store.dLng,
-    geohash: '',
     isAddOn: false,
-    createdAt: now,
-    updatedAt: now,
-  };
-  mockDb.foodItems.insert(item);
-  return item;
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return ref.id;
 }
 
+/** 재고 ±N — 동시에 주문이 들어와도 안전하도록 트랜잭션 */
 export async function changeStock(itemId: string, delta: number): Promise<void> {
-  update(itemId, applyStockDelta(find(itemId), delta));
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(foodItemDoc(itemId));
+    if (!snap.exists()) throw new Error('상품을 찾을 수 없어요.');
+    tx.update(snap.ref, { ...applyStockDelta(snap.data(), delta), updatedAt: serverTimestamp() });
+  });
 }
 
 export async function setItemStatus(itemId: string, action: StatusAction): Promise<FoodItemStatus> {
-  const result = applyStatusAction(find(itemId), action);
-  if ('error' in result) throw new Error(result.error);
-  update(itemId, result);
-  return result.status;
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(foodItemDoc(itemId));
+    if (!snap.exists()) throw new Error('상품을 찾을 수 없어요.');
+    const result = applyStatusAction(snap.data(), action);
+    if ('error' in result) throw new Error(result.error);
+    tx.update(snap.ref, { ...result, updatedAt: serverTimestamp() });
+    return result.status;
+  });
 }

@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
+import { router } from 'expo-router';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, radius } from '../../constants/theme';
 import { confirmPickupByCode } from '../../services/orders';
+import { toUserMessage } from '../../services/types';
 import { formatWon } from '../../utils/format';
 import { orderSummary } from '../../utils/orderRules';
 
 /** 고객이 보여준 6자리 코드 입력 → 6번째 숫자에서 자동 확인 (3초 픽업) */
-export function PickupCodeBox({ storeId }: { storeId: string }) {
+export function PickupCodeBox({ ownerId }: { ownerId: string }) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
@@ -20,11 +22,11 @@ export function PickupCodeBox({ storeId }: { storeId: string }) {
     }
     setBusy(true);
     try {
-      const o = await confirmPickupByCode(storeId, digits);
+      const o = await confirmPickupByCode(ownerId, digits);
       setResult({ ok: true, text: `✅ ${o.customerName}님 · ${orderSummary(o)} · ${formatWon(o.totalPrice)} 픽업 완료` });
       setCode('');
     } catch (e) {
-      setResult({ ok: false, text: e instanceof Error ? e.message : '확인에 실패했어요.' });
+      setResult({ ok: false, text: toUserMessage(e, '확인에 실패했어요.') });
     } finally {
       setBusy(false);
     }
@@ -32,8 +34,13 @@ export function PickupCodeBox({ storeId }: { storeId: string }) {
 
   return (
     <View style={styles.box}>
-      <Text style={styles.title}>픽업 코드 확인</Text>
-      <Text style={styles.sub}>손님이 보여주는 6자리 숫자를 입력하면 바로 픽업 완료돼요</Text>
+      <View style={styles.head}>
+        <Text style={styles.title}>픽업 확인</Text>
+        <Pressable onPress={() => router.push('/scan')} style={styles.scanBtn} accessibilityRole="button">
+          <Text style={styles.scanText}>📷 QR 스캔</Text>
+        </Pressable>
+      </View>
+      <Text style={styles.sub}>손님 QR 을 스캔하거나 6자리 코드를 입력하면 바로 픽업 완료돼요</Text>
       <View style={styles.inputRow}>
         <TextInput
           value={code}
@@ -55,7 +62,10 @@ export function PickupCodeBox({ storeId }: { storeId: string }) {
 
 const styles = StyleSheet.create({
   box: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 14, gap: 6 },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 16, fontWeight: '800', color: colors.text },
+  scanBtn: { backgroundColor: colors.text, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8 },
+  scanText: { color: '#fff', fontWeight: '800', fontSize: 13 },
   sub: { fontSize: 12, color: colors.textMuted },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   input: {

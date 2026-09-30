@@ -23,6 +23,7 @@ users/{uid} ─(1:N)→ stores/{storeId} ─(1:N)→ food_items/{itemId}
 | createdAt, updatedAt | Timestamp | *(추가)* |
 
 ## 2. `stores/{storeId}`
+> **문서 ID = 사장님 uid** (계정당 매장 1개). `storeId == ownerId`.
 | 필드 | 타입 | 설명 |
 |---|---|---|
 | storeId, ownerId | string | ownerId = 사장님 uid |
@@ -44,6 +45,7 @@ users/{uid} ─(1:N)→ stores/{storeId} ─(1:N)→ food_items/{itemId}
 | ownerId, storeName, latitude, longitude, geohash | | **비정규화**: 지도 카드용 무조인 조회 + 규칙에서 소유권 검증 *(추가)* |
 | isAddOn | boolean | 결제 시 함께 담는 "추가 메뉴(cross-sell)" 후보 여부 *(추가)* |
 | imageUrl?, createdAt, updatedAt | | *(추가)* |
+| lastOrderId? | string | 소비자가 주문/취소로 재고를 바꿀 때 해당 주문 ID. 보안 규칙이 증감량을 검증하는 데 사용 *(5단계 추가)* |
 
 **사장님 완전 통제권**: 자동 재판매/자동 재등록 필드·로직 없음. `sold_out`/`paused` → `selling` 전환은
 사장님이 직접 할 때만 발생합니다. 마감시간 경과 항목은 서버 변경 없이 쿼리 조건(`pickupEndTime > now`)으로 숨깁니다.
@@ -54,9 +56,10 @@ users/{uid} ─(1:N)→ stores/{storeId} ─(1:N)→ food_items/{itemId}
 | orderId, customerId, storeId, itemId | string | itemId = 대표 상품 |
 | quantity | number | 대표 상품 수량 |
 | totalPrice | number | 대표 + addOns 합계 = 실제 결제액 (서버가 계산·검증) |
-| pickupCode | string | 6자리 핀코드(매장 내 활성 주문끼리 중복 없음). QR 페이로드는 `orderId.pickupCode`. ⚠️ 아래 '픽업 코드 보안' 참고 |
+| pickupCode | string | 6자리 핀코드. QR 페이로드는 `pickupdeal:v1:{orderId}:{pickupCode}` (`src/utils/pickupQr.ts`) |
 | status | `'paid' \| 'accepted' \| 'picked_up' \| 'canceled'` | `accepted` *(4단계 추가)*: 사장님 수락 |
 | addOns | `{itemId,title,unitPrice,quantity}[]` | Cross-selling 구매 내역 스냅샷 *(추가)* |
+| quantities | `map<itemId, number>` | 대표+추가 메뉴 수량. 규칙에서 재고 증감량 검증용 *(5단계 추가)* |
 | storeOwnerId, storeName, itemTitle, customerName | string | 조회·권한용 비정규화 *(추가)* |
 | unitPrice | number | 대표 상품 주문 시점 단가 *(추가)* |
 | paymentId | string | PortOne 결제 ID(멱등성 키) *(추가)* |
@@ -74,33 +77,38 @@ paid ──accept──▶ accepted ──pickup(코드 일치)──▶ picked_
 - 취소/거절 시 결제 취소(환불) + **재고 수량만 복구, 상품 상태는 유지**. 품절됐던 상품은 사장님이 '판매 재개'를 눌러야 다시 노출됩니다(자동 재판매 금지).
 - 픽업 시간이 지난 미수령 주문은 자동 처리하지 않고 사장님 화면에 '픽업 시간 지남'으로 표시합니다. 노쇼 정책(환불 여부)은 결정 필요.
 
-## 주요 쿼리 & 인덱스 (`firestore.indexes.json`)
+## 주요 쿼리 & 색인 (`firestore.indexes.json`)
 | 화면 | 쿼리 |
 |---|---|
-| 소비자 지도/리스트 | `food_items` where `status=='selling'` and `geohash` 범위(내 위치 주변 cell들) → 클라이언트에서 `pickupEndTime>now`, `stock>0`, 거리순 정렬 |
-| 사장님 상품 관리 | `food_items` where `storeId==X` (+status, pickupEndTime 정렬) |
+| 소비자 지도/리스트 | `food_items` where `status=='selling'` orderBy `geohash` startAt/endAt (반경 3km 를 덮는 geohash 범위 여러 개, `geofire-common`) → 실제 거리·마감시간·재고는 클라이언트에서 필터 |
+| 상품 상세 '함께 담기' / 사장님 상품 관리 | `food_items` where `storeId==X` |
 | 내 주문 | `orders` where `customerId==me` orderBy `createdAt desc` |
-| 픽업 대기 목록 | `orders` where `storeId==X` and `status=='paid'` |
+| 사장님 주문 관리 | `orders` where `storeOwnerId==me` orderBy `createdAt desc` (규칙이 `storeOwnerId` 로 권한을 판단하므로 쿼리도 같은 필드 사용) |
+| 픽업 코드 확인 | `orders` where `storeOwnerId==me` and `pickupCode==X` and `status in [paid, accepted]` |
 
-Firestore는 서로 다른 필드의 범위 조건을 하나의 쿼리에 못 쓰므로(geohash 범위 + pickupEndTime 범위), geohash만 서버 필터로 쓰고 나머지는 클라이언트에서 거릅니다.
-
-## 보안 규칙 요약 (`firestore.rules`)
+## 보안 규칙 요약 (`firestore.rules`, 테스트: `tests/firestore.rules.test.mjs`)
 - `users`: 본인만 읽기/쓰기, `role` 변경 불가
-- `stores`, `food_items`: 전체 공개 읽기, 소유 사장님만 쓰기(재고 ≥ 0, 가격 검증)
-- `orders`: 구매자/해당 사장님만 읽기, **클라이언트 쓰기 전면 금지**
+- `stores`: 전체 공개 읽기, 사장님(role=seller)이 자기 uid 문서로만 생성
+- `food_items`: 전체 공개 읽기. 소유 사장님은 자유롭게 수정(가격·재고 검증). **소비자**는 `stock/status/updatedAt/lastOrderId` 만, 그리고
+  - 주문 시: 같은 트랜잭션에서 **새로 만드는 자기 주문**의 `quantities[itemId]` 만큼만 차감 (재고 0 이면 `sold_out`)
+  - 취소 시: 같은 트랜잭션에서 **취소되는 자기 주문**의 수량만큼만 복구, 상태는 변경 불가(자동 재판매 금지)
+- `orders`: 구매자/해당 사장님만 읽기. 생성은 구매자 본인이 `paid` 상태로, 대표 상품 재고 차감과 함께일 때만. 상태 전이는 위 '주문 상태 전이' 대로만(다른 필드 수정 불가).
 
-## 결제·주문 서버 책임 (현재 Mock → Cloud Functions 로 이전할 부분)
-현재 `src/services/orders.ts`·`payments.ts` 가 클라이언트에서 흉내 내는 로직이며, 운영에서는 아래 Callable Function 이 같은 규칙(`orderRules.ts`, `foodItemRules.ts`)으로 실행합니다.
-1. `createOrder`: PortOne `paymentId` 서버 검증(금액·상태) → 서버에서 금액 재계산해 결제액과 비교 → 트랜잭션으로 재고 차감 + 주문 생성 + 핀코드 발급. 실패 시 결제 취소 API 호출. `paymentId`로 멱등 처리.
-2. `updateOrderStatus`: 수락 / 거절 / 고객 취소. 취소류는 결제 취소 + 재고 복구.
-3. `confirmPickup`: 사장님이 핀코드(또는 QR) 제출 → 매장의 활성 주문과 대조 → `picked_up`.
-4. 상태 변경 시 FCM 푸시 발송(현재는 인앱 토스트 `OrderToast`로 대체).
-5. Cloud Functions는 Firebase **Blaze(종량제)** 요금제가 필요합니다.
+## 현재 구조의 한계 → PortOne 실결제 시 Cloud Functions 로 이전
+지금은 결제가 Mock 이라 주문 생성·취소를 **클라이언트 트랜잭션 + 보안 규칙 검증**으로 처리합니다. 규칙이 막지 못하는 부분:
+- 주문 금액(`totalPrice`)과 단가가 실제 상품 가격과 같은지 (규칙에서 목록 합산 불가) — 클라이언트는 트랜잭션 안에서 재계산해 검증하지만 조작된 클라이언트는 우회 가능
+- 추가 메뉴(addOns)의 재고 차감 누락 (대표 상품 차감만 강제)
+- 픽업 코드 중복 검사 (고객은 다른 주문을 읽을 수 없음 — 100만 분의 1 확률, 중복 시 QR 로 구분)
 
-### 픽업 코드 보안
-`orders` 문서는 사장님도 읽을 수 있으므로 `pickupCode` 를 그대로 두면 사장님(또는 탈취된 사장님 계정)이 코드를 볼 수 있습니다. 운영 전환 시 `orders/{id}/private/pickup` 처럼 **구매자만 읽을 수 있는 하위 문서**로 옮기고, `confirmPickup` Function 에서만 대조하세요. (Mock 사장님 화면은 코드를 표시하지 않습니다.)
+실결제 연동 시 이전할 Callable Function:
+1. `createOrder`: PortOne `paymentId` 서버 검증(금액·상태) → 서버에서 금액 재계산 → 트랜잭션으로 재고 차감 + 주문 생성 + 중복 없는 픽업코드 발급. 실패 시 결제 취소. `paymentId` 멱등 처리.
+2. `cancelOrder` / `updateOrderStatus`: 취소류는 결제 취소 API + 재고 복구.
+3. 주문 상태 변경 시 FCM 푸시 발송 (현재 인앱 토스트 `OrderToast`).
+4. 이전 후 `orders` create 규칙과 `food_items` 의 소비자 수정 규칙은 삭제.
+5. Cloud Functions 는 Firebase **Blaze(종량제)** 요금제가 필요합니다.
 
 ## 알아둘 점
-- **FCM**: Firebase JS SDK는 React Native에서 `messaging`을 지원하지 않습니다. 푸시는 `expo-notifications`(FCM 자격증명 연동) 또는 `@react-native-firebase/messaging`(Dev Build 필요) 중 선택해야 하며, 토큰을 `users.pushTokens`에 저장합니다. 3단계 이전에 결정하면 됩니다.
+- **FCM**: Firebase JS SDK는 React Native에서 `messaging`을 지원하지 않습니다. 푸시는 `expo-notifications`(FCM 자격증명 연동) 또는 `@react-native-firebase/messaging`(Dev Build 필요) 중 선택해야 하며, 토큰을 `users.pushTokens`에 저장합니다.
+- **QR 스캔**: 네이티브는 `expo-camera`(Expo Go 포함). 웹은 브라우저 `BarcodeDetector` 가 없으면 ZXing wasm 폴리필을 jsdelivr CDN 에서 내려받습니다.
 - **카카오맵**: RN 전용 SDK가 없어 2단계에서 `react-native-webview` + Kakao JS SDK로 구현하는 방식을 제안합니다.
 - **비밀키**: PortOne API Secret 등은 `EXPO_PUBLIC_*`(앱 번들에 노출)에 넣지 말고 Functions의 Secret Manager로.

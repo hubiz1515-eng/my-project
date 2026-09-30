@@ -18,6 +18,7 @@ export interface User {
 }
 
 // ── stores/{storeId} ─────────────────────────────────────────
+// storeId == ownerId (사장님 uid). 사장님 계정당 매장 1개.
 export type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 
 export interface DayHours {
@@ -68,6 +69,11 @@ export interface FoodItem {
   /** 메인 화면 카드에 표시하는 "추가 메뉴(cross-sell)" 여부. true 면 결제 시 함께 담기 후보. */
   isAddOn: boolean;
   imageUrl?: string;
+  /**
+   * 마지막으로 재고를 바꾼 주문 ID. 소비자가 주문/취소하며 재고를 바꿀 때
+   * 보안 규칙이 "같은 트랜잭션의 주문 수량만큼만 바뀌었는지" 검증하는 데 사용.
+   */
+  lastOrderId?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -101,10 +107,11 @@ export interface Order {
   totalPrice: Won;
   /** 결제 시 함께 구매한 매장 추가 메뉴(Cross-selling). 없으면 빈 배열. */
   addOns: OrderLine[];
+  /** itemId → 수량 (대표 + 추가 메뉴). 보안 규칙에서 재고 증감량 검증용. */
+  quantities: Record<string, number>;
   /**
-   * 6자리 숫자 핀코드. QR 에는 `orderId.pickupCode` 형태로 인코딩.
-   * ⚠️ 운영에서는 사장님이 읽을 수 없는 위치(예: orders/{id}/private/pickup)로 분리하고
-   *    confirmPickup Cloud Function 에서만 대조해야 한다.
+   * 6자리 숫자 핀코드. QR 페이로드는 utils/pickupQr.ts 참고.
+   * 구매자와 해당 매장 사장님만 읽을 수 있다(firestore.rules).
    */
   pickupCode: string;
   status: OrderStatus;

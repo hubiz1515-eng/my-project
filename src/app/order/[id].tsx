@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmButton } from '../../components/ConfirmButton';
 import { OrderStatusBadge } from '../../components/order/OrderStatusBadge';
@@ -13,10 +14,11 @@ import type { Order, OrderStatus } from '../../types/models';
 import { formatClock, formatTimeLeft, formatWon } from '../../utils/format';
 import { resetTo } from '../../utils/nav';
 import { orderLines } from '../../utils/orderRules';
+import { buildPickupQr } from '../../utils/pickupQr';
 
 const HERO: Record<OrderStatus, { emoji: string; title: string; desc: string }> = {
   paid: { emoji: '⏳', title: '사장님 수락을 기다리고 있어요', desc: '수락되면 알림으로 알려드려요. 수락 전에는 취소할 수 있어요.' },
-  accepted: { emoji: '✅', title: '주문 수락! 픽업하러 오세요', desc: '매장에서 아래 픽업 코드를 보여주세요.' },
+  accepted: { emoji: '✅', title: '주문 수락! 픽업하러 오세요', desc: '매장에서 아래 QR 또는 픽업 코드를 보여주세요.' },
   picked_up: { emoji: '🎉', title: '픽업 완료', desc: '음식을 구해주셔서 고마워요. 맛있게 드세요!' },
   canceled: { emoji: '↩️', title: '취소된 주문이에요', desc: '' },
 };
@@ -31,13 +33,13 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const now = useNow(15_000);
-  const { data: order, loading } = useLiveQuery<Order | null>((cb) => subscribeOrder(id, cb), [id], null);
+  const { data: order, loading, error: loadError } = useLiveQuery<Order | null>((cb, err) => subscribeOrder(id, cb, err), [id], null);
   const [error, setError] = useState<string | null>(null);
 
   if (!order) {
     return (
       <View style={styles.center}>
-        {loading ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.muted}>주문을 찾을 수 없어요.</Text>}
+        {loading ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.muted}>{loadError ?? '주문을 찾을 수 없어요.'}</Text>}
         {!loading && (
           <Pressable onPress={() => resetTo('/')}>
             <Text style={styles.link}>홈으로</Text>
@@ -88,7 +90,11 @@ export default function OrderDetailScreen() {
 
         {active && (
           <View style={[styles.card, styles.codeCard]}>
-            <Text style={styles.codeLabel}>픽업 코드</Text>
+            <Text style={styles.codeLabel}>매장에서 QR 을 보여주세요</Text>
+            <View style={styles.qr} accessibilityLabel="픽업 QR 코드">
+              <QRCode value={buildPickupQr(order.orderId, order.pickupCode)} size={200} backgroundColor="#fff" color={colors.text} />
+            </View>
+            <Text style={styles.codeLabel}>또는 픽업 코드</Text>
             <Text style={styles.code} accessibilityLabel={`픽업 코드 ${order.pickupCode.split('').join(' ')}`}>
               {order.pickupCode.slice(0, 3)} {order.pickupCode.slice(3)}
             </Text>
@@ -152,6 +158,7 @@ const styles = StyleSheet.create({
   stepText: { fontSize: 12, color: colors.textMuted },
   stepTextOn: { color: colors.text, fontWeight: '700' },
   codeCard: { alignItems: 'center', borderWidth: 2, borderColor: colors.primary },
+  qr: { padding: 12, backgroundColor: '#fff', borderRadius: radius.md, marginVertical: 4 },
   codeLabel: { fontSize: 13, color: colors.textMuted, fontWeight: '700' },
   code: { fontSize: 44, fontWeight: '800', letterSpacing: 6, color: colors.text, fontVariant: ['tabular-nums'] },
   codeHint: { fontSize: 13, color: colors.textMuted },

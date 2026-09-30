@@ -2,8 +2,8 @@ import { router, usePathname } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, Vibration } from 'react-native';
 import { colors, radius } from '../../constants/theme';
-import { subscribeAllOrders } from '../../services/orders';
-import { MOCK_CUSTOMER, setSellerStore } from '../../services/session';
+import { useProfile } from '../../contexts/AuthContext';
+import { subscribeMyOrders, subscribeStoreOrders } from '../../services/orders';
 import type { Order, OrderStatus } from '../../types/models';
 import { formatWon } from '../../utils/format';
 import { resetTo } from '../../utils/nav';
@@ -20,34 +20,32 @@ interface Toast {
 const SHOW_MS = 4500;
 
 /**
- * 인앱 주문 알림 (FCM 푸시 연동 전 대체).
- * 한 기기에서 양쪽 모드를 테스트하므로 사장님/고객 알림을 모두 띄우고 태그로 구분한다.
+ * 인앱 주문 알림 (FCM 푸시 연동 전 대체). 앱이 켜져 있을 때만 동작.
+ * - 고객: 내 주문의 수락 / 픽업 완료 / 매장 취소
+ * - 사장님: 내 매장의 새 주문
  */
 export function OrderToast({ top }: { top: number }) {
+  const profile = useProfile();
   const pathname = usePathname();
   const pathRef = useRef(pathname);
   pathRef.current = pathname;
   const [queue, setQueue] = useState<Toast[]>([]);
-  const prev = useRef<Map<string, OrderStatus> | null>(null);
 
+  const push = (toasts: Toast[]) => {
+    if (!toasts.length) return;
+    if (Platform.OS !== 'web' && toasts.some((t) => t.who === 'seller')) Vibration.vibrate(300);
+    setQueue((q) => [...q, ...toasts]);
+  };
+
+  useEffect(() => watchChanges((cb) => subscribeMyOrders(profile.uid, cb), customerToast, push), [profile.uid]);
   useEffect(() => {
-    return subscribeAllOrders((orders) => {
-      const before = prev.current;
-      prev.current = new Map(orders.map((o) => [o.orderId, o.status]));
-      if (!before) return; // 첫 스냅샷은 기준점만 저장
-      const toasts: Toast[] = [];
-      for (const o of orders) {
-        const was = before.get(o.orderId);
-        if (was === o.status) continue;
-        const t = toToast(o, was, () => pathRef.current);
-        if (t) toasts.push(t);
-      }
-      if (toasts.length) {
-        if (Platform.OS !== 'web' && toasts.some((t) => t.who === 'seller')) Vibration.vibrate(300);
-        setQueue((q) => [...q, ...toasts]);
-      }
-    });
-  }, []);
+    if (profile.role !== 'seller') return;
+    return watchChanges(
+      (cb) => subscribeStoreOrders(profile.uid, cb),
+      (o, was) => sellerToast(o, was, () => pathRef.current),
+      push,
+    );
+  }, [profile.uid, profile.role]);
 
   const current = queue[0];
   useEffect(() => {
@@ -68,38 +66,54 @@ export function OrderToast({ top }: { top: number }) {
       style={[styles.toast, { top }, seller ? styles.seller : styles.customer]}
       accessibilityRole="alert"
     >
-      <Text style={styles.tag}>{seller ? '🏪 사장님 알림' : '🛍️ 고객 알림'}</Text>
+      <Text style={styles.tag}>{seller ? '🏪 매장 알림' : '🛍️ 주문 알림'}</Text>
       <Text style={styles.title}>{current.title}</Text>
       <Text style={styles.body} numberOfLines={2}>{current.body}</Text>
     </Pressable>
   );
 }
 
-function toToast(o: Order, was: OrderStatus | undefined, getPath: () => string): Toast | null {
+/** 구독 스냅샷을 이전 상태와 비교해 바뀐 주문만 알림으로. 첫 스냅샷은 기준점. */
+function watchChanges(
+  subscribe: (cb: (orders: Order[]) => void) => () => void,
+  toToast: (o: Order, was: OrderStatus | undefined) => Toast | null,
+  push: (t: Toast[]) => void,
+) {
+  let prev: Map<string, OrderStatus> | null = null;
+  return subscribe((orders) => {
+    const before = prev;
+    prev = new Map(orders.map((o) => [o.orderId, o.status]));
+    if (!before) return;
+    push(orders.filter((o) => before.get(o.orderId) !== o.status).map((o) => toToast(o, before.get(o.orderId))).filter((t): t is Toast => !!t));
+  });
+}
+
+function sellerToast(o: Order, was: OrderStatus | undefined, getPath: () => string): Toast | null {
+  if (was !== undefined || o.status !== 'paid') return null;
+  return {
+    key: `${o.orderId}:new`,
+    who: 'seller',
+    title: '🔔 새 픽업 주문',
+    body: `${o.customerName}님 · ${orderSummary(o)} · ${formatWon(o.totalPrice)}`,
+    onPress: () => {
+      if (getPath().startsWith('/seller')) router.setParams({ tab: 'orders' });
+      else resetTo('/seller?tab=orders');
+    },
+  };
+}
+
+function customerToast(o: Order, was: OrderStatus | undefined): Toast | null {
+  if (was === undefined) return null; // 내가 방금 만든 주문
   const key = `${o.orderId}:${o.status}`;
-  const openOrder = () => router.push(`/order/${o.orderId}`);
-  if (was === undefined && o.status === 'paid') {
-    return {
-      key,
-      who: 'seller',
-      title: `🔔 ${o.storeName} · 새 픽업 주문`,
-      body: `${o.customerName}님 · ${orderSummary(o)} · ${formatWon(o.totalPrice)}`,
-      onPress: () => {
-        setSellerStore(o.storeId);
-        if (getPath().startsWith('/seller')) router.setParams({ tab: 'orders' });
-        else resetTo('/seller?tab=orders');
-      },
-    };
-  }
-  if (o.customerId !== MOCK_CUSTOMER.uid) return null;
+  const onPress = () => router.push(`/order/${o.orderId}`);
   if (o.status === 'accepted') {
-    return { key, who: 'customer', title: '✅ 주문이 수락됐어요', body: `${o.storeName}에 방문해 픽업 코드 ${o.pickupCode}를 보여주세요.`, onPress: openOrder };
+    return { key, who: 'customer', title: '✅ 주문이 수락됐어요', body: `${o.storeName}에 방문해 QR 또는 픽업 코드를 보여주세요.`, onPress };
   }
   if (o.status === 'picked_up') {
-    return { key, who: 'customer', title: '🎉 픽업 완료', body: `${o.storeName} · ${orderSummary(o)} 맛있게 드세요!`, onPress: openOrder };
+    return { key, who: 'customer', title: '🎉 픽업 완료', body: `${o.storeName} · ${orderSummary(o)} 맛있게 드세요!`, onPress };
   }
   if (o.status === 'canceled' && o.canceledBy === 'seller') {
-    return { key, who: 'customer', title: '주문이 취소됐어요', body: `${o.storeName} 사정으로 취소되어 ${formatWon(o.totalPrice)} 환불됩니다.`, onPress: openOrder };
+    return { key, who: 'customer', title: '주문이 취소됐어요', body: `${o.storeName} 사정으로 취소되어 ${formatWon(o.totalPrice)} 환불됩니다.`, onPress };
   }
   return null;
 }

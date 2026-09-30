@@ -7,11 +7,12 @@ import { QtyStepper } from '../../components/QtyStepper';
 import { colors, radius } from '../../constants/theme';
 import { useLiveQuery } from '../../hooks/useLiveQuery';
 import { useNow } from '../../hooks/useNow';
+import { useProfile } from '../../contexts/AuthContext';
 import { useUserLocation } from '../../hooks/useUserLocation';
-import { subscribeNearbyFoodItems } from '../../services/foodItems';
+import { subscribeFoodItem, subscribeStoreFoodItems } from '../../services/foodItems';
 import { createOrder } from '../../services/orders';
 import { cancelPayment, PAYMENT_METHODS } from '../../services/payments';
-import { MOCK_CUSTOMER } from '../../services/session';
+import { toUserMessage } from '../../services/types';
 import type { FoodItem, PaymentMethod } from '../../types/models';
 import { discountPercent, formatClock, formatDistance, formatTimeLeft, formatWon } from '../../utils/format';
 import { distanceMeters } from '../../utils/geo';
@@ -23,9 +24,13 @@ export default function ItemDetailScreen() {
   const insets = useSafeAreaInsets();
   const now = useNow(15_000);
   const { coords: user } = useUserLocation();
-  const { data: allItems, loading } = useLiveQuery<FoodItem[]>(
-    (cb) => subscribeNearbyFoodItems(user, cb),
-    [],
+  const profile = useProfile();
+  const { data: item, loading } = useLiveQuery<FoodItem | null>((cb, err) => subscribeFoodItem(id, cb, err), [id], null);
+  const storeId = item?.storeId;
+  // 같은 매장 상품 (함께 담기 후보) — 실시간 재고 반영
+  const { data: storeItems } = useLiveQuery<FoodItem[]>(
+    storeId ? (cb, err) => subscribeStoreFoodItems(storeId, cb, err) : null,
+    [storeId],
     [],
   );
 
@@ -35,13 +40,12 @@ export default function ItemDetailScreen() {
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const item = allItems.find((i) => i.itemId === id);
   const available = !!item && isOrderable(item, now);
 
   // 같은 매장에서 지금 살 수 있는 다른 메뉴 = 함께 담기(Cross-selling) 후보
   const addOnCandidates = useMemo(
-    () => (item ? allItems.filter((i) => i.storeId === item.storeId && i.itemId !== item.itemId && isOrderable(i, now)) : []),
-    [allItems, item, now],
+    () => (item ? storeItems.filter((i) => i.itemId !== item.itemId && isOrderable(i, now)) : []),
+    [storeItems, item, now],
   );
 
   // 재고가 실시간으로 줄어도 선택 수량이 재고를 넘지 않도록 보정
@@ -59,8 +63,7 @@ export default function ItemDetailScreen() {
       if (!item) return;
       try {
         const order = await createOrder({
-          customerId: MOCK_CUSTOMER.uid,
-          customerName: MOCK_CUSTOMER.name,
+          customer: profile,
           main: { itemId: item.itemId, quantity: mainQty },
           addOns: addOns.map((a) => ({ itemId: a.item.itemId, quantity: a.quantity })),
           paymentId,
@@ -72,11 +75,11 @@ export default function ItemDetailScreen() {
       } catch (e) {
         // 결제는 됐지만 주문 생성 실패 → 자동 환불 (운영: 서버가 처리)
         await cancelPayment(paymentId, '주문 생성 실패');
-        setError(`${e instanceof Error ? e.message : '주문에 실패했어요.'} 결제는 자동 취소됐어요.`);
+        setError(`${toUserMessage(e, '주문에 실패했어요.')} 결제는 자동 취소됐어요.`);
         throw e;
       }
     },
-    [item, mainQty, addOns, method, total],
+    [item, mainQty, addOns, method, total, profile],
   );
 
   if (loading && !item) {

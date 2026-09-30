@@ -31,6 +31,13 @@
         {
           "locationWhenInUsePermission": "내 주변 마감 할인 매장을 보여주기 위해 현재 위치를 사용합니다."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "손님의 픽업 QR 코드를 스캔하기 위해 카메라를 사용합니다.",
+          "recordAudioAndroid": false
+        }
       ]
     ]
   }

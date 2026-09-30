@@ -6,12 +6,12 @@ import { FoodCard } from '../components/FoodCard';
 import { PickupMap } from '../components/map/PickupMap';
 import { SortChips, type SortKey } from '../components/SortChips';
 import { colors } from '../constants/theme';
+import { useProfile } from '../contexts/AuthContext';
 import { useLiveQuery } from '../hooks/useLiveQuery';
 import { useNearbyFoodItems } from '../hooks/useNearbyFoodItems';
 import { useNow } from '../hooks/useNow';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { subscribeMyOrders } from '../services/orders';
-import { MOCK_CUSTOMER } from '../services/session';
 import type { MapPin } from '../types/map';
 import type { FoodItem, Order } from '../types/models';
 import { discountPercent } from '../utils/format';
@@ -26,13 +26,14 @@ interface Row {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { coords: user, source } = useUserLocation();
-  const { items, loading } = useNearbyFoodItems(user, source !== 'loading');
+  const profile = useProfile();
+  const { items, loading, error } = useNearbyFoodItems(user, source !== 'loading');
   const now = useNow();
   const [sort, setSort] = useState<SortKey>('distance');
   /** 지도 핀은 매장 단위이므로 선택도 매장 단위 */
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const listRef = useRef<FlatList<Row>>(null);
-  const { data: myOrders } = useLiveQuery<Order[]>((cb) => subscribeMyOrders(MOCK_CUSTOMER.uid, cb), [], []);
+  const { data: myOrders } = useLiveQuery<Order[]>((cb, err) => subscribeMyOrders(profile.uid, cb, err), [profile.uid], []);
   const activeOrders = myOrders.filter(isActiveOrder).length;
 
   // 판매 중 · 재고 있음 · 마감 전 상품만 노출하고 정렬
@@ -109,7 +110,11 @@ export default function HomeScreen() {
         <SortChips value={sort} onChange={setSort} />
       </View>
 
-      {loading && items.length === 0 ? (
+      {error ? (
+        <View style={styles.center}>
+          <Text style={styles.muted}>{error}</Text>
+        </View>
+      ) : loading && items.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
         </View>
@@ -123,7 +128,7 @@ export default function HomeScreen() {
           onScrollToIndexFailed={({ index }) => setTimeout(() => listRef.current?.scrollToIndex({ index, animated: true }), 200)}
           ListEmptyComponent={
             <View style={styles.center}>
-              <Text style={styles.muted}>지금 픽업 가능한 마감 할인이 없어요.</Text>
+              <Text style={styles.muted}>반경 3km 안에 지금 픽업 가능한 마감 할인이 없어요.</Text>
             </View>
           }
           renderItem={({ item: r }) => (

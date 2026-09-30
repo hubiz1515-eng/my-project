@@ -7,34 +7,38 @@
 npm install
 cp .env.example .env      # Firebase 웹 앱 설정값 입력
 npx expo start
-npx tsc --noEmit          # 타입 검사
+npm run typecheck         # 타입 검사
 ```
-Firebase 규칙/인덱스 배포: `npx firebase-tools deploy --only firestore`
 
-## 소비자 메인 화면 (2단계)
-- 상단 지도 + 하단 마감 할인 카드 리스트, 정렬(가까운순/할인율순/마감임박순), 핀↔카드 연동
-- 판매 중 · 재고 있음 · 마감 전 상품만 노출 (`src/app/index.tsx`)
-- 현재는 Mock 데이터(`src/mocks/foodItems.ts`)이며 `src/services/foodItems.ts` 만 Firestore 쿼리로 교체하면 됩니다.
-- **카카오맵**: `.env` 의 `EXPO_PUBLIC_KAKAO_JS_KEY` 가 비어 있으면 Mock 지도를, 채우면 WebView 로 실제 카카오맵을 표시합니다.
-  카카오 개발자 콘솔 > 플랫폼 > Web 에 `https://localhost` 를 등록해야 합니다.
-- 위치 권한 거부/무응답(6초) 시 기본 위치(강남역)로 대체됩니다.
+### Firebase 준비 (최초 1회, 로컬 PC 에서)
+1. 콘솔 > Authentication > 로그인 방법 > **이메일/비밀번호** 사용 설정
+2. 보안 규칙·색인 배포 — 이것 없이는 모든 읽기/쓰기가 거부되거나 색인 오류가 납니다.
+   ```bash
+   npx firebase-tools login
+   npx firebase-tools deploy --only firestore --project lastorder-ec049
+   ```
+   색인 생성에는 몇 분 걸릴 수 있습니다.
 
-## 사장님 관리 화면 (3단계)
-- 상단 **테스트 모드 스위치**(🛍️ 소비자 ↔ 🏪 사장님)로 전환 — 로그인/역할 연동 전 임시 (`src/components/ModeSwitch.tsx`)
-- **3초 등록 폼**: 상품명·원가·할인가·마감시간·수량. 할인율 칩(30/50/70%), 마감 칩(30분/1시간/2시간 후), 최근 상품 재등록 칩
-- **즉시 제어**: 재고 −1/+1, 판매중지/재개, 품절 처리 (`src/app/seller.tsx`)
-- 재고·상태 규칙은 `src/utils/foodItemRules.ts` (재고 0 → 품절, 사장님이 +1 하면 판매 재개, 자동 재판매 없음)
-- 두 화면은 같은 Mock 저장소(`src/services/foodItems.ts`)를 구독하므로 사장님의 변경이 소비자 화면에 즉시 반영됩니다.
+### 로컬 에뮬레이터로 개발/테스트 (실데이터와 분리)
+```bash
+npx firebase-tools emulators:start --project demo-pickupdeal    # 또는 npm run emulators (firebase-tools 설치 시)
+EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true EXPO_PUBLIC_FIREBASE_PROJECT_ID=demo-pickupdeal npx expo start
+```
+보안 규칙 테스트 (Java 필요): `npx firebase-tools emulators:exec --only firestore --project demo-pickupdeal "node --test tests/firestore.rules.test.mjs"` (= `npm run test:rules`)
 
-## 픽업 예약·결제·주문 처리 (4단계)
-- **소비자**: 카드 탭 → 상품 상세(`/item/[id]`) → 수량 + 같은 매장 메뉴 함께 담기(Cross-selling) → 토스페이/카카오페이(테스트) 결제 → 주문 상세(`/order/[id]`)에서 6자리 픽업 코드·진행 상태 확인, 수락 전 취소 가능. `내 주문`(`/orders`) 목록.
-- **사장님**: `주문 관리` 탭 — 수락 대기 주문 [수락/거절], 픽업 코드 6자리 입력 시 자동 픽업 완료. 테스트용 매장 전환 칩.
-- **실시간 알림**: 새 주문 → 사장님 알림, 수락/픽업/거절 → 고객 알림 (인앱 토스트, 추후 FCM). 모드 스위치에 수락 대기 배지.
-- 결제는 Mock(`src/services/payments.ts`, `MockPaymentSheet`)이며 PortOne 연동 지점에 TODO 가 있습니다. 주문 규칙은 `src/utils/orderRules.ts`.
+## 기능 요약
+- **로그인/가입** (`/login`, `/signup`): 이메일 + 역할(소비자/사장님) 선택. 역할은 가입 후 변경 불가. 프로필이 없는 계정은 `/profile-setup`.
+- **소비자** (`/`): 반경 3km 판매 중 상품 지도 + 카드 리스트 → 상세(`/item/[id]`)에서 수량·같은 매장 메뉴 함께 담기 → 테스트 결제 → 주문 상세(`/order/[id]`)에서 **픽업 QR + 6자리 코드**, 실시간 진행 상태, 수락 전 취소. `내 주문`(`/orders`).
+- **사장님** (`/seller`): 첫 진입 시 매장 등록(계정당 1개) → `상품 관리`(3초 등록, 재고 ±1, 판매중지/품절) / `주문 관리`(수락·거절, 코드 입력 또는 **QR 스캔**(`/scan`)으로 즉시 픽업 완료). 상단 스위치로 소비자 화면도 둘러볼 수 있습니다.
+- **실시간**: 모든 목록은 Firestore `onSnapshot` 구독. 새 주문/수락/픽업/취소 시 인앱 알림(추후 FCM 푸시).
+- **카카오맵**: `EXPO_PUBLIC_KAKAO_JS_KEY` 가 비어 있으면 Mock 지도. 키를 넣으면 WebView 로 실제 지도(카카오 콘솔 > 플랫폼 > Web 에 `https://localhost` 등록). REST 키를 넣으면 매장 등록 시 '주소로 찾기' 사용 가능.
+- **결제**: 아직 Mock(`src/services/payments.ts`, `MockPaymentSheet`). PortOne 연동 지점에 TODO.
 
 ## 구조
-- `src/config/firebaseConfig.ts` — Firebase 초기화 (`app`, `auth`, `db`)
-- `src/config/collections.ts` — 타입이 적용된 컬렉션/문서 참조
-- `src/types/models.ts` — Firestore 문서 타입
-- `firestore.rules`, `firestore.indexes.json` — 보안 규칙 / 인덱스
+- `src/app/` — 화면(Expo Router). `_layout.tsx` 에서 로그인 상태·역할별 접근 제어(`Stack.Protected`)
+- `src/contexts/AuthContext.tsx` — 로그인 상태 + `users/{uid}` 프로필
+- `src/services/` — Firestore/Auth 접근 (`auth`, `stores`, `foodItems`, `orders`, `payments`)
+- `src/utils/` — 순수 규칙 (`orderRules`, `foodItemRules`, `pickupQr`, `pickupTime`)
+- `src/config/firebaseConfig.ts` — Firebase 초기화 (+ 에뮬레이터 연결)
+- `firestore.rules`, `firestore.indexes.json`, `tests/firestore.rules.test.mjs` — 보안 규칙 / 색인 / 규칙 테스트
 - `docs/firestore-schema.md` — 데이터 구조 설계 문서

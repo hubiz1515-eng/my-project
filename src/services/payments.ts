@@ -1,5 +1,5 @@
 import type { PaymentMethod, Won } from '../types/models';
-import { delay } from './mockDb';
+import { delay } from './types';
 
 /**
  * 결제 계층 (현재: Mock).
