@@ -55,6 +55,7 @@ function Shell() {
           <Stack.Screen name="item/[id]" options={{ animation: 'slide_from_bottom' }} />
           <Stack.Screen name="order/[id]" options={{ animation: 'fade' }} />
           <Stack.Screen name="orders" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="payment-complete" />
           <Stack.Protected guard={isSeller}>
             <Stack.Screen name="seller" />
             <Stack.Screen name="scan" options={{ animation: 'slide_from_bottom' }} />

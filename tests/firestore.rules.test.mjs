@@ -61,19 +61,6 @@ beforeEach(async () => {
   });
 });
 
-/** 고객 주문 생성 배치 (재고 차감 + 주문 생성) */
-function orderBatch(f, { orderId = 'o1', mainDelta = 2, data = {}, withAddOn = false } = {}) {
-  const b = writeBatch(f);
-  b.update(doc(f, 'food_items', ITEM), { stock: 3 - mainDelta, status: 3 - mainDelta === 0 ? 'sold_out' : 'selling', lastOrderId: orderId });
-  if (withAddOn) b.update(doc(f, 'food_items', ADDON), { stock: 4, lastOrderId: orderId });
-  b.set(doc(f, 'orders', orderId), order({
-    orderId,
-    ...(withAddOn ? { addOns: [{ itemId: ADDON, title: '식빵', unitPrice: 2500, quantity: 1 }], quantities: { [ITEM]: 2, [ADDON]: 1 }, totalPrice: 14300 } : {}),
-    ...data,
-  }));
-  return b;
-}
-
 describe('users', () => {
   test('본인 프로필 생성/조회 가능, 남의 것은 불가', async () => {
     await assertSucceeds(setDoc(doc(db('carol'), 'users/carol'), { uid: 'carol', role: 'customer', name: '캐롤' }));
@@ -114,36 +101,24 @@ describe('food_items', () => {
   });
 });
 
-describe('orders: 생성', () => {
-  test('재고 차감 + 주문 생성 (추가 메뉴 포함)', async () => {
-    await assertSucceeds(orderBatch(db(ALICE), { withAddOn: true }).commit());
+describe('orders: 클라이언트 생성·취소 불가 (Cloud Functions 전용)', () => {
+  test('고객이 재고 차감 + 주문 생성 배치를 직접 커밋할 수 없음', async () => {
+    const f = db(ALICE);
+    const b = writeBatch(f);
+    b.update(doc(f, 'food_items', ITEM), { stock: 1, status: 'selling' });
+    b.set(doc(f, 'orders', 'o1'), order());
+    await assertFails(b.commit());
   });
-  test('마지막 재고 구매 시 sold_out 으로', async () => {
-    await assertSucceeds(orderBatch(db(ALICE), { mainDelta: 3, data: { quantity: 3, quantities: { [ITEM]: 3 } } }).commit());
-  });
-  test('주문 수량과 재고 차감량이 다르면 거부', async () => {
-    await assertFails(orderBatch(db(ALICE), { mainDelta: 1 }).commit());
-  });
-  test('재고 차감 없이 주문만 만들면 거부', async () => {
+  test('주문만 단독 생성도 불가', async () => {
     await assertFails(setDoc(doc(db(ALICE), 'orders', 'o1'), order()));
-  });
-  test('남의 이름으로 주문 생성 불가', async () => {
-    await assertFails(orderBatch(db(BOB)).commit());
-  });
-  test('판매중지 상품은 주문 불가', async () => {
-    await seed((f) => updateDoc(doc(f, 'food_items', ITEM), { status: 'paused' }));
-    await assertFails(orderBatch(db(ALICE)).commit());
-  });
-  test('이미 있는 주문 ID 로 재고를 또 차감할 수 없음', async () => {
-    await assertSucceeds(orderBatch(db(ALICE), { mainDelta: 1, data: { quantity: 1, quantities: { [ITEM]: 1 } } }).commit());
-    await assertFails(updateDoc(doc(db(ALICE), 'food_items', ITEM), { stock: 1, lastOrderId: 'o1' }));
+    await assertFails(setDoc(doc(db(SELLER), 'orders', 'o2'), order({ orderId: 'o2' })));
   });
 });
 
 describe('orders: 조회·상태 변경', () => {
   beforeEach(async () => {
     await seed(async (f) => {
-      await setDoc(doc(f, 'food_items', ITEM), item({ stock: 1, lastOrderId: 'o1' }));
+      await setDoc(doc(f, 'food_items', ITEM), item({ stock: 1 }));
       await setDoc(doc(f, 'orders', 'o1'), order());
     });
   });
@@ -155,37 +130,14 @@ describe('orders: 조회·상태 변경', () => {
     await assertFails(getDoc(doc(db(SELLER2), 'orders/o1')));
   });
 
-  test('고객: 수락 전 취소 + 재고 복구', async () => {
-    const f = db(ALICE);
-    const b = writeBatch(f);
-    b.update(doc(f, 'orders/o1'), { status: 'canceled', canceledBy: 'customer' });
-    b.update(doc(f, 'food_items', ITEM), { stock: 3, lastOrderId: 'o1' });
-    await assertSucceeds(b.commit());
+  test('고객: 직접 취소·재고 복구 불가 (cancelOrder 함수 사용)', async () => {
+    await assertFails(updateDoc(doc(db(ALICE), 'orders/o1'), { status: 'canceled', canceledBy: 'customer' }));
+    await assertFails(updateDoc(doc(db(ALICE), 'food_items', ITEM), { stock: 3 }));
   });
 
-  test('고객: 취소 없이 재고만 늘리기 불가', async () => {
-    await assertFails(updateDoc(doc(db(ALICE), 'food_items', ITEM), { stock: 3, lastOrderId: 'o1' }));
-  });
-
-  test('고객: 재고 복구하면서 품절→판매중 전환 불가 (자동 재판매 금지)', async () => {
-    await seed((f) => updateDoc(doc(f, 'food_items', ITEM), { stock: 0, status: 'sold_out' }));
-    const f = db(ALICE);
-    const b = writeBatch(f);
-    b.update(doc(f, 'orders/o1'), { status: 'canceled', canceledBy: 'customer' });
-    b.update(doc(f, 'food_items', ITEM), { stock: 2, status: 'selling', lastOrderId: 'o1' });
-    await assertFails(b.commit());
-  });
-
-  test('고객: 수락 후에는 취소 불가, 스스로 수락/픽업 처리 불가', async () => {
+  test('고객: 스스로 수락/픽업 처리 불가', async () => {
     await assertFails(updateDoc(doc(db(ALICE), 'orders/o1'), { status: 'accepted' }));
     await assertFails(updateDoc(doc(db(ALICE), 'orders/o1'), { status: 'picked_up' }));
-    await seed((f) => updateDoc(doc(f, 'orders/o1'), { status: 'accepted' }));
-    await assertFails(updateDoc(doc(db(ALICE), 'orders/o1'), { status: 'canceled', canceledBy: 'customer' }));
-  });
-
-  test('주문 금액·코드 등 다른 필드 수정 불가', async () => {
-    await assertFails(updateDoc(doc(db(ALICE), 'orders/o1'), { status: 'canceled', canceledBy: 'customer', totalPrice: 1 }));
-    await assertFails(updateDoc(doc(db(SELLER), 'orders/o1'), { status: 'accepted', pickupCode: '000000' }));
   });
 
   test('사장님: 수락 → 픽업 완료, 다른 매장 사장님은 불가', async () => {
@@ -195,7 +147,27 @@ describe('orders: 조회·상태 변경', () => {
     await assertFails(updateDoc(doc(db(SELLER), 'orders/o1'), { status: 'paid' }));
   });
 
-  test('사장님: 거절(취소)', async () => {
-    await assertSucceeds(updateDoc(doc(db(SELLER), 'orders/o1'), { status: 'canceled', canceledBy: 'seller' }));
+  test('사장님: 클라이언트에서 직접 거절(취소) 불가 — 환불이 필요하므로 함수로만', async () => {
+    await assertFails(updateDoc(doc(db(SELLER), 'orders/o1'), { status: 'canceled', canceledBy: 'seller' }));
+  });
+
+  test('주문 금액·코드 등 다른 필드 수정 불가', async () => {
+    await assertFails(updateDoc(doc(db(SELLER), 'orders/o1'), { status: 'accepted', pickupCode: '000000' }));
+    await assertFails(updateDoc(doc(db(SELLER), 'orders/o1'), { status: 'accepted', totalPrice: 1 }));
+  });
+});
+
+describe('checkouts', () => {
+  beforeEach(async () => {
+    await seed((f) => setDoc(doc(f, 'checkouts', 'p1'), { paymentId: 'p1', customerId: ALICE, storeOwnerId: SELLER, totalPrice: 5900, status: 'pending' }));
+  });
+  test('구매자만 조회', async () => {
+    await assertSucceeds(getDoc(doc(db(ALICE), 'checkouts/p1')));
+    await assertFails(getDoc(doc(db(BOB), 'checkouts/p1')));
+    await assertFails(getDoc(doc(db(SELLER), 'checkouts/p1')));
+  });
+  test('클라이언트 쓰기 불가 (금액 조작 방지)', async () => {
+    await assertFails(updateDoc(doc(db(ALICE), 'checkouts/p1'), { totalPrice: 100 }));
+    await assertFails(setDoc(doc(db(ALICE), 'checkouts/p2'), { paymentId: 'p2', customerId: ALICE, totalPrice: 100 }));
   });
 });

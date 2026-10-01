@@ -1,7 +1,7 @@
 import type { Timestamp } from 'firebase/firestore';
+import type { FoodItemStatus, OrderLine, OrderStatus, PaymentMethod, RefundStatus, Won } from '../../shared/types';
 
-/** 금액은 모두 KRW 정수(원 단위). 소수/문자열 금지. */
-export type Won = number;
+export type { FoodItemStatus, OrderLine, OrderStatus, PaymentMethod, RefundStatus, Won };
 
 // ── users/{uid} ──────────────────────────────────────────────
 export type UserRole = 'customer' | 'seller';
@@ -45,7 +45,6 @@ export interface Store {
 }
 
 // ── food_items/{itemId} ──────────────────────────────────────
-export type FoodItemStatus = 'selling' | 'sold_out' | 'paused';
 
 export interface FoodItem {
   itemId: string;
@@ -69,33 +68,11 @@ export interface FoodItem {
   /** 메인 화면 카드에 표시하는 "추가 메뉴(cross-sell)" 여부. true 면 결제 시 함께 담기 후보. */
   isAddOn: boolean;
   imageUrl?: string;
-  /**
-   * 마지막으로 재고를 바꾼 주문 ID. 소비자가 주문/취소하며 재고를 바꿀 때
-   * 보안 규칙이 "같은 트랜잭션의 주문 수량만큼만 바뀌었는지" 검증하는 데 사용.
-   */
-  lastOrderId?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
 // ── orders/{orderId} ─────────────────────────────────────────
-/**
- * paid      : 결제 완료, 사장님 수락 대기
- * accepted  : 사장님 수락, 고객 방문 대기
- * picked_up : 핀코드/QR 확인 후 픽업 완료
- * canceled  : 고객 취소(수락 전) 또는 사장님 거절 → 환불
- */
-export type OrderStatus = 'paid' | 'accepted' | 'picked_up' | 'canceled';
-export type PaymentMethod = 'tosspay' | 'kakaopay';
-
-/** 주문 시점 스냅샷. 이후 사장님이 가격/이름을 바꿔도 주문 내역은 변하지 않는다. */
-export interface OrderLine {
-  itemId: string;
-  title: string;
-  unitPrice: Won;
-  quantity: number;
-}
-
 export interface Order {
   orderId: string;
   customerId: string;
@@ -107,7 +84,7 @@ export interface Order {
   totalPrice: Won;
   /** 결제 시 함께 구매한 매장 추가 메뉴(Cross-selling). 없으면 빈 배열. */
   addOns: OrderLine[];
-  /** itemId → 수량 (대표 + 추가 메뉴). 보안 규칙에서 재고 증감량 검증용. */
+  /** itemId → 수량 (대표 + 추가 메뉴) */
   quantities: Record<string, number>;
   /**
    * 6자리 숫자 핀코드. QR 페이로드는 utils/pickupQr.ts 참고.
@@ -124,7 +101,7 @@ export interface Order {
   unitPrice: Won;
   customerName: string;
 
-  // ── 결제 (PortOne) ──
+  // ── 결제 (PortOne) — 문서 ID == paymentId == checkout ID ──
   paymentId: string;
   paymentMethod: PaymentMethod;
   paidAt: Timestamp;
@@ -133,6 +110,31 @@ export interface Order {
   pickedUpAt?: Timestamp;
   canceledAt?: Timestamp;
   canceledBy?: 'customer' | 'seller';
+  /** 취소된 주문의 환불 진행 상태 (Cloud Function 이 PortOne 취소 API 호출 후 갱신) */
+  refundStatus?: RefundStatus;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// ── checkouts/{paymentId} ── (Cloud Functions 만 쓰기, 구매자만 읽기)
+/**
+ * 결제 전에 서버가 확정한 장바구니·금액. PortOne 결제 금액을 이 값과 대조한다.
+ * pending → completed(주문 생성) | failed(검증 실패/재고 부족 → 환불)
+ */
+export interface Checkout {
+  paymentId: string;
+  customerId: string;
+  customerName: string;
+  storeId: string;
+  storeOwnerId: string;
+  storeName: string;
+  lines: OrderLine[];
+  totalPrice: Won;
+  orderName: string;
+  paymentMethod: PaymentMethod;
+  status: 'pending' | 'completed' | 'failed';
+  failureReason?: string;
+  refundStatus?: RefundStatus;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

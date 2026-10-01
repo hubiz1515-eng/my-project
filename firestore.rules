@@ -1,10 +1,10 @@
 rules_version = '2';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 현재 단계: 결제는 Mock, 주문/재고 변경은 클라이언트 트랜잭션.
-// 소비자의 재고 변경은 "같은 트랜잭션에서 만들거나 취소한 주문의 수량만큼"만 허용한다.
-// PortOne 실결제 연동 시 주문 생성·취소를 Cloud Functions(Admin SDK)로 옮기고
-// orders 의 create 와 food_items 의 소비자 변경 규칙을 제거할 것 (docs/firestore-schema.md).
+// 돈·재고가 걸린 쓰기(주문 생성, 결제 검증, 취소·환불, 주문에 따른 재고 증감)는
+// Cloud Functions(Admin SDK, 규칙 우회)만 수행한다. 클라이언트는:
+//   - 사장님: 자기 매장/상품 관리, 주문 수락·픽업 완료
+//   - 고객: 읽기만 (주문·결제 내역)
 // ─────────────────────────────────────────────────────────────────────────────
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -14,8 +14,6 @@ service cloud.firestore {
     // 주의: $(x) 에 'a/b' 처럼 슬래시가 든 문자열을 넣으면 한 세그먼트로 취급되므로 경로를 나눠 쓴다
     function userPath(uid) { return /databases/$(database)/documents/users/$(uid); }
     function storePath(id) { return /databases/$(database)/documents/stores/$(id); }
-    function itemPath(id) { return /databases/$(database)/documents/food_items/$(id); }
-    function orderPath(id) { return /databases/$(database)/documents/orders/$(id); }
     function isSeller() {
       return signedIn() && get(userPath(request.auth.uid)).data.role == 'seller';
     }
@@ -47,35 +45,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ── food_items ──────────────────────────────────────────────────────────
+    // ── food_items: 누구나 조회, 소유 사장님만 쓰기 ─────────────────────────────
     function validItem(d) {
       return d.stock is int && d.stock >= 0
         && d.originalPrice is int && d.discountPrice is int
         && d.discountPrice > 0 && d.discountPrice <= d.originalPrice
         && d.status in ['selling', 'sold_out', 'paused'];
-    }
-    // 같은 트랜잭션의 주문(lastOrderId) 기준으로 소비자 재고 변경을 검증
-    function orderAfterWrite() {
-      return getAfter(orderPath(request.resource.data.lastOrderId)).data;
-    }
-    function isOrderDecrement(itemId) {
-      let o = orderAfterWrite();
-      let delta = resource.data.stock - request.resource.data.stock;
-      return !exists(orderPath(request.resource.data.lastOrderId)) // 이번에 새로 만드는 주문
-        && o.customerId == request.auth.uid && o.status == 'paid'
-        && delta > 0 && o.quantities[itemId] == delta
-        && resource.data.status == 'selling'
-        && ((request.resource.data.stock == 0 && request.resource.data.status == 'sold_out')
-          || (request.resource.data.stock > 0 && request.resource.data.status == 'selling'));
-    }
-    function isOrderRestore(itemId) {
-      let before = get(orderPath(request.resource.data.lastOrderId)).data;
-      let o = orderAfterWrite();
-      let delta = request.resource.data.stock - resource.data.stock;
-      return before.status in ['paid', 'accepted'] && o.status == 'canceled' // 이번에 취소되는 주문
-        && o.customerId == request.auth.uid
-        && delta > 0 && o.quantities[itemId] == delta
-        && unchanged('status'); // 자동 재판매 금지: 상태는 그대로
     }
 
     match /food_items/{itemId} {
@@ -86,48 +61,28 @@ service cloud.firestore {
         && exists(storePath(request.auth.uid))
         && validItem(request.resource.data)
         && request.resource.data.status in ['selling', 'paused'];
-      allow update: if validItem(request.resource.data) && unchanged('ownerId') && unchanged('storeId') && (
-        isOwner(resource.data.ownerId)
-        || (signedIn() && changedOnly(['stock', 'status', 'updatedAt', 'lastOrderId'])
-            && (isOrderDecrement(itemId) || isOrderRestore(itemId)))
-      );
+      allow update: if isOwner(resource.data.ownerId)
+        && unchanged('ownerId') && unchanged('storeId')
+        && validItem(request.resource.data);
       allow delete: if isOwner(resource.data.ownerId);
     }
 
-    // ── orders: 구매자와 해당 매장 사장님만 조회 ───────────────────────────────
-    function orderKeysOnly() {
-      return changedOnly(['status', 'acceptedAt', 'pickedUpAt', 'canceledAt', 'canceledBy', 'updatedAt']);
-    }
+    // ── orders: 생성·취소는 Cloud Functions 만. 사장님은 수락·픽업 완료만 ──────
     function from(statuses) { return resource.data.status in statuses; }
     function to(status) { return request.resource.data.status == status; }
 
     match /orders/{orderId} {
       allow read: if isOwner(resource.data.customerId) || isOwner(resource.data.storeOwnerId);
+      allow create, delete: if false;
+      allow update: if isOwner(resource.data.storeOwnerId)
+        && changedOnly(['status', 'acceptedAt', 'pickedUpAt', 'updatedAt'])
+        && ((from(['paid']) && to('accepted')) || (from(['paid', 'accepted']) && to('picked_up')));
+    }
 
-      // 대표 상품의 재고가 같은 트랜잭션에서 이 주문 수량만큼 차감되어야 생성 가능
-      allow create: if signedIn()
-        && request.resource.data.customerId == request.auth.uid
-        && request.resource.data.orderId == orderId
-        && request.resource.data.status == 'paid'
-        && request.resource.data.storeOwnerId == request.resource.data.storeId
-        && request.resource.data.quantity is int && request.resource.data.quantity > 0
-        && request.resource.data.quantities[request.resource.data.itemId] == request.resource.data.quantity
-        && request.resource.data.totalPrice is int && request.resource.data.totalPrice > 0
-        && request.resource.data.pickupCode.matches('^[0-9]{6}$')
-        && getAfter(itemPath(request.resource.data.itemId)).data.lastOrderId == orderId;
-
-      allow update: if orderKeysOnly() && (
-        // 고객: 수락 전 취소만
-        (isOwner(resource.data.customerId) && from(['paid']) && to('canceled')
-          && request.resource.data.canceledBy == 'customer')
-        // 사장님: 수락 / 픽업 완료 / 거절
-        || (isOwner(resource.data.storeOwnerId) && (
-          (from(['paid']) && to('accepted'))
-          || (from(['paid', 'accepted']) && to('picked_up'))
-          || (from(['paid', 'accepted']) && to('canceled') && request.resource.data.canceledBy == 'seller')
-        ))
-      );
-      allow delete: if false;
+    // ── checkouts: 결제 준비 내역 (Cloud Functions 만 쓰기, 구매자만 읽기) ──────
+    match /checkouts/{paymentId} {
+      allow read: if isOwner(resource.data.customerId);
+      allow write: if false;
     }
   }
 }

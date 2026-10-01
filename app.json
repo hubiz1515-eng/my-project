@@ -38,7 +38,8 @@
           "cameraPermission": "손님의 픽업 QR 코드를 스캔하기 위해 카메라를 사용합니다.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "@portone/react-native-sdk/plugin"
     ]
   }
 }

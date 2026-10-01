@@ -40,7 +40,7 @@ export const SellerOrderRow = memo(function SellerOrderRow({ order: o, nowMs, on
           {o.status === 'picked_up' && o.pickedUpAt
             ? `${formatClock(o.pickedUpAt.toMillis())} 픽업 완료`
             : o.status === 'canceled'
-              ? o.canceledBy === 'seller' ? '매장 거절 · 환불' : '고객 취소 · 환불'
+              ? `${o.canceledBy === 'seller' ? '매장 거절' : '고객 취소'} · ${o.refundStatus === 'done' ? '환불 완료' : o.refundStatus === 'failed' ? '환불 실패(확인 필요)' : '환불 처리 중'}`
               : late
                 ? `픽업 시간 지남 (${formatClock(endMs)})`
                 : `${formatClock(endMs)}까지 픽업 · ${formatTimeLeft(endMs, nowMs)}`}

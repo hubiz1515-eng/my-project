@@ -9,6 +9,7 @@ import {
   type Auth,
 } from 'firebase/auth';
 import { connectFirestoreEmulator, getFirestore, type Firestore } from 'firebase/firestore';
+import { connectFunctionsEmulator, getFunctions, type Functions } from 'firebase/functions';
 
 // Expo 는 `process.env.EXPO_PUBLIC_*` 를 빌드 시점에 정적 치환하므로
 // 동적 접근(process.env[key])이 아닌 리터럴로 참조해야 합니다.
@@ -61,8 +62,12 @@ function createAuth(firebaseApp: FirebaseApp): Auth {
 export const auth: Auth = createAuth(app);
 export const db: Firestore = getFirestore(app);
 
+/** Cloud Functions 리전 (functions/src/index.ts 의 setGlobalOptions 와 일치) */
+export const FUNCTIONS_REGION = 'asia-northeast3';
+export const functions: Functions = getFunctions(app, FUNCTIONS_REGION);
+
 /**
- * 로컬 Firebase 에뮬레이터 사용 (`npx firebase-tools emulators:start`).
+ * 로컬 Firebase 에뮬레이터 사용 (`npx firebase-tools emulators:start` — Auth/Firestore/Functions).
  * 실서버 데이터를 건드리지 않고 개발/테스트할 때 EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true.
  */
 export const usingEmulator = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
@@ -73,4 +78,5 @@ if (usingEmulator && isFirstInit) {
     process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST || (Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1');
   connectAuthEmulator(auth, `http://${host}:9099`, { disableWarnings: true });
   connectFirestoreEmulator(db, host, 8080);
+  connectFunctionsEmulator(functions, host, 5001);
 }

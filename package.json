@@ -4,6 +4,8 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/metro-runtime": "~57.0.16",
+    "@portone/browser-sdk": "0.1.13",
+    "@portone/react-native-sdk": "0.7.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "barcode-detector": "3.2.2",
     "expo": "~57.0.26",
@@ -36,8 +38,11 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-pickupdeal \"node --test tests/firestore.rules.test.mjs\"",
-    "emulators": "firebase emulators:start --project demo-pickupdeal"
+    "test:rules": "npx --yes firebase-tools emulators:exec --only firestore --project demo-pickupdeal \"node --test tests/firestore.rules.test.mjs\"",
+    "emulators": "npm --prefix functions run build && npx --yes firebase-tools emulators:start --project demo-pickupdeal",
+    "test:functions": "node functions/test/run.mjs",
+    "deploy:rules": "npx --yes firebase-tools deploy --only firestore",
+    "deploy:functions": "npx --yes firebase-tools deploy --only functions"
   },
   "private": true
 }

@@ -10,16 +10,21 @@ type Phase = 'confirm' | 'approving' | 'ordering';
 
 interface Props {
   visible: boolean;
+  /** 서버(prepareCheckout)가 발급한 결제 ID */
+  paymentId: string;
   amount: number;
   method: PaymentMethod;
   orderName: string;
   onClose: () => void;
-  /** 결제 승인 후 호출. 여기서 주문을 생성하고, 실패 시 throw → 시트가 닫힌다. */
+  /** 결제 승인 후 호출 (서버 검증·주문 생성). 끝날 때까지 '주문 접수 중' 표시 */
   onPaid: (paymentId: string) => Promise<void>;
 }
 
-/** PortOne 결제창 자리를 대신하는 테스트 결제 시트 */
-export function MockPaymentSheet({ visible, amount, method, orderName, onClose, onPaid }: Props) {
+/**
+ * PortOne 키가 없을 때 쓰는 테스트 결제 시트.
+ * 서버 검증은 에뮬레이터의 Functions 에서만 통과한다 (운영 서버는 Mock 결제를 거부).
+ */
+export function MockPaymentSheet({ visible, paymentId, amount, method, orderName, onClose, onPaid }: Props) {
   const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<Phase>('confirm');
   const pm = PAYMENT_METHODS.find((p) => p.key === method)!;
@@ -28,9 +33,9 @@ export function MockPaymentSheet({ visible, amount, method, orderName, onClose, 
   const approve = async () => {
     setPhase('approving');
     try {
-      const { paymentId } = await approveMockPayment({ amount, method, orderName });
+      const approved = await approveMockPayment(paymentId);
       setPhase('ordering');
-      await onPaid(paymentId);
+      await onPaid(approved.paymentId);
     } catch {
       // 오류 메시지는 호출한 화면이 표시
       onClose();
@@ -49,7 +54,7 @@ export function MockPaymentSheet({ visible, amount, method, orderName, onClose, 
           </View>
           <Text style={styles.orderName} numberOfLines={2}>{orderName}</Text>
           <Text style={styles.amount}>{formatWon(amount)}</Text>
-          <Text style={styles.note}>테스트 결제입니다. 실제로 돈이 빠져나가지 않아요.</Text>
+          <Text style={styles.note}>테스트 결제입니다 (PortOne 키 미설정). 실제로 돈이 빠져나가지 않아요.</Text>
 
           {busy ? (
             <View style={styles.busy}>

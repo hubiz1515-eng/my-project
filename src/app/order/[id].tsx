@@ -11,6 +11,7 @@ import { useLiveQuery } from '../../hooks/useLiveQuery';
 import { useNow } from '../../hooks/useNow';
 import { cancelMyOrder, subscribeOrder } from '../../services/orders';
 import { paymentLabel } from '../../services/payments';
+import { toUserMessage } from '../../services/types';
 import type { Order, OrderStatus } from '../../types/models';
 import { formatClock, formatTimeLeft, formatWon } from '../../utils/format';
 import { resetTo } from '../../utils/nav';
@@ -36,6 +37,7 @@ export default function OrderDetailScreen() {
   const now = useNow(15_000);
   const { data: order, loading, error: loadError } = useLiveQuery<Order | null>((cb, err) => subscribeOrder(id, cb, err), [id], null);
   const [error, setError] = useState<string | null>(null);
+  const [canceling, setCanceling] = useState(false);
 
   if (!order) {
     return (
@@ -54,10 +56,13 @@ export default function OrderDetailScreen() {
   const endMs = order.pickupEndTime.toMillis();
   const active = order.status === 'paid' || order.status === 'accepted';
   const stepIndex = STEPS.findIndex((s) => s.status === order.status);
-  const cancelDesc =
-    order.canceledBy === 'seller'
-      ? `매장 사정으로 취소되었어요. ${formatWon(order.totalPrice)}이 환불됩니다.`
-      : `${formatWon(order.totalPrice)}이 환불됩니다.`;
+  const refundText =
+    order.refundStatus === 'done'
+      ? `${formatWon(order.totalPrice)} 환불이 완료됐어요. (카드사에 따라 반영까지 며칠 걸릴 수 있어요)`
+      : order.refundStatus === 'failed'
+        ? `환불이 지연되고 있어요. 매장 또는 고객센터에서 확인 후 처리해 드릴게요.`
+        : `${formatWon(order.totalPrice)} 환불을 처리하고 있어요.`;
+  const cancelDesc = `${order.canceledBy === 'seller' ? '매장 사정으로 취소되었어요. ' : ''}${refundText}`;
 
   return (
     <View style={styles.container}>
@@ -124,17 +129,27 @@ export default function OrderDetailScreen() {
             <Text style={styles.total}>{formatWon(order.totalPrice)}</Text>
           </View>
           <Text style={styles.muted}>
-            {paymentLabel(order.paymentMethod)} (테스트) · {formatClock(order.paidAt.toMillis())} 결제
+            {paymentLabel(order.paymentMethod)} · {formatClock(order.paidAt.toMillis())} 결제
           </Text>
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
         {order.status === 'paid' && (
-          <ConfirmButton
-            label="주문 취소"
-            confirmLabel="한 번 더 누르면 취소 · 환불"
-            onConfirm={() => cancelMyOrder(order.orderId).catch((e: Error) => setError(e.message))}
-          />
+          canceling ? (
+            <Text style={styles.muted}>취소·환불 처리 중…</Text>
+          ) : (
+            <ConfirmButton
+              label="주문 취소"
+              confirmLabel="한 번 더 누르면 취소 · 환불"
+              onConfirm={() => {
+                setError(null);
+                setCanceling(true);
+                cancelMyOrder(order.orderId)
+                  .catch((e: unknown) => setError(toUserMessage(e, '취소하지 못했어요.')))
+                  .finally(() => setCanceling(false));
+              }}
+            />
+          )
         )}
       </ScrollView>
     </View>

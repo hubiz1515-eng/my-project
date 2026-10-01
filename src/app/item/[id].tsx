@@ -2,16 +2,16 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MockPaymentSheet } from '../../components/order/MockPaymentSheet';
+import { PaymentSheet } from '../../components/order/PaymentSheet';
 import { QtyStepper } from '../../components/QtyStepper';
 import { colors, radius } from '../../constants/theme';
 import { useLiveQuery } from '../../hooks/useLiveQuery';
 import { useNow } from '../../hooks/useNow';
-import { useProfile } from '../../contexts/AuthContext';
+import { useAuth, useProfile } from '../../contexts/AuthContext';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { subscribeFoodItem, subscribeStoreFoodItems } from '../../services/foodItems';
-import { createOrder } from '../../services/orders';
-import { cancelPayment, PAYMENT_METHODS } from '../../services/payments';
+import { completeCheckout, prepareCheckout, type CheckoutResult } from '../../services/checkout';
+import { PAYMENT_METHODS, type PaymentCustomer } from '../../services/payments';
 import { toUserMessage } from '../../services/types';
 import type { FoodItem, PaymentMethod } from '../../types/models';
 import { discountPercent, formatClock, formatDistance, formatTimeLeft, formatWon } from '../../utils/format';
@@ -36,9 +36,17 @@ export default function ItemDetailScreen() {
 
   const [qty, setQty] = useState(1);
   const [addOnQty, setAddOnQty] = useState<Record<string, number>>({});
-  const [method, setMethod] = useState<PaymentMethod>('tosspay');
-  const [paying, setPaying] = useState(false);
+  const [method, setMethod] = useState<PaymentMethod>('kakaopay');
+  const [preparing, setPreparing] = useState(false);
+  const [checkout, setCheckout] = useState<CheckoutResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const { state: authState } = useAuth();
+  const email = authState.status === 'ready' ? authState.user.email : null;
+  const customer = useMemo<PaymentCustomer>(
+    () => ({ uid: profile.uid, name: profile.name, phone: profile.phone, email }),
+    [profile.uid, profile.name, profile.phone, email],
+  );
 
   const available = !!item && isOrderable(item, now);
 
@@ -56,31 +64,43 @@ export default function ItemDetailScreen() {
 
   const total = item ? item.discountPrice * mainQty + addOns.reduce((s, a) => s + a.item.discountPrice * a.quantity, 0) : 0;
   const originalTotal = item ? item.originalPrice * mainQty + addOns.reduce((s, a) => s + a.item.originalPrice * a.quantity, 0) : 0;
-  const orderName = item ? `${item.title}${addOns.length ? ` 외 ${addOns.length}건` : ''}` : '';
+  /** 1) 서버가 금액을 확정 → 결제창 열기 */
+  const startPayment = async () => {
+    if (!item) return;
+    setError(null);
+    setNotice(null);
+    setPreparing(true);
+    try {
+      const c = await prepareCheckout({
+        main: { itemId: item.itemId, quantity: mainQty },
+        addOns: addOns.map((a) => ({ itemId: a.item.itemId, quantity: a.quantity })),
+        paymentMethod: method,
+      });
+      if (c.totalAmount !== total) setNotice(`가격이 바뀌어 최신 금액 ${formatWon(c.totalAmount)}으로 결제해요.`);
+      setCheckout(c);
+    } catch (e) {
+      setError(toUserMessage(e, '결제를 준비하지 못했어요.'));
+    } finally {
+      setPreparing(false);
+    }
+  };
 
-  const onPaid = useCallback(
-    async (paymentId: string) => {
-      if (!item) return;
-      try {
-        const order = await createOrder({
-          customer: profile,
-          main: { itemId: item.itemId, quantity: mainQty },
-          addOns: addOns.map((a) => ({ itemId: a.item.itemId, quantity: a.quantity })),
-          paymentId,
-          paymentMethod: method,
-          paidAmount: total,
-        });
-        setPaying(false);
-        router.replace(`/order/${order.orderId}`);
-      } catch (e) {
-        // 결제는 됐지만 주문 생성 실패 → 자동 환불 (운영: 서버가 처리)
-        await cancelPayment(paymentId, '주문 생성 실패');
-        setError(`${toUserMessage(e, '주문에 실패했어요.')} 결제는 자동 취소됐어요.`);
-        throw e;
-      }
-    },
-    [item, mainQty, addOns, method, total, profile],
-  );
+  /** 2) 결제창 성공 → 서버가 PortOne 결제를 검증하고 주문 생성 (실패 시 서버가 자동 환불) */
+  const onPaid = useCallback(async (paymentId: string) => {
+    try {
+      const { orderId } = await completeCheckout(paymentId);
+      setCheckout(null);
+      router.replace(`/order/${orderId}`);
+    } catch (e) {
+      setCheckout(null);
+      setError(toUserMessage(e, '결제 확인에 실패했어요. 결제된 금액은 자동으로 환불됩니다.'));
+    }
+  }, []);
+
+  const onPayFailed = useCallback((message: string) => {
+    setCheckout(null);
+    setError(message);
+  }, []);
 
   if (loading && !item) {
     return (
@@ -193,6 +213,7 @@ export default function ItemDetailScreen() {
                       style={[styles.method, active && { borderColor: m.color, backgroundColor: m.color }]}
                     >
                       <Text style={[styles.methodText, active && { color: m.fg }]}>{m.label}</Text>
+                      {m.sub && <Text style={[styles.methodSub, active && { color: m.fg }]}>{m.sub}</Text>}
                     </Pressable>
                   );
                 })}
@@ -204,6 +225,7 @@ export default function ItemDetailScreen() {
       </ScrollView>
 
       <View style={[styles.bottom, { paddingBottom: insets.bottom + 12 }]}>
+        {notice && <Text style={styles.notice}>{notice}</Text>}
         {error && <Text style={styles.error}>{error}</Text>}
         <View style={styles.rowBetween}>
           <View>
@@ -213,24 +235,23 @@ export default function ItemDetailScreen() {
           <Text style={styles.total}>{formatWon(total)}</Text>
         </View>
         <Pressable
-          onPress={() => {
-            setError(null);
-            setPaying(true);
-          }}
-          disabled={!available}
-          style={[styles.payBtn, !available && { backgroundColor: colors.border }]}
+          onPress={startPayment}
+          disabled={!available || preparing}
+          style={[styles.payBtn, (!available || preparing) && { backgroundColor: colors.border }]}
         >
-          <Text style={styles.payText}>{available ? `${formatWon(total)} 결제하고 픽업 예약` : '판매 종료'}</Text>
+          <Text style={styles.payText}>
+            {!available ? '판매 종료' : preparing ? '결제 준비 중…' : `${formatWon(total)} 결제하고 픽업 예약`}
+          </Text>
         </Pressable>
       </View>
 
-      <MockPaymentSheet
-        visible={paying}
-        amount={total}
+      <PaymentSheet
+        checkout={checkout}
         method={method}
-        orderName={orderName}
-        onClose={() => setPaying(false)}
+        customer={customer}
         onPaid={onPaid}
+        onFailed={onPayFailed}
+        onClose={() => setCheckout(null)}
       />
     </View>
   );
@@ -296,6 +317,8 @@ const styles = StyleSheet.create({
   payBtn: { backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: 15, alignItems: 'center' },
   payText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   error: { color: colors.accent, fontSize: 13 },
+  notice: { color: '#1d4ed8', fontSize: 13 },
+  methodSub: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
   linkBtn: { padding: 8 },
   link: { color: colors.primary, fontWeight: '700' },
 });

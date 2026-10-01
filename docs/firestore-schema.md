@@ -45,7 +45,6 @@ users/{uid} ─(1:N)→ stores/{storeId} ─(1:N)→ food_items/{itemId}
 | ownerId, storeName, latitude, longitude, geohash | | **비정규화**: 지도 카드용 무조인 조회 + 규칙에서 소유권 검증 *(추가)* |
 | isAddOn | boolean | 결제 시 함께 담는 "추가 메뉴(cross-sell)" 후보 여부 *(추가)* |
 | imageUrl?, createdAt, updatedAt | | *(추가)* |
-| lastOrderId? | string | 소비자가 주문/취소로 재고를 바꿀 때 해당 주문 ID. 보안 규칙이 증감량을 검증하는 데 사용 *(5단계 추가)* |
 
 **사장님 완전 통제권**: 자동 재판매/자동 재등록 필드·로직 없음. `sold_out`/`paused` → `selling` 전환은
 사장님이 직접 할 때만 발생합니다. 마감시간 경과 항목은 서버 변경 없이 쿼리 조건(`pickupEndTime > now`)으로 숨깁니다.
@@ -59,11 +58,12 @@ users/{uid} ─(1:N)→ stores/{storeId} ─(1:N)→ food_items/{itemId}
 | pickupCode | string | 6자리 핀코드. QR 페이로드는 `pickupdeal:v1:{orderId}:{pickupCode}` (`src/utils/pickupQr.ts`) |
 | status | `'paid' \| 'accepted' \| 'picked_up' \| 'canceled'` | `accepted` *(4단계 추가)*: 사장님 수락 |
 | addOns | `{itemId,title,unitPrice,quantity}[]` | Cross-selling 구매 내역 스냅샷 *(추가)* |
-| quantities | `map<itemId, number>` | 대표+추가 메뉴 수량. 규칙에서 재고 증감량 검증용 *(5단계 추가)* |
+| quantities | `map<itemId, number>` | 대표+추가 메뉴 수량 |
+| refundStatus? | `'pending' \| 'done' \| 'failed'` | 취소된 주문의 환불 진행 상태 (failed = 수동 환불 필요) *(6단계 추가)* |
 | storeOwnerId, storeName, itemTitle, customerName | string | 조회·권한용 비정규화 *(추가)* |
 | unitPrice | number | 대표 상품 주문 시점 단가 *(추가)* |
-| paymentId | string | PortOne 결제 ID(멱등성 키) *(추가)* |
-| paymentMethod | `'tosspay' \| 'kakaopay'` | *(추가)* |
+| paymentId | string | PortOne 결제 ID. **주문 문서 ID == paymentId == checkout ID** (멱등성 키) |
+| paymentMethod | `'card' \| 'kakaopay'` | 카드(토스페이먼츠 채널) / 카카오페이 채널 |
 | canceledBy? | `'customer' \| 'seller'` | *(추가)* |
 | paidAt, pickupEndTime, acceptedAt?, pickedUpAt?, canceledAt?, createdAt, updatedAt | Timestamp | pickupEndTime = 담은 상품 중 가장 이른 마감 *(추가)* |
 
@@ -77,6 +77,18 @@ paid ──accept──▶ accepted ──pickup(코드 일치)──▶ picked_
 - 취소/거절 시 결제 취소(환불) + **재고 수량만 복구, 상품 상태는 유지**. 품절됐던 상품은 사장님이 '판매 재개'를 눌러야 다시 노출됩니다(자동 재판매 금지).
 - 픽업 시간이 지난 미수령 주문은 자동 처리하지 않고 사장님 화면에 '픽업 시간 지남'으로 표시합니다. 노쇼 정책(환불 여부)은 결정 필요.
 
+## 5. `checkouts/{paymentId}` *(6단계 추가)*
+결제 전에 서버(`prepareCheckout`)가 확정한 장바구니·금액. PortOne 결제 금액을 이 값과 대조한다. **Functions 만 쓰기, 구매자만 읽기.**
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| paymentId | string | PortOne paymentId (= 문서 ID = 생성될 주문 ID) |
+| customerId, customerName, storeId, storeOwnerId, storeName | string | |
+| lines | `OrderLine[]` | 대표 상품 + 추가 메뉴 (결제 시점 가격 스냅샷) |
+| totalPrice | number | 서버가 계산한 결제 금액 |
+| orderName, paymentMethod | string | |
+| status | `'pending' \| 'completed' \| 'failed'` | completed = 주문 생성됨, failed = 검증 실패/재고 부족(→ 환불) |
+| failureReason?, refundStatus? | | |
+
 ## 주요 쿼리 & 색인 (`firestore.indexes.json`)
 | 화면 | 쿼리 |
 |---|---|
@@ -89,23 +101,31 @@ paid ──accept──▶ accepted ──pickup(코드 일치)──▶ picked_
 ## 보안 규칙 요약 (`firestore.rules`, 테스트: `tests/firestore.rules.test.mjs`)
 - `users`: 본인만 읽기/쓰기, `role` 변경 불가
 - `stores`: 전체 공개 읽기, 사장님(role=seller)이 자기 uid 문서로만 생성
-- `food_items`: 전체 공개 읽기. 소유 사장님은 자유롭게 수정(가격·재고 검증). **소비자**는 `stock/status/updatedAt/lastOrderId` 만, 그리고
-  - 주문 시: 같은 트랜잭션에서 **새로 만드는 자기 주문**의 `quantities[itemId]` 만큼만 차감 (재고 0 이면 `sold_out`)
-  - 취소 시: 같은 트랜잭션에서 **취소되는 자기 주문**의 수량만큼만 복구, 상태는 변경 불가(자동 재판매 금지)
-- `orders`: 구매자/해당 사장님만 읽기. 생성은 구매자 본인이 `paid` 상태로, 대표 상품 재고 차감과 함께일 때만. 상태 전이는 위 '주문 상태 전이' 대로만(다른 필드 수정 불가).
+- `food_items`: 전체 공개 읽기, **소유 사장님만** 쓰기(가격·재고 검증). 주문에 따른 재고 증감은 Functions 만.
+- `orders`: 구매자/해당 사장님만 읽기. **생성·취소 불가(Functions 전용)**. 사장님은 수락(`paid→accepted`)·픽업 완료(`→picked_up`)만.
+- `checkouts`: 구매자만 읽기, 쓰기 불가.
 
-## 현재 구조의 한계 → PortOne 실결제 시 Cloud Functions 로 이전
-지금은 결제가 Mock 이라 주문 생성·취소를 **클라이언트 트랜잭션 + 보안 규칙 검증**으로 처리합니다. 규칙이 막지 못하는 부분:
-- 주문 금액(`totalPrice`)과 단가가 실제 상품 가격과 같은지 (규칙에서 목록 합산 불가) — 클라이언트는 트랜잭션 안에서 재계산해 검증하지만 조작된 클라이언트는 우회 가능
-- 추가 메뉴(addOns)의 재고 차감 누락 (대표 상품 차감만 강제)
-- 픽업 코드 중복 검사 (고객은 다른 주문을 읽을 수 없음 — 100만 분의 1 확률, 중복 시 QR 로 구분)
-
-실결제 연동 시 이전할 Callable Function:
-1. `createOrder`: PortOne `paymentId` 서버 검증(금액·상태) → 서버에서 금액 재계산 → 트랜잭션으로 재고 차감 + 주문 생성 + 중복 없는 픽업코드 발급. 실패 시 결제 취소. `paymentId` 멱등 처리.
-2. `cancelOrder` / `updateOrderStatus`: 취소류는 결제 취소 API + 재고 복구.
-3. 주문 상태 변경 시 FCM 푸시 발송 (현재 인앱 토스트 `OrderToast`).
-4. 이전 후 `orders` create 규칙과 `food_items` 의 소비자 수정 규칙은 삭제.
-5. Cloud Functions 는 Firebase **Blaze(종량제)** 요금제가 필요합니다.
+## 결제 흐름 (PortOne V2 + Cloud Functions, `functions/src`)
+```
+앱                         Cloud Functions                         PortOne
+ │ prepareCheckout(장바구니) ─▶ 최신 가격·재고로 금액 계산
+ │                            checkouts/{paymentId} 생성 (pending)
+ │ ◀─ { paymentId, totalAmount, orderName }
+ │ 결제창(paymentId, 금액) ─────────────────────────────────────────▶ 결제
+ │ completeCheckout(paymentId) ─▶ getPayment: PAID? 금액·통화·상점 일치? ◀─▶
+ │                            트랜잭션: 재고 확인·차감 + orders/{paymentId} 생성
+ │                            (재고 부족·금액 불일치 → checkout failed + cancelPayment 환불)
+ │ ◀─ { orderId }
+ │                            portoneWebhook(Transaction.Paid) ◀───────── 웹훅 (서명 검증)
+ │                            → 같은 completeCheckout (멱등: 이미 처리됐으면 그대로)
+ │ cancelOrder(orderId) ──────▶ 권한·상태 확인 → canceled + 재고 복구 → cancelPayment → refundStatus
+```
+- **멱등성**: 주문 ID = paymentId, 트랜잭션에서 checkout 상태로 중복 생성·중복 차감·중복 환불을 막는다.
+- **가격 변경**: 결제 준비 후 사장님이 가격을 바꿔도 고객이 동의한 결제 시점 금액으로 주문한다.
+- **재고 예약 없음**: 결제 준비 시 재고를 잡지 않는다(버려진 결제창이 재고를 묶지 않도록). 결제 사이에 품절되면 자동 환불.
+- **Mock 결제**: API Secret 이 없을 때 **에뮬레이터에서만** 승인. 배포 환경에서는 Secret 이 없으면 결제 확정을 거부.
+- **환불 실패**: 주문은 취소 상태로 두고 `refundStatus: 'failed'` + 에러 로그 → 콘솔에서 수동 환불.
+- 미처리: 노쇼(픽업 시간 경과 미수령) 정책, PortOne 콘솔에서 직접 취소한 결제의 웹훅(`Transaction.Cancelled`) 반영.
 
 ## 알아둘 점
 - **FCM**: Firebase JS SDK는 React Native에서 `messaging`을 지원하지 않습니다. 푸시는 `expo-notifications`(FCM 자격증명 연동) 또는 `@react-native-firebase/messaging`(Dev Build 필요) 중 선택해야 하며, 토큰을 `users.pushTokens`에 저장합니다.

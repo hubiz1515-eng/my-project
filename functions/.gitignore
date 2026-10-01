@@ -1,0 +1,8 @@
+node_modules/
+lib/
+# 빌드 시 ../shared 에서 복사됨 (원본은 저장소 루트의 shared/)
+shared/
+# 로컬 에뮬레이터용 비밀값 — 절대 커밋 금지
+.secret.local
+.env.local
+*.local

@@ -3,7 +3,13 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@firebase/auth": ["./node_modules/@firebase/auth/dist/rn/index.rn.d.ts"]
+      "@firebase/auth": [
+        "./node_modules/@firebase/auth/dist/rn/index.rn.d.ts"
+      ]
     }
-  }
+  },
+  "exclude": [
+    "functions",
+    "node_modules"
+  ]
 }
