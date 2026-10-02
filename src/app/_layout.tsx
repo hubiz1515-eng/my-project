@@ -10,7 +10,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 
 /** AccountBar 높이 (토스트를 바로 아래에 띄우기 위함) */
 const ACCOUNT_BAR_HEIGHT = 46;
-const AUTH_ROUTES = ['/login', '/signup', '/profile-setup'];
+const AUTH_ROUTES = ['/intro', '/login', '/signup', '/profile-setup'];
 
 function Shell() {
   const insets = useSafeAreaInsets();
@@ -44,6 +44,8 @@ function Shell() {
       {ready && <AccountBar />}
       <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
         <Stack.Protected guard={state.status === 'signedOut'}>
+          {/* 첫 번째 화면 = 로그아웃 상태의 시작 화면. 인트로를 이미 봤으면 intro 가 /login 으로 넘긴다 */}
+          <Stack.Screen name="intro" />
           <Stack.Screen name="login" />
           <Stack.Screen name="signup" />
         </Stack.Protected>
