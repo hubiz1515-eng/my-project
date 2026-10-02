@@ -146,6 +146,14 @@ describe('completeCheckout (PortOne 검증)', () => {
     assert.equal((await db.doc(`orders/${paymentId}`).get()).exists, false);
   });
 
+  test('다른 상점의 결제 ID → 거부 + 자동 환불', async () => {
+    const { paymentId, totalAmount } = await call('prepareCheckout', cart, users.alice);
+    portone.setPayment(paymentId, { total: totalAmount, storeId: 'store-someone-else' });
+    await assert.rejects(call('completeCheckout', { paymentId }, users.alice), /결제 정보가 올바르지 않아요/);
+    assert.equal(portone.cancels.length, 1);
+    assert.equal((await db.doc(`orders/${paymentId}`).get()).exists, false);
+  });
+
   test('결제 사이에 품절 → 자동 환불', async () => {
     const { paymentId, totalAmount } = await call('prepareCheckout', cart, users.alice);
     portone.setPayment(paymentId, { total: totalAmount });

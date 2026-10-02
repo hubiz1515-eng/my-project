@@ -34,7 +34,7 @@ export function startFakePortone(port, expectedSecret) {
     server.listen(port, '127.0.0.1', () =>
       resolve({
         /** 결제 상태 등록 */
-        setPayment(id, { status = 'PAID', total, currency = 'KRW', storeId = 'store-test' }) {
+        setPayment(id, { status = 'PAID', total, currency = 'KRW', storeId = process.env.PORTONE_STORE_ID || 'store-test' }) {
           payments.set(id, { id, status, storeId, currency, amount: { total }, orderName: 'test', paidAt: new Date().toISOString() });
         },
         cancels,

@@ -11,7 +11,7 @@ import { useAuth, useProfile } from '../../contexts/AuthContext';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { subscribeFoodItem, subscribeStoreFoodItems } from '../../services/foodItems';
 import { completeCheckout, prepareCheckout, type CheckoutResult } from '../../services/checkout';
-import { PAYMENT_METHODS, type PaymentCustomer } from '../../services/payments';
+import { AVAILABLE_PAYMENT_METHODS, type PaymentCustomer } from '../../services/payments';
 import { toUserMessage } from '../../services/types';
 import type { FoodItem, PaymentMethod } from '../../types/models';
 import { discountPercent, formatClock, formatDistance, formatTimeLeft, formatWon } from '../../utils/format';
@@ -36,7 +36,7 @@ export default function ItemDetailScreen() {
 
   const [qty, setQty] = useState(1);
   const [addOnQty, setAddOnQty] = useState<Record<string, number>>({});
-  const [method, setMethod] = useState<PaymentMethod>('kakaopay');
+  const [method, setMethod] = useState<PaymentMethod>(AVAILABLE_PAYMENT_METHODS[0]?.key ?? 'card');
   const [preparing, setPreparing] = useState(false);
   const [checkout, setCheckout] = useState<CheckoutResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -204,7 +204,7 @@ export default function ItemDetailScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>결제 수단</Text>
               <View style={styles.methods}>
-                {PAYMENT_METHODS.map((m) => {
+                {AVAILABLE_PAYMENT_METHODS.map((m) => {
                   const active = m.key === method;
                   return (
                     <Pressable

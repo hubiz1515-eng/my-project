@@ -5,13 +5,18 @@
  */
 import { execSync } from 'node:child_process';
 import crypto from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+
+// 에뮬레이터는 functions/.env 값을 환경변수보다 우선하므로, 그 Store ID 를 테스트(가짜 PortOne)에도 그대로 사용
+const dotenv = existsSync('functions/.env') ? readFileSync('functions/.env', 'utf8') : '';
+const storeId = /^PORTONE_STORE_ID=(.+)$/m.exec(dotenv)?.[1]?.trim() || 'store-test';
 
 const env = {
   ...process.env,
   PORTONE_API_SECRET: 'test_api_secret',
   PORTONE_WEBHOOK_SECRET: 'whsec_' + crypto.randomBytes(24).toString('base64'),
   PORTONE_API_BASE: 'http://127.0.0.1:9911',
-  PORTONE_STORE_ID: 'store-test',
+  PORTONE_STORE_ID: storeId,
 };
 execSync('npm --prefix functions run build', { stdio: 'inherit' });
 execSync(

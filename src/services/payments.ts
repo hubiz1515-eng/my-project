@@ -22,6 +22,15 @@ export const PAYMENT_METHODS: {
   { key: 'card', label: '카드 결제', sub: '토스페이먼츠', color: '#0064FF', fg: '#fff', channelKey: process.env.EXPO_PUBLIC_PORTONE_CHANNEL_KEY_TOSS || '' },
 ];
 
+/**
+ * 화면에 보여줄 결제수단.
+ * - Store ID 가 있으면(실결제 모드) 채널 키가 설정된 수단만 — 키 없는 수단을 고르면 결제창이 오류나므로
+ * - Store ID 가 없으면(Mock 모드) 전부
+ */
+export const AVAILABLE_PAYMENT_METHODS = PORTONE_STORE_ID
+  ? PAYMENT_METHODS.filter((p) => !!p.channelKey)
+  : PAYMENT_METHODS;
+
 export const paymentLabel = (m: PaymentMethod | string) => PAYMENT_METHODS.find((p) => p.key === m)?.label ?? m;
 
 /** 이 결제수단으로 PortOne 실결제가 가능한지 (아니면 Mock) */

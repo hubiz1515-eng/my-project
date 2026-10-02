@@ -42,7 +42,7 @@ npm run emulators                   # Auth + Firestore + Functions (Java 필요)
 EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true EXPO_PUBLIC_FIREBASE_PROJECT_ID=demo-pickupdeal npx expo start -c
 ```
 - PortOne 키가 없으면 앱은 Mock 결제 시트를 띄우고, **에뮬레이터의 Functions 만** Mock 결제를 승인합니다 (배포된 서버는 거부).
-- 테스트: `npm run test:rules` (보안 규칙 17개), `npm run test:functions` (결제·환불 통합 17개, 가짜 PortOne 서버 사용)
+- 테스트: `npm run test:rules` (보안 규칙 17개), `npm run test:functions` (결제·환불 통합 18개, 가짜 PortOne 서버 사용)
 
 ## 기능 요약
 - **로그인/가입** (`/login`, `/signup`): 이메일 + 역할(소비자/사장님) 선택. 역할은 가입 후 변경 불가. 프로필이 없는 계정은 `/profile-setup`.
