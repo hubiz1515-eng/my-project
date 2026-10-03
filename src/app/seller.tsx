@@ -14,7 +14,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { OrdersPanel } from '../components/seller/OrdersPanel';
 import { QuickAddForm } from '../components/seller/QuickAddForm';
-import { sampleItems } from '../components/seller/sampleItems';
 import { SellerItemRow } from '../components/seller/SellerItemRow';
 import { StoreSetupForm } from '../components/seller/StoreSetupForm';
 import { colors, radius } from '../constants/theme';
@@ -72,7 +71,6 @@ function StoreManager({ store }: { store: Store }) {
   const now = useNow();
   const [tab, setTab] = useState<Tab>(params.tab === 'orders' ? 'orders' : 'products');
   const [itemError, setItemError] = useState<string | null>(null);
-  const [seeding, setSeeding] = useState(false);
 
   // 알림 탭/모드 전환으로 ?tab=orders 가 들어오면 주문 탭으로
   useEffect(() => {
@@ -117,18 +115,6 @@ function StoreManager({ store }: { store: Store }) {
     setItemError(null);
     fn().catch((e: unknown) => setItemError(toUserMessage(e)));
   }, []);
-
-  const seed = async () => {
-    setSeeding(true);
-    setItemError(null);
-    try {
-      for (const input of sampleItems(Date.now())) await createFoodItem(store, input);
-    } catch (e) {
-      setItemError(toUserMessage(e));
-    } finally {
-      setSeeding(false);
-    }
-  };
 
   const header = (
     <View style={styles.headerWrap}>
@@ -188,12 +174,7 @@ function StoreManager({ store }: { store: Store }) {
             {loading ? (
               <ActivityIndicator color={colors.primary} />
             ) : (
-              <>
-                <Text style={styles.muted}>아직 등록된 상품이 없어요.</Text>
-                <Pressable onPress={seed} disabled={seeding} style={styles.seedBtn}>
-                  <Text style={styles.seedText}>{seeding ? '등록 중…' : '🧪 샘플 상품 3개 등록 (테스트용)'}</Text>
-                </Pressable>
-              </>
+              <Text style={styles.muted}>아직 등록된 상품이 없어요. 위에서 첫 마감 상품을 등록해 보세요.</Text>
             )}
           </View>
         }
@@ -229,6 +210,4 @@ const styles = StyleSheet.create({
   error: { color: colors.accent, fontSize: 13 },
   center: { paddingVertical: 40, alignItems: 'center', gap: 12 },
   muted: { color: colors.textMuted },
-  seedBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.pill, backgroundColor: colors.primarySoft },
-  seedText: { color: colors.primary, fontWeight: '700' },
 });

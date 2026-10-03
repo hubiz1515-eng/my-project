@@ -16,6 +16,7 @@ import type { MapPin } from '../types/map';
 import type { FoodItem, Order } from '../types/models';
 import { discountPercent } from '../utils/format';
 import { distanceMeters } from '../utils/geo';
+import { NEARBY_RADIUS_M, SEOUL_CENTER, SEOUL_RADIUS_M } from '../services/foodItems';
 import { isActiveOrder } from '../utils/orderRules';
 
 interface Row {
@@ -27,7 +28,13 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { coords: user, source } = useUserLocation();
   const profile = useProfile();
-  const { items, loading, error } = useNearbyFoodItems(user, source !== 'loading');
+  const [scope, setScope] = useState<'near' | 'seoul'>('near');
+  const queryCenter = scope === 'seoul' ? SEOUL_CENTER : user;
+  const { items, loading, error } = useNearbyFoodItems(
+    queryCenter,
+    source !== 'loading',
+    scope === 'seoul' ? SEOUL_RADIUS_M : NEARBY_RADIUS_M,
+  );
   const now = useNow();
   const [sort, setSort] = useState<SortKey>('distance');
   /** 지도 핀은 매장 단위이므로 선택도 매장 단위 */
@@ -69,11 +76,10 @@ export default function HomeScreen() {
       latitude: item.latitude,
       longitude: item.longitude,
       label: count > 1 ? `-${maxPercent}% · ${count}` : `-${maxPercent}%`,
+      title: item.storeName,
     }));
   }, [rows]);
 
-  const selected = rows.find((r) => r.item.storeId === selectedStoreId)?.item;
-  const center = selected ? { latitude: selected.latitude, longitude: selected.longitude } : user;
 
   const select = useCallback(
     (storeId: string) => {
@@ -92,7 +98,7 @@ export default function HomeScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>우리 동네 마감 할인</Text>
           <Text style={styles.sub}>
-            {source === 'default' ? '기본 위치(강남역) 기준' : '내 주변'} · 배달비 0원 · 100% 픽업
+            {scope === 'seoul' ? '서울 전체' : source === 'default' ? '기본 위치(강남역) 기준' : '내 주변'} · 배달비 0원 · 100% 픽업
           </Text>
         </View>
         <Pressable onPress={() => router.push('/orders')} style={styles.ordersBtn} accessibilityLabel="내 주문">
@@ -102,7 +108,20 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.map}>
-        <PickupMap center={center} user={user} pins={pins} selectedId={selectedStoreId} onSelectPin={select} />
+        <PickupMap user={user} pins={pins} selectedId={selectedStoreId} onSelectPin={select} />
+        <View style={styles.scope} accessibilityRole="tablist">
+          {(['near', 'seoul'] as const).map((k) => (
+            <Pressable
+              key={k}
+              onPress={() => { setScope(k); setSelectedStoreId(null); }}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: scope === k }}
+              style={[styles.scopeBtn, scope === k && styles.scopeOn]}
+            >
+              <Text style={[styles.scopeText, scope === k && styles.scopeTextOn]}>{k === 'near' ? '내 주변 3km' : '서울 전체'}</Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
       <View style={styles.listHeader}>
@@ -128,7 +147,12 @@ export default function HomeScreen() {
           onScrollToIndexFailed={({ index }) => setTimeout(() => listRef.current?.scrollToIndex({ index, animated: true }), 200)}
           ListEmptyComponent={
             <View style={styles.center}>
-              <Text style={styles.muted}>반경 3km 안에 지금 픽업 가능한 마감 할인이 없어요.</Text>
+              <Text style={styles.muted}>{scope === 'seoul' ? '서울에 지금 픽업 가능한 마감 할인이 없어요.' : '반경 3km 안에 지금 픽업 가능한 마감 할인이 없어요.'}</Text>
+              {scope === 'near' && (
+                <Pressable onPress={() => setScope('seoul')} style={styles.scopeLink}>
+                  <Text style={styles.scopeLinkText}>서울 전체 보기</Text>
+                </Pressable>
+              )}
             </View>
           }
           renderItem={({ item: r }) => (
@@ -161,7 +185,17 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: '800', color: colors.text },
   sub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  map: { height: 240 },
+  map: { height: 260 },
+  scope: {
+    position: 'absolute', top: 10, left: 10, flexDirection: 'row', padding: 3, borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.95)', boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+  },
+  scopeBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
+  scopeOn: { backgroundColor: colors.text },
+  scopeText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
+  scopeTextOn: { color: '#fff' },
+  scopeLink: { marginTop: 10, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.primarySoft },
+  scopeLinkText: { color: colors.primary, fontWeight: '700' },
   listHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, gap: 8, flexWrap: 'wrap' },
   count: { fontSize: 14, fontWeight: '700', color: colors.text },
   list: { paddingHorizontal: 16 },

@@ -24,17 +24,24 @@ import {
 } from '../utils/foodItemRules';
 import type { ErrorHandler, Unsubscribe } from './types';
 
-/** 소비자 화면에서 보여줄 반경 */
+/** 소비자 화면 범위: 내 동네(기본) / 서울 전체 */
 export const NEARBY_RADIUS_M = 3000;
+export const SEOUL_CENTER = { latitude: 37.5665, longitude: 126.978 } as const; // 서울시청
+export const SEOUL_RADIUS_M = 22000; // 서울시 전역을 덮는 반경
 
 /**
- * 소비자: 반경 내 판매 중 상품 실시간 구독.
+ * 소비자: 반경 내 판매 중 상품 실시간 구독 (기본 3km, 서울 전체 보기는 SEOUL_RADIUS_M).
  * geohash 범위 쿼리 여러 개를 합친 뒤 실제 거리로 한 번 더 거른다.
  * (마감 시간·재고 필터는 화면에서 — Firestore 는 서로 다른 필드 범위 조건을 함께 못 씀)
  */
-export function subscribeNearbyFoodItems(center: Coords, onChange: (items: FoodItem[]) => void, onError?: ErrorHandler): Unsubscribe {
+export function subscribeNearbyFoodItems(
+  center: Coords,
+  onChange: (items: FoodItem[]) => void,
+  onError?: ErrorHandler,
+  radiusM: number = NEARBY_RADIUS_M,
+): Unsubscribe {
   const origin: [number, number] = [center.latitude, center.longitude];
-  const bounds = geohashQueryBounds(origin, NEARBY_RADIUS_M);
+  const bounds = geohashQueryBounds(origin, radiusM);
   const parts = new Map<number, FoodItem[]>();
 
   const emit = () => {
@@ -42,7 +49,7 @@ export function subscribeNearbyFoodItems(center: Coords, onChange: (items: FoodI
     const byId = new Map<string, FoodItem>();
     parts.forEach((list) => list.forEach((i) => byId.set(i.itemId, i)));
     onChange(
-      [...byId.values()].filter((i) => distanceBetween([i.latitude, i.longitude], origin) * 1000 <= NEARBY_RADIUS_M),
+      [...byId.values()].filter((i) => distanceBetween([i.latitude, i.longitude], origin) * 1000 <= radiusM),
     );
   };
 

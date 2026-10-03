@@ -20,6 +20,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-maps": "1.27.2",
     "react-native-qrcode-svg": "^6.3.26",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
+    "@types/google.maps": "^3.66.5",
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3"
   },
@@ -42,7 +44,8 @@
     "emulators": "npm --prefix functions run build && npx --yes firebase-tools emulators:start --project demo-pickupdeal",
     "test:functions": "node functions/test/run.mjs",
     "deploy:rules": "npx --yes firebase-tools deploy --only firestore",
-    "deploy:functions": "npx --yes firebase-tools deploy --only functions"
+    "deploy:functions": "npx --yes firebase-tools deploy --only functions",
+    "seed:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node scripts/seed-emulator.mjs"
   },
   "private": true
 }

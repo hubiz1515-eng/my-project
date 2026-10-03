@@ -42,6 +42,7 @@ npm run emulators                   # Auth + Firestore + Functions (Java 필요)
 EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true EXPO_PUBLIC_FIREBASE_PROJECT_ID=demo-pickupdeal npx expo start -c
 ```
 - PortOne 키가 없으면 앱은 Mock 결제 시트를 띄우고, **에뮬레이터의 Functions 만** Mock 결제를 승인합니다 (배포된 서버는 거부).
+- 테스트 데이터: `npm run seed:emulator` — 서울 주요 상권 8곳에 `[테스트]` 매장·상품 생성 (에뮬레이터 전용, 실서버에서는 실행 거부)
 - 테스트: `npm run test:rules` (보안 규칙 17개), `npm run test:functions` (결제·환불 통합 18개, 가짜 PortOne 서버 사용)
 
 ## 기능 요약
@@ -51,7 +52,8 @@ EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true EXPO_PUBLIC_FIREBASE_PROJECT_ID=demo-pick
 - **사장님** (`/seller`): 첫 진입 시 매장 등록(계정당 1개) → `상품 관리`(3초 등록, 재고 ±1, 판매중지/품절) / `주문 관리`(수락·거절, 코드 입력 또는 **QR 스캔**(`/scan`)으로 즉시 픽업 완료). 상단 스위치로 소비자 화면도 둘러볼 수 있습니다.
 - **QR 스캔 폴백** (`/scan`): 카메라를 쓸 수 없으면(카메라 모듈 없는 빌드, 웹 HTTP 접속, 카메라 없음, 권한 거부, 카메라 시작 실패, 웹 QR 인식 모듈 로드 실패) 이유를 안내하고 **6자리 코드 직접 입력**으로 대체합니다. 카메라가 켜져도 12초간 인식이 없으면 코드 입력을 권합니다.
 - **실시간**: 모든 목록은 Firestore `onSnapshot` 구독. 새 주문/수락/픽업/취소 시 인앱 알림(추후 FCM 푸시).
-- **카카오맵**: `EXPO_PUBLIC_KAKAO_JS_KEY` 가 비어 있으면 Mock 지도. 키를 넣으면 WebView 로 실제 지도(카카오 콘솔 > 플랫폼 > Web 에 `https://localhost` 등록). REST 키를 넣으면 매장 등록 시 '주소로 찾기' 사용 가능.
+- **지도 (Google Maps)**: `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` — 웹은 Maps JavaScript API, Android 는 Maps SDK for Android(`app.config.ts` 가 키 주입, 개발 빌드 필요), iOS 는 Apple 지도. 키가 없거나 API 가 꺼져 있으면 지도 자리에 원인 안내가 뜨고 목록은 그대로 동작합니다. Google Cloud 에서 두 API 를 사용 설정하고 키 제한(HTTP 리퍼러·Android 패키지)을 걸어 두세요.
+- **범위**: 홈 지도 왼쪽 위 `내 주변 3km` / `서울 전체`(서울시청 반경 22km) 전환. 데이터는 Firestore `stores`·`food_items` 실시간 구독.
 - **결제 (PortOne V2 + Cloud Functions)**: 앱은 결제창만 띄우고, 금액 확정·결제 검증·재고 차감·주문 생성·환불은 서버(`functions/`)가 합니다.
   `prepareCheckout`(서버가 금액 확정) → PortOne 결제창(네이티브 SDK / 웹 SDK) → `completeCheckout`(PortOne 조회로 금액·상태 검증 → 주문 생성, 실패 시 자동 환불) · `cancelOrder`(취소·거절 + 환불 + 재고 복구) · `portoneWebhook`(앱이 꺼져도 주문 생성).
 

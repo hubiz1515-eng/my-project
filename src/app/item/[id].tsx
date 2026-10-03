@@ -14,7 +14,7 @@ import { completeCheckout, prepareCheckout, type CheckoutResult } from '../../se
 import { AVAILABLE_PAYMENT_METHODS, type PaymentCustomer } from '../../services/payments';
 import { toUserMessage } from '../../services/types';
 import type { FoodItem, PaymentMethod } from '../../types/models';
-import { discountPercent, formatClock, formatDistance, formatTimeLeft, formatWon } from '../../utils/format';
+import { discountPercent, initialOf, formatClock, formatDistance, formatTimeLeft, formatWon } from '../../utils/format';
 import { distanceMeters } from '../../utils/geo';
 import { goBack } from '../../utils/nav';
 import { isOrderable } from '../../utils/orderRules';
@@ -135,7 +135,7 @@ export default function ItemDetailScreen() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: 140 + insets.bottom }}>
         <View style={styles.hero}>
-          <Text style={styles.heroLetter}>{item.storeName.slice(0, 1)}</Text>
+          <Text style={styles.heroLetter}>{initialOf(item.storeName)}</Text>
         </View>
 
         <View style={styles.section}>

@@ -23,3 +23,9 @@ export function formatClock(ms: number): string {
   const d = new Date(ms);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
+
+/** 썸네일용 첫 글자 — "[테스트] 강남 베이커리" 처럼 기호로 시작해도 글자를 고른다 */
+export function initialOf(name: string): string {
+  const cleaned = name.replace(/^\s*[\[(【][^\])】]*[\])】]\s*/, '');
+  return Array.from(cleaned.match(/[\p{L}\p{N}]/u)?.[0] ?? cleaned.trim()[0] ?? '?')[0];
+}

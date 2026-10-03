@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radius } from '../constants/theme';
 import type { FoodItem } from '../types/models';
-import { discountPercent, formatClock, formatDistance, formatTimeLeft, formatWon } from '../utils/format';
+import { discountPercent, initialOf, formatClock, formatDistance, formatTimeLeft, formatWon } from '../utils/format';
 
 interface Props {
   item: FoodItem;
@@ -23,7 +23,7 @@ export const FoodCard = memo(function FoodCard({ item, distanceM, nowMs, selecte
   return (
     <Pressable onPress={onPress} style={[styles.card, selected && styles.cardSelected]}>
       <View style={styles.thumb}>
-        <Text style={styles.thumbText}>{item.storeName.slice(0, 1)}</Text>
+        <Text style={styles.thumbText}>{initialOf(item.storeName)}</Text>
       </View>
       <View style={styles.body}>
         <View style={styles.row}>

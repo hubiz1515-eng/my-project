@@ -92,7 +92,7 @@ paid ──accept──▶ accepted ──pickup(코드 일치)──▶ picked_
 ## 주요 쿼리 & 색인 (`firestore.indexes.json`)
 | 화면 | 쿼리 |
 |---|---|
-| 소비자 지도/리스트 | `food_items` where `status=='selling'` orderBy `geohash` startAt/endAt (반경 3km 를 덮는 geohash 범위 여러 개, `geofire-common`) → 실제 거리·마감시간·재고는 클라이언트에서 필터 |
+| 소비자 지도/리스트 | `food_items` where `status=='selling'` orderBy `geohash` startAt/endAt (내 주변 3km 또는 서울 전체 22km 를 덮는 geohash 범위 여러 개, `geofire-common`) → 실제 거리·마감시간·재고는 클라이언트에서 필터 |
 | 상품 상세 '함께 담기' / 사장님 상품 관리 | `food_items` where `storeId==X` |
 | 내 주문 | `orders` where `customerId==me` orderBy `createdAt desc` |
 | 사장님 주문 관리 | `orders` where `storeOwnerId==me` orderBy `createdAt desc` (규칙이 `storeOwnerId` 로 권한을 판단하므로 쿼리도 같은 필드 사용) |
