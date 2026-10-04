@@ -53,6 +53,7 @@ EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true EXPO_PUBLIC_FIREBASE_PROJECT_ID=demo-pick
 - **QR 스캔 폴백** (`/scan`): 카메라를 쓸 수 없으면(카메라 모듈 없는 빌드, 웹 HTTP 접속, 카메라 없음, 권한 거부, 카메라 시작 실패, 웹 QR 인식 모듈 로드 실패) 이유를 안내하고 **6자리 코드 직접 입력**으로 대체합니다. 카메라가 켜져도 12초간 인식이 없으면 코드 입력을 권합니다.
 - **실시간**: 모든 목록은 Firestore `onSnapshot` 구독. 새 주문/수락/픽업/취소 시 인앱 알림(추후 FCM 푸시).
 - **지도 (Google Maps)**: `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` — 웹은 Maps JavaScript API, Android 는 Maps SDK for Android(`app.config.ts` 가 키 주입, 개발 빌드 필요), iOS 는 Apple 지도. 키가 없거나 API 가 꺼져 있으면 지도 자리에 원인 안내가 뜨고 목록은 그대로 동작합니다. Google Cloud 에서 두 API 를 사용 설정하고 키 제한(HTTP 리퍼러·Android 패키지)을 걸어 두세요.
+- **마커 클러스터링**: 축소 화면에서 가까운 매장 핀은 숫자 원으로 묶이고, 누르면 모두 따로 보일 때까지 확대됩니다 (`src/utils/cluster.ts`, 웹·네이티브 공용).
 - **범위**: 홈 지도 왼쪽 위 `내 주변 3km` / `서울 전체`(서울시청 반경 22km) 전환. 데이터는 Firestore `stores`·`food_items` 실시간 구독.
 - **결제 (PortOne V2 + Cloud Functions)**: 앱은 결제창만 띄우고, 금액 확정·결제 검증·재고 차감·주문 생성·환불은 서버(`functions/`)가 합니다.
   `prepareCheckout`(서버가 금액 확정) → PortOne 결제창(네이티브 SDK / 웹 SDK) → `completeCheckout`(PortOne 조회로 금액·상태 검증 → 주문 생성, 실패 시 자동 환불) · `cancelOrder`(취소·거절 + 환불 + 재고 복구) · `portoneWebhook`(앱이 꺼져도 주문 생성).
