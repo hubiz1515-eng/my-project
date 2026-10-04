@@ -6,6 +6,9 @@ import { GOOGLE_MAPS_API_KEY, type MapPin, type PickupMapProps } from '../../typ
 import { AUTH_FAILURE_EVENT, hasGoogleMapsAuthFailed, loadGoogleMaps } from './googleMapsLoader.web';
 import { MapUnavailable } from './MapUnavailable';
 
+/** 핀에 맞춰 확대할 때의 최대 줌 (15 ≈ 반경 1km 정도가 보이는 동네 단위) */
+const MAX_FIT_ZOOM = 15;
+
 const AUTH_ERROR = '지도를 표시할 수 없어요. Google Cloud 에서 Maps JavaScript API 사용 설정과 API 키 제한을 확인해 주세요.';
 
 const PIN_CSS = `
@@ -129,8 +132,12 @@ export function PickupMap({ user, pins, selectedId, onSelectPin }: PickupMapProp
     const b = new g.LatLngBounds();
     b.extend({ lat: user.latitude, lng: user.longitude });
     pins.forEach((p) => b.extend({ lat: p.latitude, lng: p.longitude }));
-    // 위쪽은 '내 주변 / 서울 전체' 버튼 높이만큼 더 비운다
-    map.fitBounds(b, { top: 70, right: 40, bottom: 30, left: 40 });
+    // 위쪽은 '내 주변 / 서울 전체' 버튼, 오른쪽은 확대/축소 버튼만큼 더 비운다
+    map.fitBounds(b, { top: 70, right: 70, bottom: 30, left: 40 });
+    // 매장이 내 위치와 아주 가까우면 최대로 확대돼 동네가 안 보이므로 상한을 둔다
+    g.event.addListenerOnce(map, 'idle', () => {
+      if ((map.getZoom() ?? 0) > MAX_FIT_ZOOM) map.setZoom(MAX_FIT_ZOOM);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, pins.map((p) => p.id).join(',')]);
 

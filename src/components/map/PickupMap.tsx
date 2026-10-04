@@ -17,8 +17,12 @@ export function PickupMap({ user, pins, selectedId, onSelectPin }: PickupMapProp
   // 핀이 바뀌면 전체가 보이도록
   useEffect(() => {
     const coords = [user, ...pins];
-    if (coords.length > 1) {
+    // 매장과 내 위치가 거의 같으면 fit 대신 동네 단위로 (과확대 방지)
+    const spread = Math.max(...coords.map((c) => Math.abs(c.latitude - user.latitude) + Math.abs(c.longitude - user.longitude)));
+    if (coords.length > 1 && spread > 0.005) {
       mapRef.current?.fitToCoordinates(coords, { edgePadding: { top: 90, right: 50, bottom: 40, left: 50 }, animated: true });
+    } else {
+      mapRef.current?.animateToRegion({ ...user, latitudeDelta: 0.02, longitudeDelta: 0.02 }, 300);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pinKey]);
