@@ -21,7 +21,7 @@ npm run typecheck         # 타입 검사
 4. **PortOne 콘솔 설정** (admin.portone.io, V2)
    - 결제연동 > 채널 관리: **토스페이먼츠**(카드) / **카카오페이** 채널 추가 (처음엔 *테스트* 채널)
    - 연동 정보: Store ID, V2 API Secret 확인
-   - 웹훅: URL `https://asia-northeast3-lastorder-ec049.cloudfunctions.net/portoneWebhook`, 웹훅 시크릿 확인
+   - 웹훅: URL `https://asia-northeast1-lastorder-ec049.cloudfunctions.net/portoneWebhook`, 웹훅 시크릿 확인
 5. **Functions 비밀값·설정 후 배포**
    ```bash
    cp functions/.env.example functions/.env          # PORTONE_STORE_ID 입력
@@ -31,6 +31,17 @@ npm run typecheck         # 타입 검사
    ```
 6. 앱 `.env` 에 `EXPO_PUBLIC_PORTONE_STORE_ID`, `EXPO_PUBLIC_PORTONE_CHANNEL_KEY_TOSS`, `EXPO_PUBLIC_PORTONE_CHANNEL_KEY_KAKAOPAY` 입력 후 `npx expo start -c`
 7. 카카오페이·토스 앱으로 넘어가는 결제는 **개발 빌드**에서 확인하세요 (`npx eas-cli@latest build --profile development`). Expo Go 는 결제 앱 연동 설정(config plugin)을 적용하지 못합니다.
+8. **EAS 프로젝트 연결** (최초 1회) — `eas.json`(development / preview / production 프로필)은 이미 들어 있습니다.
+   ```bash
+   npx eas-cli@latest login
+   npx eas-cli@latest init        # Expo 계정에 프로젝트 생성 → app.json 의 expo.extra.eas.projectId 자동 기록
+   git add app.json && git commit -m "Link EAS project"
+   ```
+   ⚠️ `ios.bundleIdentifier` / `android.package` (현재 임시값 `com.example.pickupdeal`)는 첫 빌드·자격증명 등록 **전에** 확정하세요. 푸시(FCM/APNs)·지도 키가 이 값에 묶입니다.
+
+> **리전**: Firestore DB 위치는 `asia-northeast1`(도쿄)이고, Functions 도 같은 리전에 배포합니다 (`functions/src/index.ts` 의 `setGlobalOptions`, 앱의 `FUNCTIONS_REGION`). Firestore 트리거(`onOrderWritten`)는 DB 와 다른 리전에 배포할 수 없습니다.
+> 예전 `asia-northeast3` 함수가 남아 있다면 새 리전에 배포한 뒤 삭제하세요:
+> `npx firebase-tools functions:delete prepareCheckout completeCheckout cancelOrder portoneWebhook --region asia-northeast3 --project lastorder-ec049`
 
 > ⚠️ `.env` 나 `EXPO_PUBLIC_*` 값을 바꾼 뒤에는 **캐시를 지우고** 시작하세요: `npx expo start -c` (빌드는 `npx expo export --clear`).
 > Metro 캐시가 이전 값을 그대로 번들에 넣어 에뮬레이터/실서버가 섞일 수 있습니다.
