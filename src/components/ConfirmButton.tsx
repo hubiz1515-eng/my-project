@@ -27,6 +27,7 @@ export function ConfirmButton({
 
   return (
     <Pressable
+      accessibilityRole="button"
       onPress={() => {
         if (armed) {
           setArmed(false);

@@ -1,6 +1,7 @@
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
+import * as account from './account';
 import * as checkout from './checkout';
 import { PORTONE_API_SECRET, PORTONE_WEBHOOK_SECRET } from './config';
 import * as orders from './orders';
@@ -32,6 +33,9 @@ export const completeCheckout = onCall({ secrets: [PORTONE_API_SECRET] }, (req) 
 export const cancelOrder = onCall({ secrets: [PORTONE_API_SECRET] }, (req) =>
   orders.cancelOrder(requireUid(req.auth), (req.data as { orderId?: string })?.orderId),
 );
+
+/** 회원 탈퇴: 진행 중 주문 확인 → 매장·상품·프로필·Auth 계정 삭제 (거래 기록은 보존) */
+export const deleteAccount = onCall((req) => account.deleteAccount(requireUid(req.auth)));
 
 /** PortOne 웹훅 (콘솔에 https://asia-northeast3-<프로젝트>.cloudfunctions.net/portoneWebhook 등록) */
 export const portoneWebhook = onRequest({ secrets: [PORTONE_API_SECRET, PORTONE_WEBHOOK_SECRET] }, handlePortoneWebhook);

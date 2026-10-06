@@ -10,7 +10,8 @@ export function toUserMessage(e: unknown, fallback = '문제가 발생했어요.
   if (code.startsWith('functions/')) {
     const fnCode = code.slice('functions/'.length);
     if (['failed-precondition', 'permission-denied', 'not-found', 'invalid-argument', 'unauthenticated'].includes(fnCode)) {
-      return (e as Error).message || fallback;
+      // SDK 가 붙이는 HTTP 상태 표기(" [400]")는 떼고 보여준다
+      return (e as Error).message?.replace(/\s*\[\d{3}\]$/, '') || fallback;
     }
     if (fnCode === 'unavailable' || fnCode === 'deadline-exceeded') return '서버에 연결할 수 없어요. 네트워크를 확인해 주세요.';
     return fallback;

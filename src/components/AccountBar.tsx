@@ -1,4 +1,4 @@
-import { usePathname } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radius } from '../constants/theme';
 import { useProfile } from '../contexts/AuthContext';
@@ -18,10 +18,17 @@ export function AccountBar() {
 
   return (
     <View style={styles.bar}>
-      <View style={styles.who}>
+      <Pressable
+        onPress={() => router.push('/account')}
+        style={styles.who}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="내 계정"
+      >
         <Text style={styles.name} numberOfLines={1}>{profile.name}님</Text>
         <Text style={[styles.role, seller && styles.roleSeller]}>{seller ? '사장님' : '소비자'}</Text>
-      </View>
+        <Text style={styles.chevron}>›</Text>
+      </Pressable>
       {seller && <SellerModeSwitch uid={profile.uid} />}
       <Pressable onPress={() => signOut()} hitSlop={8} accessibilityRole="button">
         <Text style={styles.logout}>로그아웃</Text>
@@ -77,6 +84,7 @@ const styles = StyleSheet.create({
     fontSize: 10, fontWeight: '800', color: colors.primary, backgroundColor: colors.primarySoft,
     paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, overflow: 'hidden', flexShrink: 0,
   },
+  chevron: { fontSize: 15, color: colors.textMuted, marginLeft: -2 },
   roleSeller: { color: '#fff', backgroundColor: colors.text },
   logout: { fontSize: 12, color: colors.textMuted, flexShrink: 0 },
   track: { flexDirection: 'row', backgroundColor: colors.background, borderRadius: radius.pill, padding: 3 },

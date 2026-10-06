@@ -54,6 +54,9 @@ export default function LoginScreen() {
       />
       {error && <Text style={styles.error}>{error}</Text>}
       <PrimaryButton label="로그인" onPress={submit} busy={busy} />
+      <Link href={{ pathname: '/forgot-password', params: email.trim() ? { email: email.trim() } : {} }} style={styles.forgot}>
+        비밀번호를 잊으셨나요?
+      </Link>
       <Link href="/signup" replace style={styles.link}>
         처음이신가요? <Text style={styles.linkStrong}>회원가입</Text>
       </Link>
@@ -63,6 +66,7 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   error: { color: colors.accent, fontSize: 13 },
+  forgot: { textAlign: 'center', color: colors.textMuted, fontSize: 13, textDecorationLine: 'underline' },
   link: { textAlign: 'center', color: colors.textMuted, fontSize: 14, paddingVertical: 8 },
   linkStrong: { color: colors.primary, fontWeight: '800' },
 });
