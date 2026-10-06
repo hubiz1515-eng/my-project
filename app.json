@@ -39,7 +39,14 @@
           "recordAudioAndroid": false
         }
       ],
-      "@portone/react-native-sdk/plugin"
+      "@portone/react-native-sdk/plugin",
+      [
+        "expo-notifications",
+        {
+          "color": "#16a34a",
+          "defaultChannel": "orders"
+        }
+      ]
     ]
   }
 }

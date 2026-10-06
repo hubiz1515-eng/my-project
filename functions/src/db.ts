@@ -11,4 +11,5 @@ export const col = {
   foodItems: () => db.collection('food_items'),
   orders: () => db.collection('orders'),
   checkouts: () => db.collection('checkouts'),
+  pushEvents: () => db.collection('push_events'),
 };

@@ -17,9 +17,10 @@ const env = {
   PORTONE_WEBHOOK_SECRET: 'whsec_' + crypto.randomBytes(24).toString('base64'),
   PORTONE_API_BASE: 'http://127.0.0.1:9911',
   PORTONE_STORE_ID: storeId,
+  PUSH_API_URL: 'http://127.0.0.1:9912/push',
 };
 execSync('npm --prefix functions run build', { stdio: 'inherit' });
 execSync(
-  'npx --yes firebase-tools emulators:exec --only auth,firestore,functions --project demo-pickupdeal "node --test functions/test/checkout.test.mjs"',
+  'npx --yes firebase-tools emulators:exec --only auth,firestore,functions --project demo-pickupdeal "node --test --test-concurrency=1 functions/test/checkout.test.mjs functions/test/push.test.mjs"',
   { stdio: 'inherit', env },
 );

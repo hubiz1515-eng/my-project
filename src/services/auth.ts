@@ -7,6 +7,7 @@ import { serverTimestamp, setDoc } from 'firebase/firestore';
 import { userDoc } from '../config/collections';
 import { auth } from '../config/firebaseConfig';
 import type { UserRole } from '../types/models';
+import { unregisterPush } from './push';
 
 export interface ProfileInput {
   name: string;
@@ -43,6 +44,8 @@ export async function createProfile(uid: string, p: ProfileInput) {
 }
 
 export async function signOut() {
+  const uid = auth.currentUser?.uid;
+  if (uid) await unregisterPush(uid);
   await fbSignOut(auth);
 }
 

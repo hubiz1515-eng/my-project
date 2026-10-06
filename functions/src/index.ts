@@ -1,8 +1,11 @@
 import { setGlobalOptions } from 'firebase-functions/v2';
+import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import * as checkout from './checkout';
 import { PORTONE_API_SECRET, PORTONE_WEBHOOK_SECRET } from './config';
 import * as orders from './orders';
+import { handleOrderWrite } from './orderNotifications';
+import type { OrderDoc } from './types';
 import { handlePortoneWebhook } from './webhook';
 
 // 서울 리전. 앱의 getFunctions(app, 'asia-northeast3') 와 일치해야 한다.
@@ -31,3 +34,15 @@ export const cancelOrder = onCall({ secrets: [PORTONE_API_SECRET] }, (req) =>
 /** PortOne 웹훅 (콘솔에 https://asia-northeast3-<프로젝트>.cloudfunctions.net/portoneWebhook 등록) */
 export const portoneWebhook = onRequest({ secrets: [PORTONE_API_SECRET, PORTONE_WEBHOOK_SECRET] }, handlePortoneWebhook);
 
+
+/**
+ * 주문 상태 변화 → 푸시 알림 (사장님: 새 주문·고객 취소 / 고객: 수락·픽업 완료·매장 취소).
+ * ⚠️ Firestore 트리거는 데이터베이스 위치와 같은 리전에 배포돼야 한다 (기본: asia-northeast3).
+ */
+export const onOrderWritten = onDocumentWritten('orders/{orderId}', (event) =>
+  handleOrderWrite(
+    event.id,
+    event.data?.before.exists ? (event.data.before.data() as OrderDoc) : undefined,
+    event.data?.after.exists ? (event.data.after.data() as OrderDoc) : undefined,
+  ),
+);

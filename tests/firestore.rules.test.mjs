@@ -67,6 +67,15 @@ describe('users', () => {
     await assertFails(setDoc(doc(db('carol'), 'users/dave'), { uid: 'dave', role: 'customer', name: '데이브' }));
     await assertFails(getDoc(doc(db(ALICE), 'users', BOB)));
   });
+  test('푸시 토큰: 본인만 추가/삭제, 남의 토큰 목록은 읽기·쓰기 불가', async () => {
+    await assertSucceeds(updateDoc(doc(db(ALICE), 'users', ALICE), { pushTokens: ['ExponentPushToken[a]'] }));
+    await assertFails(updateDoc(doc(db(BOB), 'users', ALICE), { pushTokens: ['ExponentPushToken[evil]'] }));
+    await assertFails(getDoc(doc(db(SELLER), 'users', ALICE)));
+  });
+  test('push_events 는 클라이언트 접근 불가', async () => {
+    await assertFails(getDoc(doc(db(ALICE), 'push_events', 'e1')));
+    await assertFails(setDoc(doc(db(ALICE), 'push_events', 'e1'), { x: 1 }));
+  });
   test('역할 변경 불가', async () => {
     await assertFails(updateDoc(doc(db(ALICE), 'users', ALICE), { role: 'seller' }));
     await assertSucceeds(updateDoc(doc(db(ALICE), 'users', ALICE), { name: '앨리스2' }));

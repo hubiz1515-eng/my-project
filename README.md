@@ -43,7 +43,7 @@ EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true EXPO_PUBLIC_FIREBASE_PROJECT_ID=demo-pick
 ```
 - PortOne 키가 없으면 앱은 Mock 결제 시트를 띄우고, **에뮬레이터의 Functions 만** Mock 결제를 승인합니다 (배포된 서버는 거부).
 - 테스트 데이터: `npm run seed:emulator` — 서울 주요 상권 8곳에 `[테스트]` 매장·상품 생성 (에뮬레이터 전용, 실서버에서는 실행 거부)
-- 테스트: `npm run test:rules` (보안 규칙 17개), `npm run test:functions` (결제·환불 통합 18개, 가짜 PortOne 서버 사용)
+- 테스트: `npm run test:rules` (보안 규칙 19개), `npm run test:functions` (결제·환불·푸시 통합 23개, 가짜 PortOne·푸시 서버 사용)
 
 ## 기능 요약
 - **인트로** (`/intro`): 첫 실행 시 앱 소개 4장(마감 할인 · 매장 픽업 · QR 픽업 · 사장님). 한 번 보면 이후엔 바로 로그인.
@@ -51,7 +51,9 @@ EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true EXPO_PUBLIC_FIREBASE_PROJECT_ID=demo-pick
 - **소비자** (`/`): 반경 3km 판매 중 상품 지도 + 카드 리스트 → 상세(`/item/[id]`)에서 수량·같은 매장 메뉴 함께 담기 → 테스트 결제 → 주문 상세(`/order/[id]`)에서 **픽업 QR + 6자리 코드**, 실시간 진행 상태, 수락 전 취소. `내 주문`(`/orders`).
 - **사장님** (`/seller`): 첫 진입 시 매장 등록(계정당 1개) → `상품 관리`(3초 등록, 재고 ±1, 판매중지/품절) / `주문 관리`(수락·거절, 코드 입력 또는 **QR 스캔**(`/scan`)으로 즉시 픽업 완료). 상단 스위치로 소비자 화면도 둘러볼 수 있습니다.
 - **QR 스캔 폴백** (`/scan`): 카메라를 쓸 수 없으면(카메라 모듈 없는 빌드, 웹 HTTP 접속, 카메라 없음, 권한 거부, 카메라 시작 실패, 웹 QR 인식 모듈 로드 실패) 이유를 안내하고 **6자리 코드 직접 입력**으로 대체합니다. 카메라가 켜져도 12초간 인식이 없으면 코드 입력을 권합니다.
-- **실시간**: 모든 목록은 Firestore `onSnapshot` 구독. 새 주문/수락/픽업/취소 시 인앱 알림(추후 FCM 푸시).
+- **실시간**: 모든 목록은 Firestore `onSnapshot` 구독. 앱이 켜져 있으면 화면 안 알림(OrderToast).
+- **푸시 알림**: 주문 상태가 바뀌면 `onOrderWritten` 트리거가 Expo 푸시 서비스(→ FCM/APNs)로 발송 — 사장님: 새 주문·고객 취소 / 고객: 수락·픽업 완료·매장 취소. 알림을 누르면 해당 화면으로 이동. 로그인 시 기기 토큰을 `users.pushTokens` 에 등록, 로그아웃 시 제거, 만료 토큰은 서버가 정리. 웹은 미지원.
+  - 필요: 실기기 개발 빌드 + EAS 프로젝트(`npx eas-cli@latest init` → `app.json` 의 `extra.eas.projectId`) + EAS 에 FCM V1 서비스 계정 키·APNs 키 등록 (`npx eas-cli@latest credentials`). 없으면 등록을 조용히 건너뜁니다.
 - **지도 (Google Maps)**: `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` — 웹은 Maps JavaScript API, Android 는 Maps SDK for Android(`app.config.ts` 가 키 주입, 개발 빌드 필요), iOS 는 Apple 지도. 키가 없거나 API 가 꺼져 있으면 지도 자리에 원인 안내가 뜨고 목록은 그대로 동작합니다. Google Cloud 에서 두 API 를 사용 설정하고 키 제한(HTTP 리퍼러·Android 패키지)을 걸어 두세요.
 - **마커 클러스터링**: 축소 화면에서 가까운 매장 핀은 숫자 원으로 묶이고, 누르면 모두 따로 보일 때까지 확대됩니다 (`src/utils/cluster.ts`, 웹·네이티브 공용).
 - **범위**: 홈 지도 왼쪽 위 `내 주변 3km` / `서울 전체`(서울시청 반경 22km) 전환. 데이터는 Firestore `stores`·`food_items` 실시간 구독.

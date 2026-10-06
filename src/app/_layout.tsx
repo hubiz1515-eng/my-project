@@ -7,6 +7,7 @@ import { AccountBar } from '../components/AccountBar';
 import { OrderToast } from '../components/order/OrderToast';
 import { colors } from '../constants/theme';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 /** AccountBar 높이 (토스트를 바로 아래에 띄우기 위함) */
 const ACCOUNT_BAR_HEIGHT = 46;
@@ -18,6 +19,7 @@ function Shell() {
   const ready = state.status === 'ready';
   const isSeller = ready && state.profile.role === 'seller';
   const uid = ready ? state.user.uid : null;
+  usePushNotifications(uid);
 
   // 사장님은 로그인 직후(홈에 도착했을 때만) 매장 관리 화면에서 시작.
   // 새로고침·딥링크로 다른 화면(/scan, /order/..)에 들어온 경우는 그대로 둔다.
