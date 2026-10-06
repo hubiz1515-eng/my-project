@@ -10,7 +10,7 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { startFakePortone } from './fakePortone.mjs';
 
 const PROJECT = 'demo-pickupdeal';
-const FN = `http://127.0.0.1:5001/${PROJECT}/asia-northeast1`;
+const FN = `http://127.0.0.1:5001/${PROJECT}/asia-northeast3`;
 const AUTH = 'http://127.0.0.1:9099';
 const SECRET = process.env.PORTONE_API_SECRET;
 const WEBHOOK_SECRET = process.env.PORTONE_WEBHOOK_SECRET;

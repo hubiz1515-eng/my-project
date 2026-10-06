@@ -62,8 +62,8 @@ function createAuth(firebaseApp: FirebaseApp): Auth {
 export const auth: Auth = createAuth(app);
 export const db: Firestore = getFirestore(app);
 
-/** Cloud Functions 리전 — Firestore DB 위치(asia-northeast1)와 functions/src/index.ts 의 setGlobalOptions 와 일치 */
-export const FUNCTIONS_REGION = 'asia-northeast1';
+/** Cloud Functions 리전 — Firestore DB 위치(asia-northeast3)와 functions/src/index.ts 의 setGlobalOptions 와 일치 */
+export const FUNCTIONS_REGION = 'asia-northeast3';
 export const functions: Functions = getFunctions(app, FUNCTIONS_REGION);
 
 /**
