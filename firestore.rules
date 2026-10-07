@@ -84,5 +84,10 @@ service cloud.firestore {
       allow read: if isOwner(resource.data.customerId);
       allow write: if false;
     }
+
+    // ── account_deletions: 탈퇴 기록 (개인정보 없음). Cloud Functions 만 쓰기, 클라이언트 접근 불가 ──
+    match /account_deletions/{uid} {
+      allow read, write: if false;
+    }
   }
 }

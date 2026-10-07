@@ -89,6 +89,18 @@ paid ──accept──▶ accepted ──pickup(코드 일치)──▶ picked_
 | status | `'pending' \| 'completed' \| 'failed'` | completed = 주문 생성됨, failed = 검증 실패/재고 부족(→ 환불) |
 | failureReason?, refundStatus? | | |
 
+## 6. `account_deletions/{uid}` *(회원 탈퇴)*
+`deleteAccount` 함수가 탈퇴 처리 직전에 남기는 기록 (운영·분쟁 대응용). 개인정보(이메일·이름·전화)는 즉시 파기 원칙에 따라 **저장하지 않는다**. **Functions 만 쓰기, 클라이언트 읽기·쓰기 불가.**
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| uid | string | 탈퇴한 계정 uid (= 문서 ID, 재시도 시 덮어씀) |
+| role | `'customer' \| 'seller' \| 'unknown'` | 탈퇴 시점 역할 (프로필이 없던 계정은 unknown) |
+| deletedItemCount | number | 함께 삭제한 상품 수 (사장님) |
+| hadStore | boolean | 매장을 함께 삭제했는지 |
+| deletedAt | Timestamp | 서버 시각 |
+
+탈퇴 시 삭제: `users/{uid}`, `stores/{uid}`, 해당 `food_items`, Auth 계정. 보존: `orders`, `checkouts` (전자상거래법 거래 기록 5년).
+
 ## 주요 쿼리 & 색인 (`firestore.indexes.json`)
 | 화면 | 쿼리 |
 |---|---|
@@ -104,6 +116,7 @@ paid ──accept──▶ accepted ──pickup(코드 일치)──▶ picked_
 - `food_items`: 전체 공개 읽기, **소유 사장님만** 쓰기(가격·재고 검증). 주문에 따른 재고 증감은 Functions 만.
 - `orders`: 구매자/해당 사장님만 읽기. **생성·취소 불가(Functions 전용)**. 사장님은 수락(`paid→accepted`)·픽업 완료(`→picked_up`)만.
 - `checkouts`: 구매자만 읽기, 쓰기 불가.
+- `account_deletions`, `push_events`: 클라이언트 접근 불가 (Functions 전용).
 
 ## 결제 흐름 (PortOne V2 + Cloud Functions, `functions/src`)
 ```

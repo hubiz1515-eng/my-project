@@ -1,4 +1,5 @@
 import { getAuth } from 'firebase-admin/auth';
+import { FieldValue } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { col, db } from './db';
@@ -13,6 +14,9 @@ const ACTIVE_STATUSES = ['paid', 'accepted'];
  * - users/{uid}(푸시 토큰 포함)와 Auth 계정을 삭제한다.
  * - 주문·결제 내역(orders, checkouts)은 전자상거래법상 거래 기록 보존 의무(5년) 때문에 남긴다.
  *   주문에는 주문 시점 스냅샷(매장명·상품명·닉네임)만 있어 계정이 없어도 내역 표시에 문제없다.
+ *
+ * - 탈퇴 기록 account_deletions/{uid} 를 남긴다 (운영·분쟁 대응용). 개인정보(이메일·이름·전화)는
+ *   즉시 파기 원칙에 따라 넣지 않고 uid·역할·시각·삭제 건수만 저장. 클라이언트는 읽기·쓰기 불가(규칙).
  *
  * 재인증(비밀번호 재확인)은 클라이언트가 호출 직전에 수행한다.
  */
@@ -29,7 +33,21 @@ export async function deleteAccount(uid: string) {
   }
 
   // 매장 상품 + 매장 + 프로필 (500건 단위 배치)
-  const items = await col.foodItems().where('ownerId', '==', uid).select().get();
+  const [items, profile, store] = await Promise.all([
+    col.foodItems().where('ownerId', '==', uid).select().get(),
+    col.users().doc(uid).get(),
+    col.stores().doc(uid).get(),
+  ]);
+  const record: AccountDeletionDoc = {
+    uid,
+    role: (profile.get('role') as AccountDeletionDoc['role']) ?? 'unknown',
+    deletedItemCount: items.size,
+    hadStore: store.exists,
+    deletedAt: FieldValue.serverTimestamp(),
+  };
+  // 기록을 먼저 남겨, 이후 단계가 실패해도 재시도 시 덮어쓰며 추적 가능
+  await col.accountDeletions().doc(uid).set(record);
+
   const refs = [...items.docs.map((d) => d.ref), col.stores().doc(uid), col.users().doc(uid)];
   for (let i = 0; i < refs.length; i += 500) {
     const batch = db.batch();
@@ -44,4 +62,13 @@ export async function deleteAccount(uid: string) {
   }
   logger.info('account deleted', { uid, deletedItems: items.size });
   return { deleted: true };
+}
+
+/** account_deletions/{uid} — 개인정보 없는 탈퇴 기록 */
+export interface AccountDeletionDoc {
+  uid: string;
+  role: 'customer' | 'seller' | 'unknown';
+  deletedItemCount: number;
+  hadStore: boolean;
+  deletedAt: FieldValue;
 }

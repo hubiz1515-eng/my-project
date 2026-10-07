@@ -9,7 +9,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, writeBatch, Timestamp } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc, updateDoc, writeBatch, Timestamp } from 'firebase/firestore';
 
 const SELLER = 'seller1';
 const SELLER2 = 'seller2';
@@ -178,5 +178,15 @@ describe('checkouts', () => {
   test('클라이언트 쓰기 불가 (금액 조작 방지)', async () => {
     await assertFails(updateDoc(doc(db(ALICE), 'checkouts/p1'), { totalPrice: 100 }));
     await assertFails(setDoc(doc(db(ALICE), 'checkouts/p2'), { paymentId: 'p2', customerId: ALICE, totalPrice: 100 }));
+  });
+});
+
+describe('account_deletions', () => {
+  test('본인 포함 클라이언트는 탈퇴 기록을 읽거나 쓸 수 없음', async () => {
+    await seed((f) => setDoc(doc(f, 'account_deletions', ALICE), { uid: ALICE, role: 'customer', deletedItemCount: 0, hadStore: false }));
+    await assertFails(getDoc(doc(db(ALICE), 'account_deletions', ALICE)));
+    await assertFails(getDoc(doc(db(SELLER), 'account_deletions', ALICE)));
+    await assertFails(setDoc(doc(db(BOB), 'account_deletions', BOB), { uid: BOB }));
+    await assertFails(deleteDoc(doc(db(ALICE), 'account_deletions', ALICE)));
   });
 });

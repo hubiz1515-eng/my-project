@@ -80,6 +80,14 @@ describe('deleteAccount', () => {
     assert.equal(await exists(`users/${seller.uid}`), false);
     assert.equal(await canSignIn(seller), false);
     assert.equal(await exists(`orders/${oid}`), true, '거래 기록은 남아야 함');
+    // 탈퇴 기록: 개인정보 없이 uid·역할·건수·시각만
+    const rec = (await db.doc(`account_deletions/${seller.uid}`).get()).data();
+    assert.deepEqual(Object.keys(rec).sort(), ['deletedAt', 'deletedItemCount', 'hadStore', 'role', 'uid']);
+    assert.equal(rec.uid, seller.uid);
+    assert.equal(rec.role, 'seller');
+    assert.equal(rec.deletedItemCount, 2);
+    assert.equal(rec.hadStore, true);
+    assert.ok(Math.abs(rec.deletedAt.toMillis() - Date.now()) < 60_000);
     // 다른 사용자는 영향 없음
     assert.equal(await exists(`users/${customer.uid}`), true);
     assert.equal(await canSignIn(customer), true);
@@ -92,12 +100,17 @@ describe('deleteAccount', () => {
     }));
     await assert.rejects(deleteAccount(customer), { status: 'FAILED_PRECONDITION', message: /진행 중인 주문/ });
     assert.equal(await exists(`users/${customer.uid}`), true);
+    assert.equal(await exists(`account_deletions/${customer.uid}`), false, '거부되면 기록도 없음');
     assert.equal(await canSignIn(customer), true);
 
     // 픽업 완료 후에는 탈퇴 가능
     await db.doc(`orders/${oid}`).update({ status: 'picked_up' });
     await deleteAccount(customer);
     assert.equal(await exists(`users/${customer.uid}`), false);
+    const rec = (await db.doc(`account_deletions/${customer.uid}`).get()).data();
+    assert.equal(rec.role, 'customer');
+    assert.equal(rec.hadStore, false);
+    assert.equal(rec.deletedItemCount, 0);
     assert.equal(await canSignIn(customer), false);
   });
 

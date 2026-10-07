@@ -12,4 +12,5 @@ export const col = {
   orders: () => db.collection('orders'),
   checkouts: () => db.collection('checkouts'),
   pushEvents: () => db.collection('push_events'),
+  accountDeletions: () => db.collection('account_deletions'),
 };
