@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +7,7 @@ import { ConfirmButton } from '../components/ConfirmButton';
 import { colors, radius } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { authErrorMessage, deleteMyAccount, sendPasswordReset, signOut } from '../services/auth';
+import { LEGAL_DOCS, type LegalDocKey } from '../content/legal/documents';
 import { goBack } from '../utils/nav';
 
 export default function AccountScreen() {
@@ -78,6 +80,27 @@ export default function AccountScreen() {
           </Pressable>
         </View>
 
+        <View style={styles.card}>
+          {(Object.keys(LEGAL_DOCS) as LegalDocKey[]).map((k, i) => (
+            <View key={k} style={{ gap: 10 }}>
+              {i > 0 && <View style={styles.divider} />}
+              <Pressable
+                onPress={() => router.push({ pathname: '/legal/[doc]', params: { doc: k } })}
+                style={styles.action}
+                accessibilityRole="link"
+              >
+                <Text style={styles.actionText}>{LEGAL_DOCS[k].title}</Text>
+                <Text style={styles.chevron}>›</Text>
+              </Pressable>
+            </View>
+          ))}
+          {profile.agreements && (
+            <Text style={styles.agreed}>
+              {new Date(profile.agreements.agreedAt.toMillis()).toLocaleDateString('ko-KR')}에 동의함
+            </Text>
+          )}
+        </View>
+
         <View style={[styles.card, styles.danger]}>
           <Text style={styles.dangerTitle}>회원 탈퇴</Text>
           <Text style={styles.body}>
@@ -134,6 +157,7 @@ const styles = StyleSheet.create({
   actionText: { fontSize: 15, color: colors.text, fontWeight: '600' },
   chevron: { fontSize: 20, color: colors.textMuted },
   divider: { height: 1, backgroundColor: colors.border },
+  agreed: { fontSize: 12, color: colors.textMuted },
   note: { fontSize: 13, color: colors.primary },
   danger: { borderWidth: 1, borderColor: colors.accentSoft },
   dangerTitle: { fontSize: 16, fontWeight: '800', color: colors.accent },

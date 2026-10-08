@@ -9,7 +9,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc, writeBatch, Timestamp } from 'firebase/firestore';
+import { deleteDoc, deleteField, doc, getDoc, serverTimestamp, setDoc, updateDoc, writeBatch, Timestamp } from 'firebase/firestore';
 
 const SELLER = 'seller1';
 const SELLER2 = 'seller2';
@@ -19,6 +19,10 @@ const ITEM = 'item1';
 const ADDON = 'item2';
 
 let env;
+/** 앱이 저장하는 동의 기록과 같은 형태 (src/services/consent.ts currentAgreements) */
+const agreements = (o = {}) => ({
+  termsVersion: '2026-10-08', privacyVersion: '2026-10-08', locationVersion: '2026-10-08', over14: true, agreedAt: serverTimestamp(), ...o,
+});
 const db = (uid) => env.authenticatedContext(uid).firestore();
 const anon = () => env.unauthenticatedContext().firestore();
 const later = Timestamp.fromMillis(Date.now() + 3600_000);
@@ -63,8 +67,8 @@ beforeEach(async () => {
 
 describe('users', () => {
   test('본인 프로필 생성/조회 가능, 남의 것은 불가', async () => {
-    await assertSucceeds(setDoc(doc(db('carol'), 'users/carol'), { uid: 'carol', role: 'customer', name: '캐롤' }));
-    await assertFails(setDoc(doc(db('carol'), 'users/dave'), { uid: 'dave', role: 'customer', name: '데이브' }));
+    await assertSucceeds(setDoc(doc(db('carol'), 'users/carol'), { uid: 'carol', role: 'customer', name: '캐롤', agreements: agreements() }));
+    await assertFails(setDoc(doc(db('carol'), 'users/dave'), { uid: 'dave', role: 'customer', name: '데이브', agreements: agreements() }));
     await assertFails(getDoc(doc(db(ALICE), 'users', BOB)));
   });
   test('푸시 토큰: 본인만 추가/삭제, 남의 토큰 목록은 읽기·쓰기 불가', async () => {
@@ -75,6 +79,24 @@ describe('users', () => {
   test('push_events 는 클라이언트 접근 불가', async () => {
     await assertFails(getDoc(doc(db(ALICE), 'push_events', 'e1')));
     await assertFails(setDoc(doc(db(ALICE), 'push_events', 'e1'), { x: 1 }));
+  });
+  test('약관 동의 없이는 프로필 생성 불가', async () => {
+    const base = { uid: 'erin', role: 'customer', name: '에린' };
+    await assertFails(setDoc(doc(db('erin'), 'users/erin'), base));
+    await assertFails(setDoc(doc(db('erin'), 'users/erin'), { ...base, agreements: agreements({ over14: false }) }));
+    await assertFails(setDoc(doc(db('erin'), 'users/erin'), { ...base, agreements: agreements({ termsVersion: '' }) }));
+    const { locationVersion, ...noLocation } = agreements();
+    await assertFails(setDoc(doc(db('erin'), 'users/erin'), { ...base, agreements: noLocation }));
+    // 동의 시각을 과거로 조작 불가 (서버 시각만)
+    await assertFails(setDoc(doc(db('erin'), 'users/erin'), { ...base, agreements: agreements({ agreedAt: Timestamp.fromMillis(0) }) }));
+    await assertFails(setDoc(doc(db('erin'), 'users/erin'), { ...base, agreements: agreements({ extra: 'x' }) }));
+    await assertSucceeds(setDoc(doc(db('erin'), 'users/erin'), { ...base, agreements: agreements() }));
+  });
+  test('재동의: 본인만 새 버전으로 갱신, 동의 기록 삭제·조작 불가', async () => {
+    await assertSucceeds(updateDoc(doc(db(ALICE), 'users', ALICE), { agreements: agreements({ termsVersion: '2027-01-01' }) }));
+    await assertFails(updateDoc(doc(db(BOB), 'users', ALICE), { agreements: agreements() }));
+    await assertFails(updateDoc(doc(db(ALICE), 'users', ALICE), { agreements: deleteField() }));
+    await assertFails(updateDoc(doc(db(ALICE), 'users', ALICE), { agreements: agreements({ over14: false }) }));
   });
   test('역할 변경 불가', async () => {
     await assertFails(updateDoc(doc(db(ALICE), 'users', ALICE), { role: 'seller' }));

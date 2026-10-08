@@ -13,8 +13,20 @@ export interface User {
   phone: string;
   /** FCM/Expo 푸시 토큰 (기기별). 주문·마감임박 알림 전송에 사용. */
   pushTokens: string[];
+  /** 약관 동의 기록 (가입·재동의 시 저장). 없거나 버전이 낮으면 /consent 에서 다시 동의받는다. */
+  agreements?: Agreements;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+/** 동의한 문서 버전 (src/content/legal/documents.ts 의 version) */
+export interface Agreements {
+  termsVersion: string;
+  privacyVersion: string;
+  locationVersion: string;
+  /** 만 14세 이상 확인 */
+  over14: true;
+  agreedAt: Timestamp;
 }
 
 // ── stores/{storeId} ─────────────────────────────────────────

@@ -11,6 +11,7 @@ import { httpsCallable } from 'firebase/functions';
 import { userDoc } from '../config/collections';
 import { auth, functions } from '../config/firebaseConfig';
 import type { UserRole } from '../types/models';
+import { currentAgreements } from './consent';
 import { unregisterPush } from './push';
 import { toUserMessage } from './types';
 
@@ -35,7 +36,10 @@ export async function signUp(email: string, password: string) {
   return cred.user.uid;
 }
 
-/** users/{uid} 프로필 생성. 역할은 이후 변경 불가(보안 규칙). */
+/**
+ * users/{uid} 프로필 생성. 역할은 이후 변경 불가(보안 규칙).
+ * 화면에서 필수 약관 동의(ConsentChecklist)를 받은 뒤에만 호출한다 — 동의 기록을 함께 저장.
+ */
 export async function createProfile(uid: string, p: ProfileInput) {
   await setDoc(userDoc(uid), {
     uid,
@@ -43,6 +47,7 @@ export async function createProfile(uid: string, p: ProfileInput) {
     name: p.name.trim(),
     phone: p.phone.trim(),
     pushTokens: [],
+    agreements: currentAgreements(),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

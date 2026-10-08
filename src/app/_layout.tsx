@@ -8,17 +8,21 @@ import { OrderToast } from '../components/order/OrderToast';
 import { colors } from '../constants/theme';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { outdatedDocs } from '../services/consent';
 
 /** AccountBar 높이 (토스트를 바로 아래에 띄우기 위함) */
 const ACCOUNT_BAR_HEIGHT = 46;
-const AUTH_ROUTES = ['/intro', '/login', '/signup', '/forgot-password', '/profile-setup'];
+const AUTH_ROUTES = ['/intro', '/login', '/signup', '/forgot-password', '/profile-setup', '/consent'];
 
 function Shell() {
   const insets = useSafeAreaInsets();
   const { state } = useAuth();
-  const ready = state.status === 'ready';
-  const isSeller = ready && state.profile.role === 'seller';
-  const uid = ready ? state.user.uid : null;
+  const signedIn = state.status === 'ready';
+  // 동의 기록이 없거나 약관이 개정됐으면 재동의 화면만 열어 둔다
+  const needsConsent = signedIn && outdatedDocs(state.profile).length > 0;
+  const ready = signedIn && !needsConsent;
+  const isSeller = signedIn && state.profile.role === 'seller';
+  const uid = signedIn ? state.user.uid : null;
   usePushNotifications(uid);
 
   // 사장님은 로그인 직후(홈에 도착했을 때만) 매장 관리 화면에서 시작.
@@ -55,6 +59,9 @@ function Shell() {
         <Stack.Protected guard={state.status === 'needsProfile'}>
           <Stack.Screen name="profile-setup" />
         </Stack.Protected>
+        <Stack.Protected guard={needsConsent}>
+          <Stack.Screen name="consent" />
+        </Stack.Protected>
         <Stack.Protected guard={ready}>
           <Stack.Screen name="index" />
           <Stack.Screen name="item/[id]" options={{ animation: 'slide_from_bottom' }} />
@@ -67,6 +74,8 @@ function Shell() {
             <Stack.Screen name="scan" options={{ animation: 'slide_from_bottom' }} />
           </Stack.Protected>
         </Stack.Protected>
+        {/* 약관 전문: 로그인 여부와 관계없이 (가입·재동의 화면에서도 열람) */}
+        <Stack.Screen name="legal/[doc]" options={{ animation: 'slide_from_right' }} />
       </Stack>
       {ready && <OrderToast top={insets.top + ACCOUNT_BAR_HEIGHT + 6} />}
     </View>

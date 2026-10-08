@@ -52,11 +52,15 @@ EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true EXPO_PUBLIC_FIREBASE_PROJECT_ID=demo-pick
 ```
 - PortOne 키가 없으면 앱은 Mock 결제 시트를 띄우고, **에뮬레이터의 Functions 만** Mock 결제를 승인합니다 (배포된 서버는 거부).
 - 테스트 데이터: `npm run seed:emulator` — 서울 주요 상권 8곳에 `[테스트]` 매장·상품 생성 (에뮬레이터 전용, 실서버에서는 실행 거부)
-- 테스트: `npm run test:rules` (보안 규칙 20개), `npm run test:functions` (결제·환불·푸시·회원 탈퇴 통합 27개, 가짜 PortOne·푸시 서버 사용)
+- 테스트: `npm run test:rules` (보안 규칙 22개), `npm run test:functions` (결제·환불·푸시·회원 탈퇴 통합 27개, 가짜 PortOne·푸시 서버 사용)
 
 ## 기능 요약
 - **인트로** (`/intro`): 첫 실행 시 앱 소개 4장(마감 할인 · 매장 픽업 · QR 픽업 · 사장님). 한 번 보면 이후엔 바로 로그인.
 - **로그인/가입** (`/login`, `/signup`): 이메일 + 역할(소비자/사장님) 선택. 역할은 가입 후 변경 불가. 프로필이 없는 계정은 `/profile-setup`.
+- **약관 동의**: 가입·프로필 생성 시 필수 동의(만 14세 이상, 이용약관, 개인정보 수집·이용, 위치기반서비스) — 전체 동의 + 항목별 전문 보기. 동의 기록(문서 버전·시각)은 `users.agreements` 에 저장하고 보안 규칙이 형식을 검증.
+  - 문서 전문: `/legal/terms`, `/legal/privacy`, `/legal/location` (로그인 없이 열람 가능, `내 계정`에서도 링크). 내용은 `src/content/legal/`.
+  - **재동의**: 문서 `version` 을 올리면, 이전 버전에 동의한 회원(또는 동의 기록이 없는 기존 회원)은 다음 실행 때 `/consent` 화면에서 다시 동의해야 서비스를 이용할 수 있음.
+  - ⚠️ **초안**: 사업자 정보·수수료·노쇼 정책 등 `[…]` 자리표시자는 `src/content/legal/info.ts` 에서 채워야 하며, 남아 있으면 문서 화면에 '초안' 경고가 뜹니다. 출시 전 법률 검토 권장.
 - **비밀번호 찾기** (`/forgot-password`): Firebase 재설정 메일(한국어). 가입 여부는 노출하지 않고 항상 같은 안내.
 - **내 계정** (`/account`, 상단 이름 탭): 계정 정보, 비밀번호 변경 메일, 로그아웃, **회원 탈퇴**(앱스토어·플레이스토어 필수).
   - 탈퇴: 비밀번호 재확인 → `deleteAccount` 함수가 진행 중 주문(수락 대기·픽업 대기)이 있으면 거부, 없으면 매장·상품·프로필·Auth 계정 삭제. 주문·결제 기록은 전자상거래법(5년 보존)에 따라 남김. 개인정보 없는 탈퇴 기록을 `account_deletions/{uid}` 에 저장.

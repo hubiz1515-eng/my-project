@@ -25,13 +25,28 @@ service cloud.firestore {
     }
 
     // ── users: 본인만. 역할(role)은 가입 시 1회 지정, 이후 변경 불가 ──────────
+    // 약관 동의 기록: 필수 3개 문서 버전 + 만 14세 이상 확인 + 서버 시각
+    function validAgreements(a) {
+      return a is map
+        && a.keys().hasOnly(['termsVersion', 'privacyVersion', 'locationVersion', 'over14', 'agreedAt'])
+        && a.termsVersion is string && a.termsVersion.size() > 0
+        && a.privacyVersion is string && a.privacyVersion.size() > 0
+        && a.locationVersion is string && a.locationVersion.size() > 0
+        && a.over14 == true
+        && a.agreedAt == request.time;
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid)
         && request.resource.data.uid == uid
         && request.resource.data.role in ['customer', 'seller']
-        && request.resource.data.name is string && request.resource.data.name.size() > 0;
-      allow update: if isOwner(uid) && unchanged('role') && unchanged('uid');
+        && request.resource.data.name is string && request.resource.data.name.size() > 0
+        && validAgreements(request.resource.data.agreements);
+      // 동의 기록을 바꾸는 경우(재동의)는 형식·시각 검증. 삭제는 불가.
+      allow update: if isOwner(uid) && unchanged('role') && unchanged('uid')
+        && (!('agreements' in request.resource.data.diff(resource.data).affectedKeys())
+            || validAgreements(request.resource.data.agreements));
       allow delete: if false;
     }
 

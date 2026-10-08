@@ -20,6 +20,7 @@ users/{uid} ─(1:N)→ stores/{storeId} ─(1:N)→ food_items/{itemId}
 | role | `'customer' \| 'seller'` | 가입 시 1회 결정, 이후 변경 불가(규칙) |
 | name, phone | string | |
 | pushTokens | string[] | FCM/Expo 푸시 토큰(기기별) *(추가)* |
+| agreements | map | 약관 동의 기록: `termsVersion`, `privacyVersion`, `locationVersion`(동의한 문서 버전), `over14`(true), `agreedAt`(서버 시각). 생성 시 필수, 형식은 규칙이 검증. 버전이 현재보다 낮으면 앱이 재동의를 받음 *(추가)* |
 | createdAt, updatedAt | Timestamp | *(추가)* |
 
 ## 2. `stores/{storeId}`
@@ -111,7 +112,7 @@ paid ──accept──▶ accepted ──pickup(코드 일치)──▶ picked_
 | 픽업 코드 확인 | `orders` where `storeOwnerId==me` and `pickupCode==X` and `status in [paid, accepted]` |
 
 ## 보안 규칙 요약 (`firestore.rules`, 테스트: `tests/firestore.rules.test.mjs`)
-- `users`: 본인만 읽기/쓰기, `role` 변경 불가
+- `users`: 본인만 읽기/쓰기, `role` 변경 불가, 생성 시 약관 동의 기록(`agreements`) 필수·형식 검증
 - `stores`: 전체 공개 읽기, 사장님(role=seller)이 자기 uid 문서로만 생성
 - `food_items`: 전체 공개 읽기, **소유 사장님만** 쓰기(가격·재고 검증). 주문에 따른 재고 증감은 Functions 만.
 - `orders`: 구매자/해당 사장님만 읽기. **생성·취소 불가(Functions 전용)**. 사장님은 수락(`paid→accepted`)·픽업 완료(`→picked_up`)만.

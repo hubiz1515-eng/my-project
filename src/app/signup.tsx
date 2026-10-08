@@ -2,6 +2,7 @@ import { Link } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { AuthScreen } from '../components/auth/AuthScreen';
+import { allConsented, ConsentChecklist, EMPTY_CONSENT } from '../components/auth/ConsentChecklist';
 import { Field } from '../components/auth/Field';
 import { RolePicker } from '../components/auth/RolePicker';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -17,6 +18,7 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [consent, setConsent] = useState(EMPTY_CONSENT);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,7 +26,8 @@ export default function SignupScreen() {
     const problem =
       (!/^\S+@\S+\.\S+$/.test(email.trim()) && '이메일 형식이 올바르지 않아요.') ||
       (password.length < 6 && '비밀번호는 6자 이상이어야 해요.') ||
-      validateProfile({ name, phone, role });
+      validateProfile({ name, phone, role }) ||
+      (!allConsented(consent) && '필수 약관에 모두 동의해 주세요.');
     if (problem) return setError(problem);
     setBusy(true);
     setError(null);
@@ -43,6 +46,7 @@ export default function SignupScreen() {
       <Field label="비밀번호" value={password} onChangeText={setPassword} placeholder="6자 이상" secureTextEntry autoComplete="new-password" />
       <Field label={role === 'seller' ? '대표자 이름' : '이름(닉네임)'} value={name} onChangeText={setName} placeholder="홍길동" maxLength={20} />
       <Field label="휴대폰 번호" value={phone} onChangeText={setPhone} placeholder="010-1234-5678" keyboardType="phone-pad" autoComplete="tel" maxLength={13} />
+      <ConsentChecklist value={consent} onChange={(c) => { setConsent(c); setError(null); }} />
       {error && <Text style={styles.error}>{error}</Text>}
       <PrimaryButton label={role === 'seller' ? '사장님으로 가입하기' : '가입하기'} onPress={submit} busy={busy} />
       <Link href="/login" replace style={styles.link}>
