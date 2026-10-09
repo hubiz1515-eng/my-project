@@ -1,5 +1,5 @@
 import type { Timestamp } from 'firebase-admin/firestore';
-import type { FoodItemStatus, OrderLine, OrderStatus, PaymentMethod, RefundStatus } from '../shared/types';
+import type { CanceledBy, FoodItemStatus, OrderLine, OrderStatus, PaymentMethod, RefundStatus } from '../shared/types';
 
 /** Firestore 문서 중 Functions 가 읽고 쓰는 필드 (앱 src/types/models.ts 와 동일한 스키마) */
 export interface FoodItemDoc {
@@ -49,6 +49,8 @@ export interface OrderDoc {
   paymentId: string;
   paymentMethod: PaymentMethod;
   pickupEndTime: Timestamp;
-  canceledBy?: 'customer' | 'seller';
+  canceledBy?: CanceledBy;
   refundStatus?: RefundStatus;
+  /** 노쇼 부분/전액 환불 금액 (정책이 환불 없음이면 없음) */
+  refundAmount?: number;
 }

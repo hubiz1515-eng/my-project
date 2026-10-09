@@ -32,6 +32,14 @@
         { "fieldPath": "pickupCode", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "pickupEndTime", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

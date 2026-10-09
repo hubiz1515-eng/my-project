@@ -3,7 +3,7 @@
  * ⚠️ 대괄호([…]) 값은 아직 정해지지 않은 자리표시자다. 출시 전에 모두 실제 값으로 바꿔야 하며,
  * 하나라도 남아 있으면 문서 화면 상단에 '초안' 경고가 표시된다 (hasPlaceholders).
  */
-import { noShowPolicyText } from '../../../shared/policy';
+import { noShowPolicyText, unacceptedPolicyText } from '../../../shared/policy';
 import { APP_NAME } from '../../constants/brand';
 
 export const LEGAL_INFO = {
@@ -21,8 +21,10 @@ export const LEGAL_INFO = {
   locationOfficer: '[위치정보관리책임자 성명·직책]',
   /** 사장님 판매 수수료 등 이용요금 (정해지지 않음) */
   sellerFee: '[판매 수수료 정책]',
-  /** 노쇼(픽업 마감까지 미방문) 처리 정책 (정해지지 않음) */
-  noShowPolicy: '[노쇼(픽업 마감 시간까지 미방문) 시 환불 정책]',
+  /** 노쇼(픽업 마감까지 미방문) 처리 정책 — shared/policy.ts 의 NO_SHOW_POLICY 에서 생성 */
+  noShowPolicy: noShowPolicyText(),
+  /** 미수락 주문 자동 취소 — shared/policy.ts 에서 생성 */
+  unacceptedPolicy: unacceptedPolicyText(),
 } as const;
 
 export const isPlaceholder = (v: string) => /\[[^\]]+\]/.test(v);

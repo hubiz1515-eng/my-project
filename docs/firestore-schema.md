@@ -57,7 +57,7 @@ users/{uid} ─(1:N)→ stores/{storeId} ─(1:N)→ food_items/{itemId}
 | quantity | number | 대표 상품 수량 |
 | totalPrice | number | 대표 + addOns 합계 = 실제 결제액 (서버가 계산·검증) |
 | pickupCode | string | 6자리 핀코드. QR 페이로드는 `pickupdeal:v1:{orderId}:{pickupCode}` (`src/utils/pickupQr.ts`) |
-| status | `'paid' \| 'accepted' \| 'picked_up' \| 'canceled'` | `accepted` *(4단계 추가)*: 사장님 수락 |
+| status | `'paid' \| 'accepted' \| 'picked_up' \| 'canceled' \| 'no_show'` | `accepted` *(4단계 추가)*: 사장님 수락. `no_show`: 수락 후 픽업 마감 + 유예 시간까지 미방문 *(추가)* |
 | addOns | `{itemId,title,unitPrice,quantity}[]` | Cross-selling 구매 내역 스냅샷 *(추가)* |
 | quantities | `map<itemId, number>` | 대표+추가 메뉴 수량 |
 | refundStatus? | `'pending' \| 'done' \| 'failed'` | 취소된 주문의 환불 진행 상태 (failed = 수동 환불 필요) *(6단계 추가)* |
@@ -65,18 +65,24 @@ users/{uid} ─(1:N)→ stores/{storeId} ─(1:N)→ food_items/{itemId}
 | unitPrice | number | 대표 상품 주문 시점 단가 *(추가)* |
 | paymentId | string | PortOne 결제 ID. **주문 문서 ID == paymentId == checkout ID** (멱등성 키) |
 | paymentMethod | `'card' \| 'kakaopay'` | 카드(토스페이먼츠 채널) / 카카오페이 채널 |
-| canceledBy? | `'customer' \| 'seller'` | *(추가)* |
+| canceledBy? | `'customer' \| 'seller' \| 'system'` | system = 미수락 자동 취소 *(추가)* |
+| noShowAt? | Timestamp | 노쇼 처리 시각 *(추가)* |
+| refundAmount? | number | 노쇼 부분·전액 환불 금액 (현재 정책은 환불 없음이라 없음) *(추가)* |
 | paidAt, pickupEndTime, acceptedAt?, pickedUpAt?, canceledAt?, createdAt, updatedAt | Timestamp | pickupEndTime = 담은 상품 중 가장 이른 마감 *(추가)* |
 
 ### 주문 상태 전이 (`src/utils/orderRules.ts`)
 ```
 paid ──accept──▶ accepted ──pickup(코드 일치)──▶ picked_up
  │  └─pickup(수락 전 방문도 허용)─────────────────▲
- ├─customer_cancel (수락 전만) ─▶ canceled
- └─reject (paid·accepted) ──────▶ canceled
+ ├─customer_cancel (수락 전만) ─▶ canceled        accepted ──(마감+30분, 자동)──▶ no_show
+ ├─reject (paid·accepted) ──────▶ canceled
+ └─(마감+30분 미수락, 자동) ────▶ canceled (system)
 ```
 - 취소/거절 시 결제 취소(환불) + **재고 수량만 복구, 상품 상태는 유지**. 품절됐던 상품은 사장님이 '판매 재개'를 눌러야 다시 노출됩니다(자동 재판매 금지).
-- 픽업 시간이 지난 미수령 주문은 자동 처리하지 않고 사장님 화면에 '픽업 시간 지남'으로 표시합니다. 노쇼 정책(환불 여부)은 결정 필요.
+- **자동 처리** (`expireOrders` 스케줄러, 10분마다 · `functions/src/expiry.ts`): 픽업 마감 + 유예 시간(`shared/policy.ts`, 30분)이 지나면
+  - `accepted` → `no_show`: 노쇼 정책에 따라 처리 (현재: **환불 없음**, 재고 복구 안 함 — 이미 준비된 상품)
+  - `paid`(미수락) → `canceled`(`canceledBy: 'system'`): 전액 환불 + 재고 수량 복구
+  - 유예 시간 안에는 사장님이 늦게 온 손님을 픽업 완료 처리할 수 있다. 색인: `orders (status, pickupEndTime)`.
 
 ## 5. `checkouts/{paymentId}` *(6단계 추가)*
 결제 전에 서버(`prepareCheckout`)가 확정한 장바구니·금액. PortOne 결제 금액을 이 값과 대조한다. **Functions 만 쓰기, 구매자만 읽기.**

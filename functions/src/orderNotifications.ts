@@ -30,9 +30,22 @@ export function notificationFor(
     case 'picked_up':
       return { to: after.customerId, msg: { title: '🎉 픽업 완료', body: `${after.storeName} · ${summary} 맛있게 드세요!`, url: orderUrl } };
     case 'canceled':
-      return after.canceledBy === 'customer'
-        ? { to: after.storeOwnerId, msg: { title: '주문이 취소됐어요', body: `${after.customerName}님이 ${summary} 주문을 취소했어요. 재고는 자동으로 복구됐어요.`, url: '/seller?tab=orders' } }
-        : { to: after.customerId, msg: { title: '주문이 취소됐어요', body: `${after.storeName} 사정으로 취소되어 ${won(after.totalPrice)} 환불됩니다.`, url: orderUrl } };
+      if (after.canceledBy === 'customer') {
+        return { to: after.storeOwnerId, msg: { title: '주문이 취소됐어요', body: `${after.customerName}님이 ${summary} 주문을 취소했어요. 재고는 자동으로 복구됐어요.`, url: '/seller?tab=orders' } };
+      }
+      if (after.canceledBy === 'system') {
+        return { to: after.customerId, msg: { title: '주문이 자동 취소됐어요', body: `${after.storeName}이(가) 픽업 시간까지 주문을 수락하지 않아 ${won(after.totalPrice)} 환불됩니다.`, url: orderUrl } };
+      }
+      return { to: after.customerId, msg: { title: '주문이 취소됐어요', body: `${after.storeName} 사정으로 취소되어 ${won(after.totalPrice)} 환불됩니다.`, url: orderUrl } };
+    case 'no_show':
+      return {
+        to: after.customerId,
+        msg: {
+          title: '픽업 시간이 지났어요',
+          body: `${after.storeName} · ${summary} 주문이 노쇼로 처리됐어요.${after.refundAmount ? ` ${won(after.refundAmount)} 환불됩니다.` : ' 노쇼 정책에 따라 환불되지 않아요.'}`,
+          url: orderUrl,
+        },
+      };
     default:
       return null;
   }

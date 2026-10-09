@@ -2,11 +2,12 @@
  * 운영 정책 설정 — 앱(약관 문구)과 Cloud Functions(자동 처리)가 함께 쓴다.
  * 외부 패키지를 import 하지 않는다 (functions 빌드 시 이 폴더가 그대로 복사됨).
  *
- * ⚠️ 노쇼 정책은 아직 정해지지 않았다(decided: false). 정하면:
- *   1) 아래 값을 고르고 decided 를 true 로 바꾼다 → 이용약관 제6조 ④ 문구가 자동으로 바뀐다.
- *   2) 약관 버전(src/content/legal/documents.ts 의 terms.version)을 올린다 → 기존 회원 재동의.
- *   3) 자동 처리(픽업 마감 후 노쇼 확정 → 환불)는 아직 구현 전이다. 정책이 정해지면 functions 에 추가한다.
+ * 노쇼 정책 (2026-10-09 확정: 환불 없음, 유예 30분).
+ * 값을 바꾸면:
+ *   1) 이용약관 제6조 문구가 자동으로 바뀐다 → 약관 버전(src/content/legal/documents.ts 의 terms.version)을 올려 재동의.
+ *   2) 자동 처리(functions/src/expiry.ts, 10분마다)가 새 값으로 동작한다 → functions 재배포.
  */
+import type { OrderStatus } from './types';
 
 /**
  * 노쇼(사장님이 수락했지만 픽업 마감 시간까지 고객이 오지 않음) 시 환불 방식
@@ -18,7 +19,7 @@ export type NoShowRefund = 'none' | 'partial' | 'full';
 
 export const NO_SHOW_POLICY = {
   /** 정책을 확정했는지. false 면 약관에 '[정해지지 않음]' 자리표시자가 남는다. */
-  decided: false as boolean,
+  decided: true as boolean,
   refund: 'none' as NoShowRefund,
   /** refund === 'partial' 일 때 환불 비율 (1~99) */
   partialRefundPercent: 50,
@@ -40,7 +41,34 @@ export function noShowPolicyText(p = NO_SHOW_POLICY): string {
   }
 }
 
-/** 노쇼 시 환불할 금액 (원). 자동 처리 구현 시 functions 에서 사용 */
+/** 미수락 주문 자동 취소 문구 (이용약관) */
+export function unacceptedPolicyText(p = NO_SHOW_POLICY): string {
+  return `판매자가 픽업 마감 시간이 지나고 ${p.graceMinutes}분이 지나도록 주문을 수락하지 않으면 주문은 자동으로 취소되고 결제 금액 전액이 환불됩니다.`;
+}
+
+/** 주문 화면·결제 전 안내용 짧은 문구 */
+export function noShowNotice(p = NO_SHOW_POLICY): string {
+  const refund = p.refund === 'full' ? '전액 환불돼요' : p.refund === 'partial' ? `${p.partialRefundPercent}%만 환불돼요` : '환불되지 않아요';
+  return `픽업 마감 후 ${p.graceMinutes}분까지 방문하지 않으면 노쇼로 처리되며 ${refund}.`;
+}
+
+/**
+ * 자동 처리 대상 판정 (픽업 마감 + 유예 시간이 지났는가)
+ * - accepted → no_show (노쇼 정책)
+ * - paid     → canceled by system (전액 환불)
+ */
+export function expiryActionFor(
+  o: { status: OrderStatus; pickupEndTime: { toMillis(): number } },
+  nowMs: number,
+  p = NO_SHOW_POLICY,
+): 'no_show' | 'auto_cancel' | null {
+  if (nowMs < o.pickupEndTime.toMillis() + p.graceMinutes * 60_000) return null;
+  if (o.status === 'accepted') return 'no_show';
+  if (o.status === 'paid') return 'auto_cancel';
+  return null;
+}
+
+/** 노쇼 시 환불할 금액 (원) */
 export function noShowRefundAmount(totalPrice: number, p = NO_SHOW_POLICY): number {
   if (p.refund === 'full') return totalPrice;
   if (p.refund === 'partial') return Math.floor((totalPrice * p.partialRefundPercent) / 100);

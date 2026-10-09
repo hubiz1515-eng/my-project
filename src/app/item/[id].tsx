@@ -18,6 +18,7 @@ import { discountPercent, initialOf, formatClock, formatDistance, formatTimeLeft
 import { distanceMeters } from '../../utils/geo';
 import { goBack } from '../../utils/nav';
 import { isOrderable } from '../../utils/orderRules';
+import { noShowNotice } from '../../../shared/policy';
 
 export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -218,7 +219,9 @@ export default function ItemDetailScreen() {
                   );
                 })}
               </View>
-              <Text style={styles.muted}>픽업 마감({formatClock(endMs)}) 전까지 매장에 방문해 주세요. 수락 전에는 취소할 수 있어요.</Text>
+              <Text style={styles.muted}>
+                픽업 마감({formatClock(endMs)}) 전까지 매장에 방문해 주세요. 수락 전에는 취소할 수 있어요. {noShowNotice()}
+              </Text>
             </View>
           </>
         )}

@@ -1,8 +1,10 @@
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import * as account from './account';
 import * as checkout from './checkout';
+import { processExpiredOrders } from './expiry';
 import { PORTONE_API_SECRET, PORTONE_WEBHOOK_SECRET } from './config';
 import * as orders from './orders';
 import { handleOrderWrite } from './orderNotifications';
@@ -51,4 +53,15 @@ export const onOrderWritten = onDocumentWritten('orders/{orderId}', (event) =>
     event.data?.before.exists ? (event.data.before.data() as OrderDoc) : undefined,
     event.data?.after.exists ? (event.data.after.data() as OrderDoc) : undefined,
   ),
+);
+
+/**
+ * 픽업 마감 + 유예 시간(shared/policy.ts) 지난 주문 자동 처리 — 10분마다.
+ * 수락된 주문은 노쇼(현재 정책: 환불 없음), 미수락 주문은 자동 취소·전액 환불.
+ */
+export const expireOrders = onSchedule(
+  { schedule: 'every 10 minutes', timeZone: 'Asia/Seoul', secrets: [PORTONE_API_SECRET], retryCount: 0 },
+  async () => {
+    await processExpiredOrders(Date.now());
+  },
 );

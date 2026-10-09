@@ -17,9 +17,13 @@ export type FoodItemStatus = 'selling' | 'sold_out' | 'paused';
  * paid      : 결제 완료(서버 검증), 사장님 수락 대기
  * accepted  : 사장님 수락, 고객 방문 대기
  * picked_up : 핀코드/QR 확인 후 픽업 완료
- * canceled  : 고객 취소(수락 전) 또는 사장님 거절 → 환불
+ * canceled  : 고객 취소(수락 전), 사장님 거절, 또는 미수락 자동 취소(시스템) → 환불
+ * no_show   : 수락 후 픽업 마감 + 유예 시간까지 미방문 → 노쇼 정책에 따라 처리 (shared/policy.ts)
  */
-export type OrderStatus = 'paid' | 'accepted' | 'picked_up' | 'canceled';
+export type OrderStatus = 'paid' | 'accepted' | 'picked_up' | 'canceled' | 'no_show';
+
+/** 취소 주체. system = 픽업 마감 후에도 수락되지 않아 자동 취소 */
+export type CanceledBy = 'customer' | 'seller' | 'system';
 
 /** 결제 수단 (PortOne 채널) */
 export type PaymentMethod = 'card' | 'kakaopay';

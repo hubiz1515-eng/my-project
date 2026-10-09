@@ -33,31 +33,24 @@
 
 **바꾸지 않는 것**: URL scheme(`expo.scheme`: `pickupdeal`), 픽업 QR 접두사(`pickupdeal:v1:`), 저장소 키 등 내부 식별자는 사용자에게 보이지 않으므로 그대로 둔다.
 
-## 3. 노쇼 환불 정책
+## 3. 노쇼 환불 정책 — 확정 (2026-10-09: 환불 없음, 유예 30분)
 
 노쇼 = 사장님이 수락했지만 픽업 마감 시간까지 고객이 오지 않은 주문.
 
-**설정 위치**: `shared/policy.ts` → `NO_SHOW_POLICY`
+**설정 위치**: `shared/policy.ts` → `NO_SHOW_POLICY` (`refund: 'none'`, `graceMinutes: 30`)
 
-```ts
-export const NO_SHOW_POLICY = {
-  decided: true,          // 정책 확정 → 약관 자리표시자가 실제 문구로 바뀜
-  refund: 'none',         // 'none' 환불 없음 | 'partial' 일부 환불 | 'full' 전액 환불
-  partialRefundPercent: 50, // refund 가 'partial' 일 때만 사용
-  graceMinutes: 30,       // 픽업 마감 후 이만큼 지나면 노쇼로 확정
-};
-```
-
-| refund | 약관 제6조 ④ 에 들어가는 문구 (graceMinutes 30 기준) |
+| refund | 약관 제6조 ④ 문구 (graceMinutes 30 기준) |
 |---|---|
-| `none` | 픽업 마감 시간이 지나고 30분이 지나도록 픽업하지 않으면 노쇼로 처리되며, 판매자가 이미 상품을 준비했으므로 환불되지 않습니다. |
+| `none` (현재) | 픽업 마감 시간이 지나고 30분이 지나도록 픽업하지 않으면 노쇼로 처리되며, 판매자가 이미 상품을 준비했으므로 환불되지 않습니다. |
 | `partial` (50) | … 상품 준비 비용을 고려해 결제 금액의 50%가 환불됩니다. |
 | `full` | … 결제 금액 전액이 환불됩니다. |
 
-- 마감 할인 식품은 이미 준비·폐기되므로 `none` 이 업계에서 흔하다. 대신 **수락 전에는 언제든 전액 취소**가 가능하다는 점(현재 구현됨)을 약관·앱에서 분명히 알린다.
+**동작** (`expireOrders` 스케줄러, 10분마다 — `functions/src/expiry.ts`)
+- 수락된 주문이 마감 + 30분까지 픽업되지 않으면 → 노쇼 (환불 없음, 재고 복구 안 함, 고객에게 푸시)
+- 수락되지 않은 주문이 마감 + 30분이 지나면 → 자동 취소 + 전액 환불 + 재고 수량 복구 (고객에게 푸시)
+- 고객에게는 결제 전(상품 상세)과 주문 화면에 노쇼 안내 문구가 표시된다.
 
-**정한 뒤 할 일**
-1. 위 값 설정 + `decided: true`
-2. `src/content/legal/documents.ts` 의 `terms.version` 을 오늘 날짜로 올림 → 기존 회원은 다음 실행 때 재동의
-3. 약관 웹페이지 재배포: `npm run deploy:hosting -- --project lastorder-ec049`
-4. **자동 처리 구현**(아직 없음): 픽업 마감 + graceMinutes 가 지난 `accepted` 주문을 주기적으로 찾아 노쇼로 처리하고 `noShowRefundAmount()` 만큼 환불하는 Cloud Functions 스케줄러. 정책이 정해지면 추가한다. 같은 작업에서 **사장님이 수락하지 않은 채 픽업 마감이 지난 `paid` 주문의 자동 취소·전액 환불**도 함께 넣는 것을 권장.
+**정책을 다시 바꿀 때**
+1. `NO_SHOW_POLICY` 값 변경 → 약관 문구·앱 안내 문구가 자동으로 바뀜
+2. `src/content/legal/documents.ts` 의 `terms.version` 을 오늘 날짜로 올림 → 기존 회원 재동의
+3. 배포: `npm run deploy:functions -- --project lastorder-ec049` (자동 처리), `npm run deploy:hosting -- --project lastorder-ec049` (약관 웹페이지)

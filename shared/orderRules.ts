@@ -89,6 +89,8 @@ export function nextOrderStatus(current: OrderStatus, action: OrderAction): Orde
       error:
         current === 'canceled'
           ? '이미 취소된 주문이에요.'
+          : current === 'no_show'
+            ? '픽업 시간이 지나 노쇼 처리된 주문이에요.'
           : current === 'picked_up'
             ? '이미 픽업 완료된 주문이에요.'
             : action === 'customer_cancel'

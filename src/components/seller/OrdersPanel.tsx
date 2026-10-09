@@ -13,7 +13,7 @@ export function OrdersPanel({ ownerId, orders, nowMs }: { ownerId: string; order
   const [error, setError] = useState<string | null>(null);
   const pending = orders.filter((o) => o.status === 'paid');
   const accepted = orders.filter((o) => o.status === 'accepted');
-  const done = orders.filter((o) => o.status === 'picked_up' || o.status === 'canceled').slice(0, DONE_LIMIT);
+  const done = orders.filter((o) => o.status === 'picked_up' || o.status === 'canceled' || o.status === 'no_show').slice(0, DONE_LIMIT);
 
   const run = (fn: () => Promise<unknown>) => {
     setError(null);

@@ -17,12 +17,14 @@ import { formatClock, formatTimeLeft, formatWon } from '../../utils/format';
 import { resetTo } from '../../utils/nav';
 import { orderLines } from '../../utils/orderRules';
 import { buildPickupQr } from '../../utils/pickupQr';
+import { noShowNotice } from '../../../shared/policy';
 
 const HERO: Record<OrderStatus, { emoji: string; title: string; desc: string }> = {
   paid: { emoji: '⏳', title: '사장님 수락을 기다리고 있어요', desc: '수락되면 알림으로 알려드려요. 수락 전에는 취소할 수 있어요.' },
   accepted: { emoji: '✅', title: '주문 수락! 픽업하러 오세요', desc: '매장에서 아래 QR 또는 픽업 코드를 보여주세요.' },
   picked_up: { emoji: '🎉', title: '픽업 완료', desc: '음식을 구해주셔서 고마워요. 맛있게 드세요!' },
   canceled: { emoji: '↩️', title: '취소된 주문이에요', desc: '' },
+  no_show: { emoji: '⌛', title: '픽업 시간이 지났어요', desc: '' },
 };
 
 const STEPS: { status: OrderStatus; label: string }[] = [
@@ -62,7 +64,13 @@ export default function OrderDetailScreen() {
       : order.refundStatus === 'failed'
         ? `환불이 지연되고 있어요. 매장 또는 고객센터에서 확인 후 처리해 드릴게요.`
         : `${formatWon(order.totalPrice)} 환불을 처리하고 있어요.`;
-  const cancelDesc = `${order.canceledBy === 'seller' ? '매장 사정으로 취소되었어요. ' : ''}${refundText}`;
+  const cancelDesc = `${
+    order.canceledBy === 'seller' ? '매장 사정으로 취소되었어요. ' : order.canceledBy === 'system' ? '매장이 픽업 시간까지 주문을 수락하지 않아 자동으로 취소되었어요. ' : ''
+  }${refundText}`;
+  const noShowDesc = order.refundAmount
+    ? `픽업 마감 시간까지 방문하지 않아 노쇼로 처리되었어요. 노쇼 정책에 따라 ${formatWon(order.refundAmount)} 환불돼요.`
+    : '픽업 마감 시간까지 방문하지 않아 노쇼로 처리되었어요. 노쇼 정책에 따라 환불되지 않아요.';
+  const heroDesc = order.status === 'canceled' ? cancelDesc : order.status === 'no_show' ? noShowDesc : hero.desc;
 
   return (
     <View style={styles.container}>
@@ -80,9 +88,9 @@ export default function OrderDetailScreen() {
         <View style={styles.card}>
           <Text style={styles.heroEmoji}>{hero.emoji}</Text>
           <Text style={styles.heroTitle}>{hero.title}</Text>
-          <Text style={styles.muted}>{order.status === 'canceled' ? cancelDesc : hero.desc}</Text>
+          <Text style={styles.muted}>{heroDesc}</Text>
 
-          {order.status !== 'canceled' && (
+          {order.status !== 'canceled' && order.status !== 'no_show' && (
             <View style={styles.steps}>
               {STEPS.map((s, i) => (
                 <View key={s.status} style={styles.step}>
@@ -109,6 +117,7 @@ export default function OrderDetailScreen() {
             <Text style={styles.codeHint}>
               {formatClock(endMs)}까지 방문 · {formatTimeLeft(endMs, now) ?? '픽업 시간이 지났어요'}
             </Text>
+            <Text style={styles.codeHint}>{noShowNotice()}</Text>
           </View>
         )}
 

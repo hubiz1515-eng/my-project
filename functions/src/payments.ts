@@ -32,14 +32,14 @@ export async function verifyPayment(v: PaymentVerifier, paymentId: string, expec
   return { ok: true };
 }
 
-/** 결제 취소(환불). 실패해도 throw 하지 않고 false — 호출 측이 refundStatus 로 기록 */
-export async function refundPayment(v: PaymentVerifier, paymentId: string, reason: string): Promise<boolean> {
+/** 결제 취소(환불). amount 를 주면 부분 환불. 실패해도 throw 하지 않고 false — 호출 측이 refundStatus 로 기록 */
+export async function refundPayment(v: PaymentVerifier, paymentId: string, reason: string, amount?: number): Promise<boolean> {
   if (v.mode === 'mock') {
-    logger.info('[mock] refund', { paymentId, reason });
+    logger.info('[mock] refund', { paymentId, reason, amount });
     return true;
   }
   try {
-    await v.client.cancelPayment({ paymentId, reason });
+    await v.client.cancelPayment({ paymentId, reason, ...(amount !== undefined ? { amount } : {}) });
     return true;
   } catch (e) {
     // 이미 취소된 결제면 성공으로 간주

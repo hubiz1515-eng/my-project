@@ -21,6 +21,6 @@ const env = {
 };
 execSync('npm --prefix functions run build', { stdio: 'inherit' });
 execSync(
-  'npx --yes firebase-tools emulators:exec --only auth,firestore,functions --project demo-pickupdeal "node --test --test-concurrency=1 functions/test/checkout.test.mjs functions/test/push.test.mjs functions/test/account.test.mjs"',
+  'npx --yes firebase-tools emulators:exec --only auth,firestore,functions --project demo-pickupdeal "node --test --test-concurrency=1 functions/test/checkout.test.mjs functions/test/push.test.mjs functions/test/account.test.mjs functions/test/expiry.test.mjs"',
   { stdio: 'inherit', env },
 );

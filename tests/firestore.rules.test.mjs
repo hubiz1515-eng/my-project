@@ -182,6 +182,14 @@ describe('orders: 조회·상태 변경', () => {
     await assertFails(updateDoc(doc(db(SELLER), 'orders/o1'), { status: 'canceled', canceledBy: 'seller' }));
   });
 
+  test('노쇼 처리는 서버만: 사장님·고객이 직접 no_show 로 바꾸거나 노쇼 주문을 픽업 완료로 되돌릴 수 없음', async () => {
+    await assertFails(updateDoc(doc(db(SELLER), 'orders/o1'), { status: 'no_show' }));
+    await assertFails(updateDoc(doc(db(ALICE), 'orders/o1'), { status: 'no_show' }));
+    await seed((f) => updateDoc(doc(f, 'orders/o1'), { status: 'no_show' }));
+    await assertFails(updateDoc(doc(db(SELLER), 'orders/o1'), { status: 'picked_up', pickedUpAt: Timestamp.now(), updatedAt: Timestamp.now() }));
+    await assertFails(updateDoc(doc(db(SELLER), 'orders/o1'), { status: 'accepted', acceptedAt: Timestamp.now(), updatedAt: Timestamp.now() }));
+  });
+
   test('주문 금액·코드 등 다른 필드 수정 불가', async () => {
     await assertFails(updateDoc(doc(db(SELLER), 'orders/o1'), { status: 'accepted', pickupCode: '000000' }));
     await assertFails(updateDoc(doc(db(SELLER), 'orders/o1'), { status: 'accepted', totalPrice: 1 }));

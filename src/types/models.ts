@@ -1,7 +1,7 @@
 import type { Timestamp } from 'firebase/firestore';
-import type { FoodItemStatus, OrderLine, OrderStatus, PaymentMethod, RefundStatus, Won } from '../../shared/types';
+import type { CanceledBy, FoodItemStatus, OrderLine, OrderStatus, PaymentMethod, RefundStatus, Won } from '../../shared/types';
 
-export type { FoodItemStatus, OrderLine, OrderStatus, PaymentMethod, RefundStatus, Won };
+export type { CanceledBy, FoodItemStatus, OrderLine, OrderStatus, PaymentMethod, RefundStatus, Won };
 
 // ── users/{uid} ──────────────────────────────────────────────
 export type UserRole = 'customer' | 'seller';
@@ -121,9 +121,13 @@ export interface Order {
   acceptedAt?: Timestamp;
   pickedUpAt?: Timestamp;
   canceledAt?: Timestamp;
-  canceledBy?: 'customer' | 'seller';
+  canceledBy?: CanceledBy;
+  /** 노쇼 처리 시각 (자동 처리, status === 'no_show') */
+  noShowAt?: Timestamp;
   /** 취소된 주문의 환불 진행 상태 (Cloud Function 이 PortOne 취소 API 호출 후 갱신) */
   refundStatus?: RefundStatus;
+  /** 노쇼 부분/전액 환불 금액 (정책이 환불 없음이면 없음) */
+  refundAmount?: Won;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

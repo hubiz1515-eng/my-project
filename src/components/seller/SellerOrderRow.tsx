@@ -7,6 +7,8 @@ import { orderLines } from '../../utils/orderRules';
 import { ConfirmButton } from '../ConfirmButton';
 import { OrderStatusBadge } from '../order/OrderStatusBadge';
 
+const CANCELED_BY = { customer: '고객 취소', seller: '매장 거절', system: '미수락 자동 취소' } as const;
+
 interface Props {
   order: Order;
   nowMs: number;
@@ -40,7 +42,9 @@ export const SellerOrderRow = memo(function SellerOrderRow({ order: o, nowMs, on
           {o.status === 'picked_up' && o.pickedUpAt
             ? `${formatClock(o.pickedUpAt.toMillis())} 픽업 완료`
             : o.status === 'canceled'
-              ? `${o.canceledBy === 'seller' ? '매장 거절' : '고객 취소'} · ${o.refundStatus === 'done' ? '환불 완료' : o.refundStatus === 'failed' ? '환불 실패(확인 필요)' : '환불 처리 중'}`
+              ? `${CANCELED_BY[o.canceledBy ?? 'customer']} · ${o.refundStatus === 'done' ? '환불 완료' : o.refundStatus === 'failed' ? '환불 실패(확인 필요)' : '환불 처리 중'}`
+              : o.status === 'no_show'
+                ? `노쇼 · 미방문 (${o.refundAmount ? `${formatWon(o.refundAmount)} 환불` : '환불 없음'})`
               : late
                 ? `픽업 시간 지남 (${formatClock(endMs)})`
                 : `${formatClock(endMs)}까지 픽업 · ${formatTimeLeft(endMs, nowMs)}`}

@@ -115,6 +115,12 @@ function customerToast(o: Order, was: OrderStatus | undefined): Toast | null {
   if (o.status === 'canceled' && o.canceledBy === 'seller') {
     return { key, who: 'customer', title: '주문이 취소됐어요', body: `${o.storeName} 사정으로 취소되어 ${formatWon(o.totalPrice)} 환불됩니다.`, onPress };
   }
+  if (o.status === 'canceled' && o.canceledBy === 'system') {
+    return { key, who: 'customer', title: '주문이 자동 취소됐어요', body: `${o.storeName}이(가) 픽업 시간까지 수락하지 않아 ${formatWon(o.totalPrice)} 환불됩니다.`, onPress };
+  }
+  if (o.status === 'no_show') {
+    return { key, who: 'customer', title: '픽업 시간이 지났어요', body: `${o.storeName} 주문이 노쇼로 처리됐어요.`, onPress };
+  }
   return null;
 }
 
