@@ -8,15 +8,49 @@
       "source": "functions",
       "codebase": "default",
       "runtime": "nodejs22",
-      "ignore": ["node_modules", ".git", "*.local", "test"],
-      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
+      "ignore": [
+        "node_modules",
+        ".git",
+        "*.local",
+        "test"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
     }
   ],
+  "hosting": {
+    "public": "build/legal-site",
+    "predeploy": [
+      "node scripts/build-legal-site.mjs"
+    ],
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "headers": [
+      {
+        "source": "**/*.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=300"
+          }
+        ]
+      }
+    ]
+  },
   "emulators": {
-    "auth": { "port": 9099 },
-    "firestore": { "port": 8080 },
-    "functions": { "port": 5001 },
-    "ui": { "enabled": false },
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "functions": {
+      "port": 5001
+    },
+    "ui": {
+      "enabled": false
+    },
     "singleProjectMode": true
   }
 }

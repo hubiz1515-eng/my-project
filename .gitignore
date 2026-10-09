@@ -48,3 +48,6 @@ yarn-error.*
 firebase-debug.log
 firestore-debug.log
 serviceAccount*.json
+
+# generated legal site (npm run build:legal-site)
+/build/

@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius } from '../constants/theme';
 import { hasSeenIntro, markIntroSeen } from '../services/introSeen';
+import { APP_LOGO } from '../constants/brand';
 
 interface Slide {
   emoji: string;
@@ -100,7 +101,7 @@ export default function IntroScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 16 }]}>
       <View style={styles.topBar}>
-        <Text style={styles.logo}>🥐 PickupDeal</Text>
+        <Text style={styles.logo}>{APP_LOGO}</Text>
         {!last && (
           <Pressable onPress={() => goTo(SLIDES.length - 1)} hitSlop={10} accessibilityRole="button">
             <Text style={styles.skip}>건너뛰기</Text>

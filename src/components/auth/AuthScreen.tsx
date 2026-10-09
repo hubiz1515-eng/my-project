@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../constants/theme';
 import { usingEmulator } from '../../config/firebaseConfig';
+import { APP_LOGO, APP_TAGLINE } from '../../constants/brand';
 
 /** 로그인/가입 화면 공통 틀 */
 export function AuthScreen({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
@@ -14,8 +15,8 @@ export function AuthScreen({ title, subtitle, children }: { title: string; subti
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 24 }]}
       >
         <View style={styles.brand}>
-          <Text style={styles.logo}>🥐 PickupDeal</Text>
-          <Text style={styles.tagline}>우리 동네 마감 할인 · 100% 매장 픽업</Text>
+          <Text style={styles.logo}>{APP_LOGO}</Text>
+          <Text style={styles.tagline}>{APP_TAGLINE}</Text>
         </View>
         <Text style={styles.title}>{title}</Text>
         {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}

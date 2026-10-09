@@ -48,7 +48,9 @@
     "test:functions": "node functions/test/run.mjs",
     "deploy:rules": "npx --yes firebase-tools deploy --only firestore",
     "deploy:functions": "npx --yes firebase-tools deploy --only functions",
-    "seed:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node scripts/seed-emulator.mjs"
+    "seed:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node scripts/seed-emulator.mjs",
+    "build:legal-site": "node scripts/build-legal-site.mjs",
+    "deploy:hosting": "npx --yes firebase-tools deploy --only hosting"
   },
   "private": true
 }

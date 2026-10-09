@@ -3,8 +3,11 @@
  * ⚠️ 대괄호([…]) 값은 아직 정해지지 않은 자리표시자다. 출시 전에 모두 실제 값으로 바꿔야 하며,
  * 하나라도 남아 있으면 문서 화면 상단에 '초안' 경고가 표시된다 (hasPlaceholders).
  */
+import { noShowPolicyText } from '../../../shared/policy';
+import { APP_NAME } from '../../constants/brand';
+
 export const LEGAL_INFO = {
-  serviceName: 'PickupDeal',
+  serviceName: APP_NAME,
   companyName: '[상호(법인명)]',
   ceo: '[대표자 성명]',
   businessNumber: '[사업자등록번호]',
