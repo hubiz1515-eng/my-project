@@ -1,0 +1,278 @@
+// 탕탕 특공대 스타일 서바이버 슈터의 순수 게임 로직 (React 에 의존하지 않음)
+
+export const WORLD = 1600;
+
+export type EnemyKind = 'grunt' | 'fast' | 'tank' | 'boss';
+
+export type Enemy = {
+  id: number;
+  kind: EnemyKind;
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  r: number;
+  speed: number;
+  dmg: number;
+  xp: number;
+  flash: number;
+  orbitCd: number;
+};
+
+export type Bullet = { id: number; x: number; y: number; vx: number; vy: number; dmg: number; life: number; pierce: number; hit: Set<number> };
+export type Gem = { id: number; x: number; y: number; v: number };
+
+export type UpgradeId = 'damage' | 'rate' | 'multi' | 'pierce' | 'speed' | 'hp' | 'magnet' | 'regen' | 'blade' | 'range';
+
+export type Upgrade = { id: UpgradeId; name: string; desc: string; emoji: string; max: number };
+
+export const UPGRADES: Upgrade[] = [
+  { id: 'damage', name: '공격력 강화', desc: '총알 피해 +25%', emoji: '💥', max: 8 },
+  { id: 'rate', name: '연사 속도', desc: '발사 간격 -15%', emoji: '⚡', max: 8 },
+  { id: 'multi', name: '다중 사격', desc: '한 번에 발사하는 총알 +1', emoji: '🔫', max: 5 },
+  { id: 'pierce', name: '관통탄', desc: '총알이 적 1명 더 관통', emoji: '🎯', max: 4 },
+  { id: 'range', name: '사거리 증가', desc: '조준 사거리 +20%', emoji: '🔭', max: 4 },
+  { id: 'speed', name: '이동 속도', desc: '이동 속도 +12%', emoji: '👟', max: 5 },
+  { id: 'hp', name: '최대 체력', desc: '최대 체력 +25, 체력 회복', emoji: '❤️', max: 8 },
+  { id: 'regen', name: '체력 재생', desc: '초당 체력 +1 회복', emoji: '🩹', max: 5 },
+  { id: 'magnet', name: '자석', desc: '경험치 획득 범위 +50%', emoji: '🧲', max: 5 },
+  { id: 'blade', name: '회전 칼날', desc: '몸 주위를 도는 칼날 +1', emoji: '🌀', max: 6 },
+];
+
+export type Game = {
+  time: number;
+  kills: number;
+  over: boolean;
+  pendingLevel: number;
+  nextId: number;
+  spawnT: number;
+  bossesSpawned: number;
+  fireT: number;
+  angle: number;
+  orbitAngle: number;
+  iframe: number;
+  player: { x: number; y: number; hp: number; maxHp: number; level: number; xp: number; xpNext: number; r: number };
+  stats: { damage: number; fireInterval: number; bullets: number; pierce: number; range: number; speed: number; magnet: number; regen: number; blades: number };
+  upgrades: Record<UpgradeId, number>;
+  enemies: Enemy[];
+  bullets: Bullet[];
+  gems: Gem[];
+};
+
+export function createGame(): Game {
+  return {
+    time: 0,
+    kills: 0,
+    over: false,
+    pendingLevel: 0,
+    nextId: 1,
+    spawnT: 0.5,
+    bossesSpawned: 0,
+    fireT: 0,
+    angle: -Math.PI / 2,
+    orbitAngle: 0,
+    iframe: 0,
+    player: { x: WORLD / 2, y: WORLD / 2, hp: 100, maxHp: 100, level: 1, xp: 0, xpNext: 6, r: 14 },
+    stats: { damage: 10, fireInterval: 0.5, bullets: 1, pierce: 0, range: 320, speed: 150, magnet: 70, regen: 0, blades: 0 },
+    upgrades: { damage: 0, rate: 0, multi: 0, pierce: 0, speed: 0, hp: 0, magnet: 0, regen: 0, blade: 0, range: 0 },
+    enemies: [],
+    bullets: [],
+    gems: [],
+  };
+}
+
+const BULLET_SPEED = 520;
+const MAX_ENEMIES = 160;
+const BLADE_RADIUS = 72;
+const BLADE_HIT_R = 12;
+
+export function bladePositions(g: Game): { x: number; y: number }[] {
+  const n = g.stats.blades;
+  const out: { x: number; y: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = g.orbitAngle + (i * Math.PI * 2) / n;
+    out.push({ x: g.player.x + Math.cos(a) * BLADE_RADIUS, y: g.player.y + Math.sin(a) * BLADE_RADIUS });
+  }
+  return out;
+}
+
+export function pickUpgrades(g: Game, count = 3): Upgrade[] {
+  const pool = UPGRADES.filter((u) => g.upgrades[u.id] < u.max);
+  const out: Upgrade[] = [];
+  while (out.length < count && pool.length) {
+    out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  }
+  return out;
+}
+
+export function applyUpgrade(g: Game, id: UpgradeId) {
+  g.upgrades[id]++;
+  const s = g.stats;
+  switch (id) {
+    case 'damage': s.damage *= 1.25; break;
+    case 'rate': s.fireInterval *= 0.85; break;
+    case 'multi': s.bullets += 1; break;
+    case 'pierce': s.pierce += 1; break;
+    case 'range': s.range *= 1.2; break;
+    case 'speed': s.speed *= 1.12; break;
+    case 'hp': g.player.maxHp += 25; g.player.hp = Math.min(g.player.maxHp, g.player.hp + 40); break;
+    case 'regen': s.regen += 1; break;
+    case 'magnet': s.magnet *= 1.5; break;
+    case 'blade': s.blades += 1; break;
+  }
+  g.pendingLevel = Math.max(0, g.pendingLevel - 1);
+}
+
+function spawnEnemy(g: Game, kind: EnemyKind) {
+  const minutes = g.time / 60;
+  const scale = 1 + minutes * 0.35;
+  const a = Math.random() * Math.PI * 2;
+  const d = 480;
+  const x = Math.min(WORLD - 20, Math.max(20, g.player.x + Math.cos(a) * d));
+  const y = Math.min(WORLD - 20, Math.max(20, g.player.y + Math.sin(a) * d));
+  let e: Omit<Enemy, 'id' | 'x' | 'y' | 'flash' | 'orbitCd' | 'maxHp'> & { hp: number };
+  switch (kind) {
+    case 'fast': e = { kind, hp: 12 * scale, r: 11, speed: 115, dmg: 6, xp: 1 }; break;
+    case 'tank': e = { kind, hp: 70 * scale, r: 20, speed: 48, dmg: 14, xp: 4 }; break;
+    case 'boss': e = { kind, hp: 500 * (1 + g.bossesSpawned * 0.8) * (1 + minutes * 0.2), r: 36, speed: 58, dmg: 25, xp: 40 }; break;
+    default: e = { kind: 'grunt', hp: 22 * scale, r: 14, speed: 70, dmg: 8, xp: 1 };
+  }
+  g.enemies.push({ ...e, id: g.nextId++, x, y, maxHp: e.hp, flash: 0, orbitCd: 0 });
+}
+
+function damageEnemy(g: Game, e: Enemy, dmg: number) {
+  e.hp -= dmg;
+  e.flash = 0.08;
+  if (e.hp <= 0 && e.xp > 0) {
+    g.kills++;
+    g.gems.push({ id: g.nextId++, x: e.x, y: e.y, v: e.xp });
+    e.xp = 0; // 중복 처리 방지 (hp<=0 로 이후 제거)
+  }
+}
+
+export function step(g: Game, dt: number, mx: number, my: number) {
+  if (g.over) return;
+  const p = g.player;
+  const s = g.stats;
+  g.time += dt;
+
+  // 이동
+  const ml = Math.hypot(mx, my);
+  if (ml > 0.05) {
+    const k = Math.min(1, ml) / ml;
+    p.x = Math.min(WORLD - p.r, Math.max(p.r, p.x + mx * k * s.speed * dt));
+    p.y = Math.min(WORLD - p.r, Math.max(p.r, p.y + my * k * s.speed * dt));
+  }
+  if (s.regen > 0) p.hp = Math.min(p.maxHp, p.hp + s.regen * dt);
+  g.iframe = Math.max(0, g.iframe - dt);
+  g.orbitAngle += dt * 3;
+
+  // 적 스폰
+  g.spawnT -= dt;
+  if (g.spawnT <= 0) {
+    const t = g.time;
+    g.spawnT = Math.max(0.1, 0.85 - t * 0.005);
+    const batch = 1 + Math.floor(t / 40);
+    for (let i = 0; i < batch && g.enemies.length < MAX_ENEMIES; i++) {
+      const r = Math.random();
+      let kind: EnemyKind = 'grunt';
+      if (t > 20 && r < 0.25) kind = 'fast';
+      else if (t > 45 && r < 0.4) kind = 'tank';
+      spawnEnemy(g, kind);
+    }
+  }
+  if (g.time >= (g.bossesSpawned + 1) * 60) {
+    spawnEnemy(g, 'boss');
+    g.bossesSpawned++;
+  }
+
+  // 자동 조준 + 발사
+  let target: Enemy | null = null;
+  let best = s.range * s.range;
+  for (const e of g.enemies) {
+    if (e.hp <= 0) continue;
+    const d = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
+    if (d < best) { best = d; target = e; }
+  }
+  if (target) g.angle = Math.atan2(target.y - p.y, target.x - p.x);
+  g.fireT -= dt;
+  if (target && g.fireT <= 0) {
+    g.fireT = s.fireInterval;
+    const n = s.bullets;
+    for (let i = 0; i < n; i++) {
+      const a = g.angle + (i - (n - 1) / 2) * 0.16;
+      g.bullets.push({ id: g.nextId++, x: p.x, y: p.y, vx: Math.cos(a) * BULLET_SPEED, vy: Math.sin(a) * BULLET_SPEED, dmg: s.damage, life: s.range / BULLET_SPEED + 0.25, pierce: s.pierce, hit: new Set() });
+    }
+  }
+
+  // 총알
+  for (const b of g.bullets) {
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    b.life -= dt;
+    for (const e of g.enemies) {
+      if (e.hp <= 0 || b.hit.has(e.id)) continue;
+      const rr = e.r + 4;
+      if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 < rr * rr) {
+        b.hit.add(e.id);
+        damageEnemy(g, e, b.dmg);
+        if (b.pierce-- <= 0) { b.life = 0; break; }
+      }
+    }
+  }
+  g.bullets = g.bullets.filter((b) => b.life > 0 && b.x > 0 && b.y > 0 && b.x < WORLD && b.y < WORLD);
+
+  // 회전 칼날
+  const blades = s.blades ? bladePositions(g) : [];
+
+  // 적 이동 / 접촉
+  for (const e of g.enemies) {
+    e.flash = Math.max(0, e.flash - dt);
+    e.orbitCd = Math.max(0, e.orbitCd - dt);
+    if (e.hp <= 0) continue;
+    const dx = p.x - e.x;
+    const dy = p.y - e.y;
+    const d = Math.hypot(dx, dy) || 1;
+    e.x += (dx / d) * e.speed * dt;
+    e.y += (dy / d) * e.speed * dt;
+    if (e.orbitCd <= 0) {
+      for (const bl of blades) {
+        const rr = e.r + BLADE_HIT_R;
+        if ((e.x - bl.x) ** 2 + (e.y - bl.y) ** 2 < rr * rr) {
+          damageEnemy(g, e, s.damage * 0.8);
+          e.orbitCd = 0.4;
+          break;
+        }
+      }
+    }
+    if (e.hp > 0 && g.iframe <= 0 && d < e.r + p.r) {
+      p.hp -= e.dmg;
+      g.iframe = 0.6;
+    }
+  }
+  g.enemies = g.enemies.filter((e) => e.hp > 0);
+
+  // 경험치 젬
+  for (const gem of g.gems) {
+    const dx = p.x - gem.x;
+    const dy = p.y - gem.y;
+    const d = Math.hypot(dx, dy) || 1;
+    if (d < s.magnet) {
+      gem.x += (dx / d) * 420 * dt;
+      gem.y += (dy / d) * 420 * dt;
+    }
+    if (d < p.r + 6) {
+      p.xp += gem.v;
+      gem.v = 0;
+    }
+  }
+  g.gems = g.gems.filter((gem) => gem.v > 0);
+  while (p.xp >= p.xpNext) {
+    p.xp -= p.xpNext;
+    p.level++;
+    p.xpNext = Math.round(p.xpNext * 1.25 + 3);
+    g.pendingLevel++;
+  }
+
+  if (p.hp <= 0) { p.hp = 0; g.over = true; }
+}

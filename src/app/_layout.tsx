@@ -76,6 +76,8 @@ function Shell() {
         </Stack.Protected>
         {/* 약관 전문: 로그인 여부와 관계없이 (가입·재동의 화면에서도 열람) */}
         <Stack.Screen name="legal/[doc]" options={{ animation: 'slide_from_right' }} />
+        {/* 탕탕 특공대 미니게임: 로그인 없이 접근 (/game) */}
+        <Stack.Screen name="game" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
       {ready && <OrderToast top={insets.top + ACCOUNT_BAR_HEIGHT + 6} />}
     </View>

@@ -101,6 +101,9 @@ export default function HomeScreen() {
             {scope === 'seoul' ? '서울 전체' : source === 'default' ? '기본 위치(강남역) 기준' : '내 주변'} · 배달비 0원 · 100% 픽업
           </Text>
         </View>
+        <Pressable onPress={() => router.push('/game')} style={styles.ordersBtn} accessibilityLabel="탕탕 특공대 게임">
+          <Text style={styles.ordersText}>🎮</Text>
+        </Pressable>
         <Pressable onPress={() => router.push('/orders')} style={styles.ordersBtn} accessibilityLabel="내 주문">
           <Text style={styles.ordersText}>내 주문</Text>
           {activeOrders > 0 && <Text style={styles.ordersBadge}>{activeOrders}</Text>}
