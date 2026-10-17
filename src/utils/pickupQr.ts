@@ -1,9 +1,9 @@
 /**
- * 픽업 QR 페이로드: `pickupdeal:v1:{orderId}:{pickupCode}`
+ * 픽업 QR 페이로드: `foodclub:v1:{orderId}:{pickupCode}`
  * 사장님 앱이 스캔 → orderId 로 주문을 찾고 코드가 일치하면 픽업 완료.
  */
-const PREFIX = 'pickupdeal:v1:';
-const PATTERN = /^pickupdeal:v1:([A-Za-z0-9_-]{6,64}):(\d{6})$/;
+const PREFIX = 'foodclub:v1:';
+const PATTERN = /^foodclub:v1:([A-Za-z0-9_-]{6,64}):(\d{6})$/;
 
 export function buildPickupQr(orderId: string, pickupCode: string): string {
   return `${PREFIX}${orderId}:${pickupCode}`;

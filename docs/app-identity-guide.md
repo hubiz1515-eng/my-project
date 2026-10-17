@@ -31,7 +31,7 @@
 5. PortOne 결제 앱 연동은 config plugin 이 처리하므로 추가 작업 없음 (개발 빌드에서 결제창 → 카카오페이·토스 앱 전환 확인)
 6. 개발 빌드: `npx eas-cli@latest build --profile development --platform all`
 
-**바꾸지 않는 것**: URL scheme(`expo.scheme`: `pickupdeal`), 픽업 QR 접두사(`pickupdeal:v1:`), 저장소 키 등 내부 식별자는 사용자에게 보이지 않으므로 그대로 둔다.
+**현재 값 (2026-10 확정)**: 앱 이름 `푸드 클럽 (Food Club)`, 패키지명 `com.foodclub.app`, URL scheme `foodclub`, QR 접두사 `foodclub:v1:`. `expo.slug`(`pickup-deal`)만 EAS 연결 때문에 그대로 둔다.
 
 ## 3. 노쇼 환불 정책 — 확정 (2026-10-09: 환불 없음, 유예 30분)
 

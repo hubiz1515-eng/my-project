@@ -1,4 +1,4 @@
-# PickupDeal
+# 푸드 클럽 (Food Club)
 
 100% 동네 오프라인 픽업 기반 마감 할인 거래 플랫폼 (Expo · TypeScript · Firebase).
 
@@ -37,7 +37,7 @@ npm run typecheck         # 타입 검사
    npx eas-cli@latest init        # Expo 계정에 프로젝트 생성 → app.json 의 expo.extra.eas.projectId 자동 기록
    git add app.json && git commit -m "Link EAS project"
    ```
-   ⚠️ `ios.bundleIdentifier` / `android.package` (현재 임시값 `com.example.pickupdeal`)는 첫 빌드·자격증명 등록 **전에** 확정하세요. 푸시(FCM/APNs)·지도 키가 이 값에 묶입니다.
+   ⚠️ `ios.bundleIdentifier` / `android.package` (현재 `com.foodclub.app`)는 첫 빌드·자격증명 등록 **전에** 확정하세요. 푸시(FCM/APNs)·지도 키가 이 값에 묶입니다.
 
 > **리전**: Firestore DB 위치는 `asia-northeast3`(서울)이고 (`npx firebase-tools firestore:databases:get "(default)"` 로 확인), Functions 도 같은 리전에 배포합니다 (`functions/src/index.ts` 의 `setGlobalOptions`, 앱의 `FUNCTIONS_REGION`). Firestore 트리거(`onOrderWritten`)는 DB 와 다른 리전에 배포할 수 없으니 세 곳을 함께 바꾸세요.
 

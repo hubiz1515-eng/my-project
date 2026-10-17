@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "PickupDeal",
+    "name": "푸드 클럽",
     "slug": "pickup-deal",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.example.pickupdeal"
+      "bundleIdentifier": "com.foodclub.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,12 +18,12 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.example.pickupdeal"
+      "package": "com.foodclub.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "pickupdeal",
+    "scheme": "foodclub",
     "plugins": [
       "expo-router",
       [

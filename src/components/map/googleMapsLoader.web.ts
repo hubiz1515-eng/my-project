@@ -1,7 +1,7 @@
 /// <reference types="google.maps" />
 
 /** 키 오류(API 미사용 설정·리퍼러 제한·잘못된 키) — Google 은 로드 후 gm_authFailure 로 알린다 */
-export const AUTH_FAILURE_EVENT = 'pickupdeal:gmaps-auth-failure';
+export const AUTH_FAILURE_EVENT = 'foodclub:gmaps-auth-failure';
 let authFailed = false;
 export const hasGoogleMapsAuthFailed = () => authFailed;
 
@@ -12,7 +12,7 @@ export function loadGoogleMaps(apiKey: string): Promise<typeof google.maps> {
   if (typeof window !== 'undefined' && window.google?.maps?.Map) return Promise.resolve(window.google.maps);
   if (loading) return loading;
   loading = new Promise((resolve, reject) => {
-    const cb = '__pickupdealGoogleMapsReady';
+    const cb = '__foodclubGoogleMapsReady';
     (window as unknown as Record<string, unknown>)[cb] = () => resolve(window.google.maps);
     // 키 오류(미사용 설정·리퍼러 제한 등)는 이 전역 콜백으로 통보된다
     (window as unknown as Record<string, unknown>).gm_authFailure = () => {

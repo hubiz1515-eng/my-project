@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /** 인트로(앱 소개)를 본 적이 있는지 — 기기별로 저장 (웹은 localStorage) */
-const KEY = 'pickupdeal:introSeen:v1';
+const KEY = 'foodclub:introSeen:v1';
 
 export async function hasSeenIntro(): Promise<boolean> {
   try {

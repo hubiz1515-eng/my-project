@@ -56,7 +56,7 @@ users/{uid} ─(1:N)→ stores/{storeId} ─(1:N)→ food_items/{itemId}
 | orderId, customerId, storeId, itemId | string | itemId = 대표 상품 |
 | quantity | number | 대표 상품 수량 |
 | totalPrice | number | 대표 + addOns 합계 = 실제 결제액 (서버가 계산·검증) |
-| pickupCode | string | 6자리 핀코드. QR 페이로드는 `pickupdeal:v1:{orderId}:{pickupCode}` (`src/utils/pickupQr.ts`) |
+| pickupCode | string | 6자리 핀코드. QR 페이로드는 `foodclub:v1:{orderId}:{pickupCode}` (`src/utils/pickupQr.ts`) |
 | status | `'paid' \| 'accepted' \| 'picked_up' \| 'canceled' \| 'no_show'` | `accepted` *(4단계 추가)*: 사장님 수락. `no_show`: 수락 후 픽업 마감 + 유예 시간까지 미방문 *(추가)* |
 | addOns | `{itemId,title,unitPrice,quantity}[]` | Cross-selling 구매 내역 스냅샷 *(추가)* |
 | quantities | `map<itemId, number>` | 대표+추가 메뉴 수량 |
