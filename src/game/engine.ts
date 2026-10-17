@@ -17,6 +17,7 @@ export type Enemy = {
   xp: number;
   flash: number;
   orbitCd: number;
+  age: number;
 };
 
 export type Bullet = { id: number; x: number; y: number; vx: number; vy: number; dmg: number; life: number; pierce: number; hit: Set<number> };
@@ -171,14 +172,14 @@ function spawnEnemy(g: Game, kind: EnemyKind, angle?: number) {
   const d = Math.hypot(g.view.w, g.view.h) / 2 + 30;
   const x = Math.min(WORLD - 20, Math.max(20, g.player.x + Math.cos(a) * d));
   const y = Math.min(WORLD - 20, Math.max(20, g.player.y + Math.sin(a) * d));
-  let e: Omit<Enemy, 'id' | 'x' | 'y' | 'flash' | 'orbitCd' | 'maxHp'> & { hp: number };
+  let e: Omit<Enemy, 'id' | 'x' | 'y' | 'flash' | 'orbitCd' | 'maxHp' | 'age'> & { hp: number };
   switch (kind) {
     case 'fast': e = { kind, hp: 12 * scale, r: 11, speed: 115, dmg: 4, xp: 1 }; break;
     case 'tank': e = { kind, hp: 70 * scale, r: 18, speed: 48, dmg: 9, xp: 4 }; break;
     case 'boss': e = { kind, hp: 500 * (1 + g.bossesSpawned * 0.8) * (1 + minutes * 0.2), r: 36, speed: 58, dmg: 20, xp: 40 }; break;
     default: e = { kind: 'grunt', hp: 22 * scale, r: 13, speed: 70, dmg: 5, xp: 1 };
   }
-  g.enemies.push({ ...e, id: g.nextId++, x, y, maxHp: e.hp, flash: 0, orbitCd: 0 });
+  g.enemies.push({ ...e, id: g.nextId++, x, y, maxHp: e.hp, flash: 0, orbitCd: 0, age: 0 });
   if (kind === 'boss') emit(g, 'boss', x, y);
 }
 
@@ -331,6 +332,7 @@ export function step(g: Game, dt: number, mx: number, my: number) {
   for (const e of g.enemies) {
     e.flash = Math.max(0, e.flash - dt);
     e.orbitCd = Math.max(0, e.orbitCd - dt);
+    e.age += dt;
     if (e.hp <= 0) continue;
     const dx = p.x - e.x;
     const dy = p.y - e.y;
