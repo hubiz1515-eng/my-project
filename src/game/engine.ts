@@ -2,7 +2,11 @@
 
 export const WORLD = 2400;
 
-export type EnemyKind = 'grunt' | 'fast' | 'tank' | 'boss';
+export type EnemyKind = 'grunt' | 'fast' | 'tank' | 'boss' | 'tiger' | 'egg' | 'mini' | 'archer';
+
+/** 필살기: 적을 SPECIAL_COST 마리 처치할 때마다 1회 충전 (최대 MAX_CHARGES 회) */
+export const SPECIAL_COST = 20;
+export const MAX_CHARGES = 3;
 
 export type Enemy = {
   id: number;
@@ -18,10 +22,16 @@ export type Enemy = {
   flash: number;
   orbitCd: number;
   age: number;
+  /** 행동 상태(호랑이: 0 추적 / 1 예고 / 2 돌진) · 행동 타이머 · 돌진 방향 */
+  st: number;
+  ai: number;
+  vx: number;
+  vy: number;
 };
 
 export type Bullet = { id: number; x: number; y: number; vx: number; vy: number; dmg: number; life: number; pierce: number; hit: Set<number> };
 export type Gem = { id: number; x: number; y: number; v: number };
+export type EnemyShot = { id: number; x: number; y: number; vx: number; vy: number; life: number };
 export type Pickup = { id: number; x: number; y: number; type: 'coin' | 'heal' };
 /** 떠오르는 데미지 숫자. kind 0=총알/방망이, 1=도깨비불 */
 export type Floater = { x: number; y: number; text: number; life: number; kind: number };
@@ -68,6 +78,10 @@ export type Game = {
   burstT: number;
   hordeAt: number;
   hurt: number;
+  charges: number;
+  chargeKills: number;
+  lockCharge: boolean;
+  shots: EnemyShot[];
   thunderT: number;
   thunders: { x: number; y: number; life: number }[];
   events: GameEvent[];
@@ -103,6 +117,10 @@ export function createGame(): Game {
     burstT: 2,
     hordeAt: 75,
     hurt: 0,
+    charges: 0,
+    chargeKills: 0,
+    lockCharge: false,
+    shots: [],
     thunderT: 2.5,
     thunders: [],
     events: [],
@@ -165,21 +183,25 @@ export function applyUpgrade(g: Game, id: UpgradeId) {
   g.pendingLevel = Math.max(0, g.pendingLevel - 1);
 }
 
-function spawnEnemy(g: Game, kind: EnemyKind, angle?: number) {
+function spawnEnemy(g: Game, kind: EnemyKind, angle?: number, at?: { x: number; y: number }) {
   const minutes = g.time / 60;
   const scale = 1 + minutes * 0.35;
   const a = angle ?? Math.random() * Math.PI * 2;
   const d = Math.hypot(g.view.w, g.view.h) / 2 + 30;
-  const x = Math.min(WORLD - 20, Math.max(20, g.player.x + Math.cos(a) * d));
-  const y = Math.min(WORLD - 20, Math.max(20, g.player.y + Math.sin(a) * d));
-  let e: Omit<Enemy, 'id' | 'x' | 'y' | 'flash' | 'orbitCd' | 'maxHp' | 'age'> & { hp: number };
+  const x = Math.min(WORLD - 20, Math.max(20, at ? at.x : g.player.x + Math.cos(a) * d));
+  const y = Math.min(WORLD - 20, Math.max(20, at ? at.y : g.player.y + Math.sin(a) * d));
+  let e: Omit<Enemy, 'id' | 'x' | 'y' | 'flash' | 'orbitCd' | 'maxHp' | 'age' | 'st' | 'ai' | 'vx' | 'vy'> & { hp: number };
   switch (kind) {
     case 'fast': e = { kind, hp: 12 * scale, r: 11, speed: 115, dmg: 4, xp: 1 }; break;
     case 'tank': e = { kind, hp: 70 * scale, r: 18, speed: 48, dmg: 9, xp: 4 }; break;
     case 'boss': e = { kind, hp: 500 * (1 + g.bossesSpawned * 0.8) * (1 + minutes * 0.2), r: 36, speed: 58, dmg: 20, xp: 40 }; break;
+    case 'tiger': e = { kind, hp: 60 * scale, r: 17, speed: 70, dmg: 14, xp: 3 }; break;
+    case 'egg': e = { kind, hp: 40 * scale, r: 15, speed: 55, dmg: 6, xp: 2 }; break;
+    case 'mini': e = { kind, hp: 8 * scale, r: 8, speed: 105, dmg: 3, xp: 1 }; break;
+    case 'archer': e = { kind, hp: 25 * scale, r: 12, speed: 50, dmg: 5, xp: 3 }; break;
     default: e = { kind: 'grunt', hp: 22 * scale, r: 13, speed: 70, dmg: 5, xp: 1 };
   }
-  g.enemies.push({ ...e, id: g.nextId++, x, y, maxHp: e.hp, flash: 0, orbitCd: 0, age: 0 });
+  g.enemies.push({ ...e, id: g.nextId++, x, y, maxHp: e.hp, flash: 0, orbitCd: 0, age: 0, st: 0, ai: 1 + Math.random() * 2, vx: 0, vy: 0 });
   if (kind === 'boss') emit(g, 'boss', x, y);
 }
 
@@ -193,6 +215,14 @@ function damageEnemy(g: Game, e: Enemy, dmg: number, kind = 0) {
   if (e.hp <= 0 && e.xp > 0) {
     const boss = e.kind === 'boss';
     emit(g, 'kill', e.x, e.y, e.kind);
+    if (!g.lockCharge && g.charges < MAX_CHARGES && ++g.chargeKills >= SPECIAL_COST) {
+      g.chargeKills = 0;
+      g.charges++;
+      emit(g, 'ready', g.player.x, g.player.y);
+    }
+    if (e.kind === 'egg' && g.enemies.length < MAX_ENEMIES + 20) {
+      for (let i = 0; i < 2; i++) spawnEnemy(g, 'mini', undefined, { x: e.x + (Math.random() - 0.5) * 24, y: e.y + (Math.random() - 0.5) * 24 });
+    }
     g.kills++;
     g.combo++;
     g.comboT = 2.2;
@@ -268,8 +298,11 @@ export function step(g: Game, dt: number, mx: number, my: number) {
     for (let i = 0; i < batch && g.enemies.length < MAX_ENEMIES; i++) {
       const r = Math.random();
       let kind: EnemyKind = 'grunt';
-      if (t > 15 && r < 0.2) kind = 'fast';
-      else if (t > 35 && r < 0.33) kind = 'tank';
+      if (t > 15 && r < 0.16) kind = 'fast';
+      else if (t > 20 && r < 0.26) kind = 'egg';
+      else if (t > 30 && r < 0.34) kind = 'tiger';
+      else if (t > 35 && r < 0.44) kind = 'tank';
+      else if (t > 45 && r < 0.52) kind = 'archer';
       spawnEnemy(g, kind);
     }
   }
@@ -338,8 +371,29 @@ export function step(g: Game, dt: number, mx: number, my: number) {
     const dy = p.y - e.y;
     const d = Math.hypot(dx, dy) || 1;
     const wob = Math.sin(g.time * 3 + e.id) * 0.35;
-    e.x += ((dx - dy * wob) / d) * e.speed * dt;
-    e.y += ((dy + dx * wob) / d) * e.speed * dt;
+    let sp = e.speed;
+    let mvx = (dx - dy * wob) / d;
+    let mvy = (dy + dx * wob) / d;
+    if (e.kind === 'tiger') {
+      // 호랑이: 가까워지면 잠깐 웅크렸다가(예고) 일직선으로 돌진
+      e.ai -= dt;
+      if (e.st === 0 && e.ai <= 0 && d < 340) { e.st = 1; e.ai = 0.6; e.vx = dx / d; e.vy = dy / d; }
+      else if (e.st === 1) { sp = 0; if (e.ai <= 0) { e.st = 2; e.ai = 0.5; } }
+      else if (e.st === 2) { mvx = e.vx; mvy = e.vy; sp = 380; if (e.ai <= 0) { e.st = 0; e.ai = 2.5 + Math.random() * 1.5; } }
+    } else if (e.kind === 'archer') {
+      // 해골 궁수: 일정 거리를 유지하며 맴돌고, 주기적으로 불화살을 쏜다
+      e.ai -= dt;
+      const want = d < 170 ? -1 : d > 240 ? 1 : 0;
+      mvx = (dx / d) * want - (dy / d) * 0.5;
+      mvy = (dy / d) * want + (dx / d) * 0.5;
+      if (e.ai <= 0 && d < 420) {
+        e.ai = 2.2 + Math.random() * 0.6;
+        g.shots.push({ id: g.nextId++, x: e.x, y: e.y, vx: (dx / d) * 170, vy: (dy / d) * 170, life: 3.5 });
+        emit(g, 'eshot', e.x, e.y);
+      }
+    }
+    e.x = Math.min(WORLD - 10, Math.max(10, e.x + mvx * sp * dt));
+    e.y = Math.min(WORLD - 10, Math.max(10, e.y + mvy * sp * dt));
     if (e.orbitCd <= 0) {
       for (const bl of blades) {
         const rr = e.r + BLADE_HIT_R;
@@ -358,6 +412,21 @@ export function step(g: Game, dt: number, mx: number, my: number) {
     }
   }
   g.enemies = g.enemies.filter((e) => e.hp > 0);
+
+  // 적의 화살
+  for (const sh of g.shots) {
+    sh.x += sh.vx * dt;
+    sh.y += sh.vy * dt;
+    sh.life -= dt;
+    if (g.iframe <= 0 && (sh.x - p.x) ** 2 + (sh.y - p.y) ** 2 < (p.r + 5) ** 2) {
+      p.hp -= 8;
+      g.iframe = 0.6;
+      g.hurt = 0.2;
+      emit(g, 'hurt', p.x, p.y);
+      sh.life = 0;
+    }
+  }
+  g.shots = g.shots.filter((sh) => sh.life > 0);
 
   // 경험치 젬
   for (const gem of g.gems) {
@@ -400,4 +469,32 @@ export function step(g: Game, dt: number, mx: number, my: number) {
   }
 
   if (p.hp <= 0) { p.hp = 0; g.over = true; }
+}
+
+/** 필살기 '도깨비 대폭발': 화면 안의 모든 적에게 큰 피해 + 밀쳐내기, 적 화살 제거, 잠시 무적 */
+export function useSpecial(g: Game): boolean {
+  if (g.over || g.charges <= 0) return false;
+  g.charges--;
+  const p = g.player;
+  const R = Math.hypot(g.view.w, g.view.h) / 2 + 30;
+  const dmg = g.stats.damage * 10 + 40;
+  g.lockCharge = true; // 필살기로 잡은 적은 충전에 포함하지 않는다
+  for (const e of g.enemies.slice()) {
+    if (e.hp <= 0) continue;
+    const dx = e.x - p.x;
+    const dy = e.y - p.y;
+    const d = Math.hypot(dx, dy) || 1;
+    if (d > R + e.r) continue;
+    damageEnemy(g, e, e.kind === 'boss' ? Math.max(dmg, e.maxHp * 0.25) : dmg, 1);
+    if (e.hp > 0) {
+      e.x += (dx / d) * 120;
+      e.y += (dy / d) * 120;
+    }
+  }
+  g.lockCharge = false;
+  g.shots = [];
+  g.iframe = Math.max(g.iframe, 1.2);
+  g.bursts.push({ x: p.x, y: p.y, r: R, life: 0.7, maxLife: 0.7 });
+  emit(g, 'special', p.x, p.y);
+  return true;
 }
