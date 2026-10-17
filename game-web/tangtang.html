@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>탕탕 특공대</title>
+<style>
+  html,body{margin:0;height:100%;background:#1f2a24;overflow:hidden;font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
+  canvas{display:block;width:100%;height:100%}
+  #ov{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;color:#fff;text-align:center}
+  #ov.hide{display:none}
+  h1{margin:0;font-size:32px;font-weight:900}
+  p{margin:0;line-height:1.6;color:#e5e7eb;white-space:pre-line}
+  .best{color:#fde047;font-weight:700}
+  button{font:inherit;cursor:pointer}
+  .btn{background:#16a34a;color:#fff;border:0;border-radius:14px;padding:14px 36px;font-size:18px;font-weight:800}
+  .card{width:100%;max-width:380px;display:flex;align-items:center;gap:14px;background:#374151;border:2px solid #4b5563;border-radius:14px;padding:14px;color:#fff;text-align:left}
+  .card:hover{border-color:#fde047}
+  .card .e{font-size:30px}.card b{font-size:16px}.card i{color:#fde047;font-style:normal;font-size:12px;margin-left:4px}.card small{display:block;color:#d1d5db;margin-top:2px;font-size:13px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ov"></div>
+<script>
+// 탕탕 특공대 스타일 서바이버 슈터의 순수 게임 로직 (React 에 의존하지 않음)
+const WORLD = 1600;
+const UPGRADES = [
+    { id: 'damage', name: '공격력 강화', desc: '총알 피해 +25%', emoji: '💥', max: 8 },
+    { id: 'rate', name: '연사 속도', desc: '발사 간격 -15%', emoji: '⚡', max: 8 },
+    { id: 'multi', name: '다중 사격', desc: '한 번에 발사하는 총알 +1', emoji: '🔫', max: 5 },
+    { id: 'pierce', name: '관통탄', desc: '총알이 적 1명 더 관통', emoji: '🎯', max: 4 },
+    { id: 'range', name: '사거리 증가', desc: '조준 사거리 +20%', emoji: '🔭', max: 4 },
+    { id: 'speed', name: '이동 속도', desc: '이동 속도 +12%', emoji: '👟', max: 5 },
+    { id: 'hp', name: '최대 체력', desc: '최대 체력 +25, 체력 회복', emoji: '❤️', max: 8 },
+    { id: 'regen', name: '체력 재생', desc: '초당 체력 +1 회복', emoji: '🩹', max: 5 },
+    { id: 'magnet', name: '자석', desc: '경험치 획득 범위 +50%', emoji: '🧲', max: 5 },
+    { id: 'blade', name: '회전 칼날', desc: '몸 주위를 도는 칼날 +1', emoji: '🌀', max: 6 },
+];
+function createGame() {
+    return {
+        time: 0,
+        kills: 0,
+        over: false,
+        pendingLevel: 0,
+        nextId: 1,
+        spawnT: 0.5,
+        bossesSpawned: 0,
+        fireT: 0,
+        angle: -Math.PI / 2,
+        orbitAngle: 0,
+        iframe: 0,
+        player: { x: WORLD / 2, y: WORLD / 2, hp: 100, maxHp: 100, level: 1, xp: 0, xpNext: 6, r: 14 },
+        stats: { damage: 10, fireInterval: 0.5, bullets: 1, pierce: 0, range: 320, speed: 150, magnet: 70, regen: 0, blades: 0 },
+        upgrades: { damage: 0, rate: 0, multi: 0, pierce: 0, speed: 0, hp: 0, magnet: 0, regen: 0, blade: 0, range: 0 },
+        enemies: [],
+        bullets: [],
+        gems: [],
+    };
+}
+const BULLET_SPEED = 520;
+const MAX_ENEMIES = 160;
+const BLADE_RADIUS = 72;
+const BLADE_HIT_R = 12;
+function bladePositions(g) {
+    const n = g.stats.blades;
+    const out = [];
+    for (let i = 0; i < n; i++) {
+        const a = g.orbitAngle + (i * Math.PI * 2) / n;
+        out.push({ x: g.player.x + Math.cos(a) * BLADE_RADIUS, y: g.player.y + Math.sin(a) * BLADE_RADIUS });
+    }
+    return out;
+}
+function pickUpgrades(g, count = 3) {
+    const pool = UPGRADES.filter((u) => g.upgrades[u.id] < u.max);
+    const out = [];
+    while (out.length < count && pool.length) {
+        out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    }
+    return out;
+}
+function applyUpgrade(g, id) {
+    g.upgrades[id]++;
+    const s = g.stats;
+    switch (id) {
+        case 'damage':
+            s.damage *= 1.25;
+            break;
+        case 'rate':
+            s.fireInterval *= 0.85;
+            break;
+        case 'multi':
+            s.bullets += 1;
+            break;
+        case 'pierce':
+            s.pierce += 1;
+            break;
+        case 'range':
+            s.range *= 1.2;
+            break;
+        case 'speed':
+            s.speed *= 1.12;
+            break;
+        case 'hp':
+            g.player.maxHp += 25;
+            g.player.hp = Math.min(g.player.maxHp, g.player.hp + 40);
+            break;
+        case 'regen':
+            s.regen += 1;
+            break;
+        case 'magnet':
+            s.magnet *= 1.5;
+            break;
+        case 'blade':
+            s.blades += 1;
+            break;
+    }
+    g.pendingLevel = Math.max(0, g.pendingLevel - 1);
+}
+function spawnEnemy(g, kind) {
+    const minutes = g.time / 60;
+    const scale = 1 + minutes * 0.35;
+    const a = Math.random() * Math.PI * 2;
+    const d = 480;
+    const x = Math.min(WORLD - 20, Math.max(20, g.player.x + Math.cos(a) * d));
+    const y = Math.min(WORLD - 20, Math.max(20, g.player.y + Math.sin(a) * d));
+    let e;
+    switch (kind) {
+        case 'fast':
+            e = { kind, hp: 12 * scale, r: 11, speed: 115, dmg: 6, xp: 1 };
+            break;
+        case 'tank':
+            e = { kind, hp: 70 * scale, r: 20, speed: 48, dmg: 14, xp: 4 };
+            break;
+        case 'boss':
+            e = { kind, hp: 500 * (1 + g.bossesSpawned * 0.8) * (1 + minutes * 0.2), r: 36, speed: 58, dmg: 25, xp: 40 };
+            break;
+        default: e = { kind: 'grunt', hp: 22 * scale, r: 14, speed: 70, dmg: 8, xp: 1 };
+    }
+    g.enemies.push({ ...e, id: g.nextId++, x, y, maxHp: e.hp, flash: 0, orbitCd: 0 });
+}
+function damageEnemy(g, e, dmg) {
+    e.hp -= dmg;
+    e.flash = 0.08;
+    if (e.hp <= 0 && e.xp > 0) {
+        g.kills++;
+        g.gems.push({ id: g.nextId++, x: e.x, y: e.y, v: e.xp });
+        e.xp = 0; // 중복 처리 방지 (hp<=0 로 이후 제거)
+    }
+}
+function step(g, dt, mx, my) {
+    if (g.over)
+        return;
+    const p = g.player;
+    const s = g.stats;
+    g.time += dt;
+    // 이동
+    const ml = Math.hypot(mx, my);
+    if (ml > 0.05) {
+        const k = Math.min(1, ml) / ml;
+        p.x = Math.min(WORLD - p.r, Math.max(p.r, p.x + mx * k * s.speed * dt));
+        p.y = Math.min(WORLD - p.r, Math.max(p.r, p.y + my * k * s.speed * dt));
+    }
+    if (s.regen > 0)
+        p.hp = Math.min(p.maxHp, p.hp + s.regen * dt);
+    g.iframe = Math.max(0, g.iframe - dt);
+    g.orbitAngle += dt * 3;
+    // 적 스폰
+    g.spawnT -= dt;
+    if (g.spawnT <= 0) {
+        const t = g.time;
+        g.spawnT = Math.max(0.1, 0.85 - t * 0.005);
+        const batch = 1 + Math.floor(t / 40);
+        for (let i = 0; i < batch && g.enemies.length < MAX_ENEMIES; i++) {
+            const r = Math.random();
+            let kind = 'grunt';
+            if (t > 20 && r < 0.25)
+                kind = 'fast';
+            else if (t > 45 && r < 0.4)
+                kind = 'tank';
+            spawnEnemy(g, kind);
+        }
+    }
+    if (g.time >= (g.bossesSpawned + 1) * 60) {
+        spawnEnemy(g, 'boss');
+        g.bossesSpawned++;
+    }
+    // 자동 조준 + 발사
+    let target = null;
+    let best = s.range * s.range;
+    for (const e of g.enemies) {
+        if (e.hp <= 0)
+            continue;
+        const d = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
+        if (d < best) {
+            best = d;
+            target = e;
+        }
+    }
+    if (target)
+        g.angle = Math.atan2(target.y - p.y, target.x - p.x);
+    g.fireT -= dt;
+    if (target && g.fireT <= 0) {
+        g.fireT = s.fireInterval;
+        const n = s.bullets;
+        for (let i = 0; i < n; i++) {
+            const a = g.angle + (i - (n - 1) / 2) * 0.16;
+            g.bullets.push({ id: g.nextId++, x: p.x, y: p.y, vx: Math.cos(a) * BULLET_SPEED, vy: Math.sin(a) * BULLET_SPEED, dmg: s.damage, life: s.range / BULLET_SPEED + 0.25, pierce: s.pierce, hit: new Set() });
+        }
+    }
+    // 총알
+    for (const b of g.bullets) {
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+        b.life -= dt;
+        for (const e of g.enemies) {
+            if (e.hp <= 0 || b.hit.has(e.id))
+                continue;
+            const rr = e.r + 4;
+            if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 < rr * rr) {
+                b.hit.add(e.id);
+                damageEnemy(g, e, b.dmg);
+                if (b.pierce-- <= 0) {
+                    b.life = 0;
+                    break;
+                }
+            }
+        }
+    }
+    g.bullets = g.bullets.filter((b) => b.life > 0 && b.x > 0 && b.y > 0 && b.x < WORLD && b.y < WORLD);
+    // 회전 칼날
+    const blades = s.blades ? bladePositions(g) : [];
+    // 적 이동 / 접촉
+    for (const e of g.enemies) {
+        e.flash = Math.max(0, e.flash - dt);
+        e.orbitCd = Math.max(0, e.orbitCd - dt);
+        if (e.hp <= 0)
+            continue;
+        const dx = p.x - e.x;
+        const dy = p.y - e.y;
+        const d = Math.hypot(dx, dy) || 1;
+        e.x += (dx / d) * e.speed * dt;
+        e.y += (dy / d) * e.speed * dt;
+        if (e.orbitCd <= 0) {
+            for (const bl of blades) {
+                const rr = e.r + BLADE_HIT_R;
+                if ((e.x - bl.x) ** 2 + (e.y - bl.y) ** 2 < rr * rr) {
+                    damageEnemy(g, e, s.damage * 0.8);
+                    e.orbitCd = 0.4;
+                    break;
+                }
+            }
+        }
+        if (e.hp > 0 && g.iframe <= 0 && d < e.r + p.r) {
+            p.hp -= e.dmg;
+            g.iframe = 0.6;
+        }
+    }
+    g.enemies = g.enemies.filter((e) => e.hp > 0);
+    // 경험치 젬
+    for (const gem of g.gems) {
+        const dx = p.x - gem.x;
+        const dy = p.y - gem.y;
+        const d = Math.hypot(dx, dy) || 1;
+        if (d < s.magnet) {
+            gem.x += (dx / d) * 420 * dt;
+            gem.y += (dy / d) * 420 * dt;
+        }
+        if (d < p.r + 6) {
+            p.xp += gem.v;
+            gem.v = 0;
+        }
+    }
+    g.gems = g.gems.filter((gem) => gem.v > 0);
+    while (p.xp >= p.xpNext) {
+        p.xp -= p.xpNext;
+        p.level++;
+        p.xpNext = Math.round(p.xpNext * 1.25 + 3);
+        g.pendingLevel++;
+    }
+    if (p.hp <= 0) {
+        p.hp = 0;
+        g.over = true;
+    }
+}
+
+</script>
+<script>
+(function(){
+const cv=document.getElementById('c'),ctx=cv.getContext('2d'),ov=document.getElementById('ov');
+const BEST='tangtang:bestTime';
+let W=0,H=0,dpr=1;
+function resize(){dpr=window.devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;}
+addEventListener('resize',resize);resize();
+const fmt=t=>String(Math.floor(t/60)).padStart(2,'0')+':'+String(Math.floor(t%60)).padStart(2,'0');
+const getBest=()=>{try{return Number(localStorage.getItem(BEST))||0}catch(e){return 0}};
+const setBest=t=>{try{localStorage.setItem(BEST,String(t))}catch(e){}};
+
+let g=createGame(),phase='ready',choosing=false;
+let stick=null,mv={x:0,y:0};const keys=new Set();
+const EMO={grunt:'🧟',fast:'🦇',tank:'👹',boss:'💀'};
+
+function show(html){ov.innerHTML=html;ov.classList.remove('hide');}
+function hide(){ov.classList.add('hide');}
+function menu(){
+  const b=getBest();
+  show('<h1>탕탕 특공대</h1><p>화면을 드래그(또는 WASD/방향키)로 이동하세요.\n총은 가장 가까운 적을 자동으로 조준합니다.\n레벨업 때마다 강화를 골라 최대한 오래 버티세요!</p>'+(b?'<div class="best">최고 기록 '+fmt(b)+'</div>':'')+'<button class="btn" id="go">게임 시작</button>');
+  document.getElementById('go').onclick=start;
+}
+function start(){g=createGame();phase='playing';choosing=false;mv={x:0,y:0};stick=null;hide();}
+function levelUp(){
+  choosing=true;stick=null;mv={x:0,y:0};
+  const cs=pickUpgrades(g);
+  show('<h1>레벨 업! Lv.'+g.player.level+'</h1>'+cs.map((u,i)=>'<button class="card" data-i="'+i+'"><span class="e">'+u.emoji+'</span><span><b>'+u.name+'</b><i>Lv.'+(g.upgrades[u.id]+1)+'</i><small>'+u.desc+'</small></span></button>').join(''));
+  ov.querySelectorAll('.card').forEach(el=>el.onclick=()=>{applyUpgrade(g,cs[+el.dataset.i].id);choosing=false;hide();});
+}
+function gameOver(){
+  phase='over';const b=getBest();if(g.time>b)setBest(g.time);
+  show('<h1>작전 실패</h1><p>생존 시간 '+fmt(g.time)+'\n처치 '+g.kills+' · 레벨 '+g.player.level+'</p><div class="best">최고 기록 '+fmt(Math.max(b,g.time))+'</div><button class="btn" id="go">다시 도전</button>');
+  document.getElementById('go').onclick=start;
+}
+
+// 입력
+const MAXS=48;
+cv.addEventListener('pointerdown',e=>{if(phase!=='playing'||choosing)return;cv.setPointerCapture(e.pointerId);stick={id:e.pointerId,ox:e.clientX,oy:e.clientY,dx:0,dy:0};});
+cv.addEventListener('pointermove',e=>{if(!stick||e.pointerId!==stick.id)return;const dx=e.clientX-stick.ox,dy=e.clientY-stick.oy,l=Math.hypot(dx,dy)||1,c=Math.min(l,MAXS);stick.dx=dx/l*c;stick.dy=dy/l*c;mv={x:stick.dx/MAXS,y:stick.dy/MAXS};});
+const endp=e=>{if(stick&&e.pointerId===stick.id){stick=null;mv={x:0,y:0};}};
+cv.addEventListener('pointerup',endp);cv.addEventListener('pointercancel',endp);
+addEventListener('keydown',e=>keys.add(e.key.toLowerCase()));
+addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+
+function draw(){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const p=g.player;
+  const cx=Math.min(Math.max(p.x-W/2,0),Math.max(0,WORLD-W)),cy=Math.min(Math.max(p.y-H/2,0),Math.max(0,WORLD-H));
+  ctx.fillStyle='#1f2a24';ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.translate(-cx,-cy);
+  ctx.fillStyle='#2d3b32';ctx.fillRect(0,0,WORLD,WORLD);
+  ctx.strokeStyle='rgba(255,255,255,.06)';ctx.lineWidth=1;ctx.beginPath();
+  for(let i=0;i<=WORLD;i+=100){ctx.moveTo(i,0);ctx.lineTo(i,WORLD);ctx.moveTo(0,i);ctx.lineTo(WORLD,i);}
+  ctx.stroke();
+  ctx.strokeStyle='#ef4444';ctx.lineWidth=4;ctx.strokeRect(0,0,WORLD,WORLD);
+  ctx.fillStyle='#38bdf8';
+  for(const m of g.gems){ctx.save();ctx.translate(m.x,m.y);ctx.rotate(Math.PI/4);ctx.fillRect(-4,-4,8,8);ctx.restore();}
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const e of g.enemies){
+    ctx.globalAlpha=e.flash>0?.4:1;ctx.font=(e.r*1.7)+'px sans-serif';ctx.fillText(EMO[e.kind],e.x,e.y+1);
+    if(e.kind==='boss'){ctx.globalAlpha=1;ctx.fillStyle='#111';ctx.fillRect(e.x-35,e.y-e.r-14,70,6);ctx.fillStyle='#ef4444';ctx.fillRect(e.x-35,e.y-e.r-14,70*Math.max(0,e.hp/e.maxHp),6);}
+  }
+  ctx.globalAlpha=1;ctx.fillStyle='#fde047';
+  for(const b of g.bullets){ctx.beginPath();ctx.arc(b.x,b.y,4,0,7);ctx.fill();}
+  if(g.stats.blades){ctx.font='24px sans-serif';for(const b of bladePositions(g))ctx.fillText('🌀',b.x,b.y);}
+  ctx.globalAlpha=g.iframe>0&&Math.floor(g.time*20)%2?.4:1;
+  ctx.fillStyle='#3b82f6';ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();ctx.stroke();
+  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(g.angle);ctx.fillStyle='#e5e7eb';ctx.fillRect(6,-2.5,16,5);ctx.restore();
+  ctx.globalAlpha=1;ctx.restore();
+
+  if(stick&&phase==='playing'){
+    ctx.fillStyle='rgba(255,255,255,.12)';ctx.strokeStyle='rgba(255,255,255,.3)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(stick.ox,stick.oy,50,0,7);ctx.fill();ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.5)';ctx.beginPath();ctx.arc(stick.ox+stick.dx,stick.oy+stick.dy,22,0,7);ctx.fill();
+  }
+  // HUD
+  const bw=W-170;
+  ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(12,12,bw,16);ctx.fillRect(12,32,bw,6);
+  ctx.fillStyle='#ef4444';ctx.fillRect(12,12,bw*p.hp/p.maxHp,16);
+  ctx.fillStyle='#38bdf8';ctx.fillRect(12,32,bw*p.xp/p.xpNext,6);
+  ctx.fillStyle='#fff';ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.fillText(Math.ceil(p.hp)+' / '+p.maxHp,12+bw/2,21);
+  ctx.textAlign='right';ctx.font='800 18px sans-serif';ctx.fillText(fmt(g.time),W-12,22);
+  ctx.fillStyle='#d1d5db';ctx.font='11px sans-serif';ctx.fillText('Lv.'+p.level+' · '+g.kills+'킬',W-12,40);
+}
+
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  if(phase==='playing'&&!choosing){
+    let mx=mv.x,my=mv.y;
+    if(keys.size){mx+=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0);my+=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);}
+    step(g,dt,mx,my);
+    if(g.over)gameOver();else if(g.pendingLevel>0)levelUp();
+  }
+  draw();requestAnimationFrame(loop);
+}
+menu();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
