@@ -7,7 +7,7 @@ import { applyUpgrade, bladePositions, createGame, pickUpgrades, step, WORLD, ty
 
 const BEST_KEY = 'tangtang:bestTime';
 const STICK_MAX = 48;
-const ENEMY_EMOJI: Record<EnemyKind, string> = { grunt: '🧟', fast: '🦇', tank: '👹', boss: '💀' };
+const ENEMY_EMOJI: Record<EnemyKind, string> = { grunt: '👻', fast: '🦊', tank: '🧟', boss: '💀' };
 
 const Grid = memo(function Grid() {
   const lines = [];
