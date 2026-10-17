@@ -24,9 +24,11 @@ export type Gem = { id: number; x: number; y: number; v: number };
 export type Pickup = { id: number; x: number; y: number; type: 'coin' | 'heal' };
 /** 떠오르는 데미지 숫자. kind 0=총알/방망이, 1=도깨비불 */
 export type Floater = { x: number; y: number; text: number; life: number; kind: number };
+/** 렌더러가 소리·파티클을 붙이기 위한 일회성 이벤트 */
+export type GameEvent = { t: string; x: number; y: number; k?: string };
 export type Burst = { x: number; y: number; r: number; life: number; maxLife: number };
 
-export type UpgradeId = 'damage' | 'rate' | 'multi' | 'pierce' | 'speed' | 'hp' | 'magnet' | 'regen' | 'blade' | 'range' | 'fire';
+export type UpgradeId = 'damage' | 'rate' | 'multi' | 'pierce' | 'speed' | 'hp' | 'magnet' | 'regen' | 'blade' | 'range' | 'fire' | 'thunder';
 
 export type Upgrade = { id: UpgradeId; name: string; desc: string; emoji: string; max: number };
 
@@ -41,6 +43,7 @@ export const UPGRADES: Upgrade[] = [
   { id: 'regen', name: '체력 재생', desc: '초당 체력 +1 회복', emoji: '🩹', max: 5 },
   { id: 'magnet', name: '자석', desc: '경험치 획득 범위 +50%', emoji: '🧲', max: 5 },
   { id: 'blade', name: '도깨비 방망이', desc: '몸 주위를 도는 방망이 +1', emoji: '🏏', max: 6 },
+  { id: 'thunder', name: '도깨비 번개', desc: '주기적으로 적에게 번개를 내리침', emoji: '⚡', max: 6 },
   { id: 'fire', name: '도깨비불', desc: '주기적으로 주변에 불꽃을 터뜨림', emoji: '🔥', max: 6 },
 ];
 
@@ -64,6 +67,9 @@ export type Game = {
   burstT: number;
   hordeAt: number;
   hurt: number;
+  thunderT: number;
+  thunders: { x: number; y: number; life: number }[];
+  events: GameEvent[];
   player: { x: number; y: number; hp: number; maxHp: number; level: number; xp: number; xpNext: number; r: number };
   stats: { damage: number; fireInterval: number; bullets: number; pierce: number; range: number; speed: number; magnet: number; regen: number; blades: number };
   upgrades: Record<UpgradeId, number>;
@@ -96,9 +102,12 @@ export function createGame(): Game {
     burstT: 2,
     hordeAt: 75,
     hurt: 0,
+    thunderT: 2.5,
+    thunders: [],
+    events: [],
     player: { x: WORLD / 2, y: WORLD / 2, hp: 100, maxHp: 100, level: 1, xp: 0, xpNext: 5, r: 14 },
     stats: { damage: 10, fireInterval: 0.45, bullets: 1, pierce: 1, range: 320, speed: 150, magnet: 70, regen: 0.4, blades: 0 },
-    upgrades: { damage: 0, rate: 0, multi: 0, pierce: 0, speed: 0, hp: 0, magnet: 0, regen: 0, blade: 0, range: 0, fire: 0 },
+    upgrades: { damage: 0, rate: 0, multi: 0, pierce: 0, speed: 0, hp: 0, magnet: 0, regen: 0, blade: 0, range: 0, fire: 0, thunder: 0 },
     enemies: [],
     bullets: [],
     gems: [],
@@ -109,6 +118,10 @@ export function createGame(): Game {
 }
 
 const BULLET_SPEED = 520;
+
+function emit(g: Game, t: string, x: number, y: number, k?: string) {
+  if (g.events.length < 80) g.events.push({ t, x, y, k });
+}
 const MAX_ENEMIES = 260;
 const BLADE_RADIUS = 72;
 const BLADE_HIT_R = 16;
@@ -146,7 +159,7 @@ export function applyUpgrade(g: Game, id: UpgradeId) {
     case 'regen': s.regen += 1; break;
     case 'magnet': s.magnet *= 1.5; break;
     case 'blade': s.blades += 1; break;
-    case 'fire': break;
+    case 'fire': case 'thunder': break;
   }
   g.pendingLevel = Math.max(0, g.pendingLevel - 1);
 }
@@ -166,16 +179,19 @@ function spawnEnemy(g: Game, kind: EnemyKind, angle?: number) {
     default: e = { kind: 'grunt', hp: 22 * scale, r: 13, speed: 70, dmg: 5, xp: 1 };
   }
   g.enemies.push({ ...e, id: g.nextId++, x, y, maxHp: e.hp, flash: 0, orbitCd: 0 });
+  if (kind === 'boss') emit(g, 'boss', x, y);
 }
 
 function damageEnemy(g: Game, e: Enemy, dmg: number, kind = 0) {
   e.hp -= dmg;
   e.flash = 0.08;
+  emit(g, 'hit', e.x, e.y, String(kind));
   if (g.floaters.length < 50) {
     g.floaters.push({ x: e.x + (Math.random() - 0.5) * 14, y: e.y - e.r, text: Math.round(dmg), life: 0.6, kind });
   }
   if (e.hp <= 0 && e.xp > 0) {
     const boss = e.kind === 'boss';
+    emit(g, 'kill', e.x, e.y, e.kind);
     g.kills++;
     g.combo++;
     g.comboT = 2.2;
@@ -213,12 +229,30 @@ export function step(g: Game, dt: number, mx: number, my: number) {
   for (const b of g.bursts) b.life -= dt;
   g.bursts = g.bursts.filter((b) => b.life > 0);
 
+  // 도깨비 번개: 화면 안의 무작위 적에게 낙뢰
+  for (const th of g.thunders) th.life -= dt;
+  g.thunders = g.thunders.filter((th) => th.life > 0);
+  const tl = g.upgrades.thunder;
+  if (tl > 0 && (g.thunderT -= dt) <= 0) {
+    g.thunderT = Math.max(1, 3.4 - 0.4 * tl);
+    const near = g.enemies.filter((e) => e.hp > 0 && Math.abs(e.x - p.x) < g.view.w / 2 && Math.abs(e.y - p.y) < g.view.h / 2);
+    for (let i = 0; i < 1 + Math.floor(tl / 2) && near.length; i++) {
+      const t = near.splice(Math.floor(Math.random() * near.length), 1)[0];
+      g.thunders.push({ x: t.x, y: t.y, life: 0.3 });
+      emit(g, 'thunder', t.x, t.y);
+      for (const e of g.enemies) {
+        if (e.hp > 0 && (e.x - t.x) ** 2 + (e.y - t.y) ** 2 < (46 + e.r) ** 2) damageEnemy(g, e, s.damage * 3, 2);
+      }
+    }
+  }
+
   // 도깨비불: 주기적으로 주변에 폭발
   const fl = g.upgrades.fire;
   if (fl > 0 && (g.burstT -= dt) <= 0) {
     g.burstT = Math.max(1.2, 4.2 - 0.45 * fl);
     const R = 90 + 16 * fl;
     g.bursts.push({ x: p.x, y: p.y, r: R, life: 0.45, maxLife: 0.45 });
+    emit(g, 'burst', p.x, p.y);
     for (const e of g.enemies) {
       if (e.hp > 0 && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < (R + e.r) ** 2) damageEnemy(g, e, s.damage * (1.5 + 0.4 * fl), 1);
     }
@@ -241,6 +275,7 @@ export function step(g: Game, dt: number, mx: number, my: number) {
   // 귀신 떼: 일정 간격으로 플레이어를 둘러싸는 포위 웨이브
   if (g.time >= g.hordeAt) {
     g.hordeAt += 75;
+    emit(g, 'horde', p.x, p.y);
     for (let i = 0; i < 40 && g.enemies.length < MAX_ENEMIES; i++) spawnEnemy(g, 'grunt', (i / 40) * Math.PI * 2);
   }
   if (g.time >= (g.bossesSpawned + 1) * 60) {
@@ -260,6 +295,7 @@ export function step(g: Game, dt: number, mx: number, my: number) {
   g.fireT -= dt;
   if (target && g.fireT <= 0) {
     g.fireT = s.fireInterval;
+    emit(g, 'shoot', p.x, p.y);
     const n = s.bullets;
     for (let i = 0; i < n; i++) {
       const a = g.angle + (i - (n - 1) / 2) * 0.16;
@@ -277,7 +313,11 @@ export function step(g: Game, dt: number, mx: number, my: number) {
       const rr = e.r + 4;
       if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 < rr * rr) {
         b.hit.add(e.id);
-        damageEnemy(g, e, b.dmg);
+        const crit = Math.random() < 0.1;
+        damageEnemy(g, e, b.dmg * (crit ? 2 : 1), crit ? 3 : 0);
+        const kb = e.kind === 'boss' ? 0.5 : 4 / BULLET_SPEED;
+        e.x += b.vx * kb;
+        e.y += b.vy * kb;
         if (b.pierce-- <= 0) { b.life = 0; break; }
       }
     }
@@ -312,6 +352,7 @@ export function step(g: Game, dt: number, mx: number, my: number) {
       p.hp -= e.dmg;
       g.iframe = 0.6;
       g.hurt = 0.2;
+      emit(g, 'hurt', p.x, p.y);
     }
   }
   g.enemies = g.enemies.filter((e) => e.hp > 0);
@@ -326,6 +367,7 @@ export function step(g: Game, dt: number, mx: number, my: number) {
       gem.y += (dy / d) * 420 * dt;
     }
     if (d < p.r + 6) {
+      emit(g, 'gem', gem.x, gem.y);
       p.xp += gem.v;
       gem.v = 0;
     }
@@ -340,6 +382,7 @@ export function step(g: Game, dt: number, mx: number, my: number) {
       k.y += (dy / d) * 420 * dt;
     }
     if (d < p.r + 8) {
+      emit(g, k.type, k.x, k.y);
       if (k.type === 'coin') g.coins++;
       else p.hp = Math.min(p.maxHp, p.hp + 25);
       k.id = -1;
@@ -349,6 +392,7 @@ export function step(g: Game, dt: number, mx: number, my: number) {
   while (p.xp >= p.xpNext) {
     p.xp -= p.xpNext;
     p.level++;
+    emit(g, 'level', p.x, p.y);
     p.xpNext = Math.round(p.xpNext * 1.22 + 2);
     g.pendingLevel++;
   }
