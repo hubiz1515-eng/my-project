@@ -37,6 +37,7 @@
   #sp .ch{position:absolute;top:-10px;right:-8px;background:#e8472c;border:3px solid #000;border-radius:50%;width:24px;height:24px;font-size:13px;line-height:19px;text-align:center;font-weight:900}
   #sp.ready{animation:pop .6s ease-in-out infinite;box-shadow:0 0 24px #ffd84a;background:#ffd84a}
   #sp.ready .in{background:#7a3a10;color:#ffe9a0}
+  #ov.solid{background:#05060f}
   .small{background:#262a52;color:#fff;border:3px solid #000;box-shadow:inset 0 0 0 2px #4a52a3;padding:8px 16px;font-size:14px}
   #ov{z-index:10}
 </style>
@@ -548,6 +549,8 @@ function useSpecial(g) {
 (function(){
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),ov=document.getElementById('ov');
 const BEST='tangtang:bestTime2';
+/* 광고(트레일러) 모드: ad.html 로 빌드할 때 true. GAME_URL 을 채우면 마지막 버튼이 그 주소로 이동한다 */
+const AD=/*__AD__*/false,GAME_URL='';
 let W=0,H=0,dpr=1,Z=1,vig=null;
 const fmt=t=>String(Math.floor(t/60)).padStart(2,'0')+':'+String(Math.floor(t%60)).padStart(2,'0');
 /* 기록: 상위 10개 판(생존 시간 순) + 누적 최고치(처치·콤보)를 브라우저 localStorage 에 저장 */
@@ -612,16 +615,11 @@ const Au=(()=>{
       case 'coin':tone(1318,.07,'square',.04);tone(1760,.12,'square',.04,{delay:.07});break;
       case 'heal':[523,659,784,1047].forEach((f,i)=>tone(f,.14,'triangle',.07,{delay:i*.07}));break;
       case 'hurt':tone(170,.2,'sawtooth',.12,{to:55,lp:900});noise(.12,.08,{f:300});break;
-      case 'level':[523,587,784,880,1175].forEach((f,i)=>tone(f,.18,'square',.05,{delay:i*.08,lp:3000}));tone(262,.6,'triangle',.08);break;
+      case 'level':if(ok(n,700))[523,587,784,880,1175].forEach((f,i)=>tone(f,.18,'square',.05,{delay:i*.08,lp:3000}));tone(262,.6,'triangle',.08);break;
       case 'burst':noise(.55,.16,{type:'lowpass',f:1800,to:150});tone(140,.4,'sine',.18,{to:40});break;
       case 'thunder':if(ok(n,80)){noise(.22,.14,{type:'highpass',f:2500,to:6000});tone(90,.25,'sawtooth',.08,{to:40,lp:500});}break;
       case 'boss':tone(98,1.1,'sawtooth',.13,{to:73,lp:700});tone(103,1.1,'sawtooth',.1,{to:77,lp:700});noise(.8,.05,{type:'lowpass',f:400});break;
-      case 'special':{flash=1;shake=.7;punch=.12;hitStop=.08;slow=.35;specialT=.6;
-      ring(e.x,e.y,520,.7,'255,240,160',12);ring(e.x,e.y,380,.55,'255,160,60',9);ring(e.x,e.y,240,.45,'255,255,255',6);
-      for(let i=0;i<90;i++){const a=i/90*6.283+r()*.1,v=260+r()*260;P(e.x,e.y,Math.cos(a)*v,Math.sin(a)*v,.7+r()*.4,i%3?'#ffd84a':'#fff3a6',3+((r()*3)|0),0);}
-      toast={text:'도깨비 대폭발!',c:'#ffd84a',t:2};break;}
-    case 'ready':if(phase==='playing')toast={text:'필살기 준비 완료!  SPACE',c:'#8fd0ff',t:1.8};break;
-    case 'horde':for(let i=0;i<6;i++)tone(90+i*18,.18,'sine',.2,{to:50,delay:i*.12});break;
+      case 'horde':for(let i=0;i<6;i++)tone(90+i*18,.18,'sine',.2,{to:50,delay:i*.12});break;
       case 'over':[392,370,330,262].forEach((f,i)=>tone(f,.4,'triangle',.1,{delay:i*.25}));break;
       case 'crit':if(ok(n,60)){tone(1568,.09,'triangle',.08,{to:2093});noise(.05,.06,{f:4000});}break;
       case 'bosskill':noise(1,.3,{type:'lowpass',f:3000,to:100});tone(110,.9,'sawtooth',.18,{to:30,lp:600});[784,988,1175,1568,1976].forEach((f,i)=>tone(f,.4,'triangle',.07,{delay:.3+i*.06}));break;
@@ -860,7 +858,8 @@ function makeBG(){
 const BG=makeBG();
 
 /* ---------- 상태 / UI ---------- */
-let g=createGame(),phase='ready',choosing=false,paused=false,face=1,shake=0,popT=0,lastCombo=0,flash=0,dustT=0,toast=null,hitStop=0,slow=0,punch=0,recoil=0,milestone=0,specialT=0;
+let g=createGame(),phase='ready',choosing=false,paused=false,face=1,shake=0,popT=0,lastCombo=0,flash=0,dustT=0,toast=null,hitStop=0,slow=0,punch=0,recoil=0,milestone=0,specialT=0,ZM=1,adT=0,adI=0,adAcc=0,zk=0,adTitle=-9;
+const caps=[];
 const rings=[];
 function ring(x,y,max,life,c,w){if(rings.length<40)rings.push({x,y,max,life,t:life,c,w:w||4});}
 const parts=[];
@@ -890,6 +889,11 @@ function fx(e){
     case 'thunder':for(let i=0;i<12;i++)P(e.x,e.y,(r()-.5)*240,(r()-.5)*240,.3,'#bfe6ff',2,0);ring(e.x,e.y,56,.28,'160,210,255',4);shake=Math.max(shake,.1);break;
     case 'burst':shake=Math.max(shake,.15);punch=Math.max(punch,.03);ring(e.x,e.y,150,.5,'255,140,40',6);break;
     case 'boss':toast={text:'⚠ 저승사자 출현!',c:'#ff4a3a',t:2.4};shake=.5;flash=.3;ring(e.x,e.y,200,.8,'255,60,60',6);break;
+    case 'special':{flash=1;shake=.7;punch=.12;hitStop=.08;slow=.35;specialT=.6;
+      ring(e.x,e.y,520,.7,'255,240,160',12);ring(e.x,e.y,380,.55,'255,160,60',9);ring(e.x,e.y,240,.45,'255,255,255',6);
+      for(let i=0;i<90;i++){const a=i/90*6.283+r()*.1,v=260+r()*260;P(e.x,e.y,Math.cos(a)*v,Math.sin(a)*v,.7+r()*.4,i%3?'#ffd84a':'#fff3a6',3+((r()*3)|0),0);}
+      toast={text:'도깨비 대폭발!',c:'#ffd84a',t:2};break;}
+    case 'ready':if(phase==='playing')toast={text:'필살기 준비 완료!  SPACE',c:'#8fd0ff',t:1.8};break;
     case 'horde':toast={text:'귀신 떼가 몰려온다!',c:'#ffd84a',t:2.2};shake=.35;break;
   }
 }
@@ -903,7 +907,7 @@ function updateParts(dt){
 }
 let stick=null,mv={x:0,y:0};const keys=new Set();
 function show(html){ov.innerHTML=html;ov.classList.remove('hide');}
-function hide(){ov.classList.add('hide');}
+function hide(){ov.classList.add('hide');ov.classList.remove('solid');}
 function muteLbl(){return (Au.muted()?'🔇 소리 꺼짐':'🔊 소리 켜짐');}
 function syncBtns(){document.getElementById('bm').textContent=Au.muted()?'🔇':'🔊';document.getElementById('bp').style.display=phase==='playing'?'':'none';}
 function menu(){
@@ -918,7 +922,7 @@ function records(back){
   document.getElementById('bk').onclick=()=>phase==='over'?gameOver(true):menu();
   document.getElementById('cl').onclick=()=>{if(confirm('저장된 기록을 모두 지울까요?')){try{localStorage.removeItem(REC);localStorage.removeItem(BST);localStorage.removeItem(BEST)}catch(e){}records();}};
 }
-function start(){if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();Au.init();Au.resume();g=createGame();parts.length=0;toast=null;phase='playing';paused=false;choosing=false;mv={x:0,y:0};stick=null;lastCombo=0;hide();syncBtns();Au.play();}
+function start(){ZM=1;zk=0;if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();Au.init();Au.resume();g=createGame();parts.length=0;toast=null;phase='playing';paused=false;choosing=false;mv={x:0,y:0};stick=null;lastCombo=0;hide();syncBtns();Au.play();}
 function levelUp(){toast=null;
   choosing=true;stick=null;mv={x:0,y:0};
   const cs=pickUpgrades(g);
@@ -1003,12 +1007,12 @@ function club(x,y,ang,sc){
 
 function draw(){
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.imageSmoothingEnabled=false;
-  const p=g.player,vw=W/Z,vh=H/Z;g.view.w=vw;g.view.h=vh;
+  const p=g.player,vw=W/(Z*ZM),vh=H/(Z*ZM);g.view.w=vw;g.view.h=vh;
   const cx=Math.min(Math.max(p.x-vw/2,0),Math.max(0,WORLD-vw)),cy=Math.min(Math.max(p.y-vh/2,0),Math.max(0,WORLD-vh));
   const T0=performance.now()/1000;
   const sa=Math.min(shake,.3)/.2*6,sh=shake>0?(Math.random()-.5)*sa:0,sv=shake>0?(Math.random()-.5)*sa:0;
   ctx.fillStyle='#0b0d1a';ctx.fillRect(0,0,W,H);
-  const ZZ=Z*(1+punch);ctx.setTransform(dpr*ZZ,0,0,dpr*ZZ,(W/2-(cx+vw/2)*ZZ+sh)*dpr,(H/2-(cy+vh/2)*ZZ+sv)*dpr);
+  const ZZ=Z*ZM*(1+punch);ctx.setTransform(dpr*ZZ,0,0,dpr*ZZ,(W/2-(cx+vw/2)*ZZ+sh)*dpr,(H/2-(cy+vh/2)*ZZ+sv)*dpr);
   ctx.drawImage(BG,0,0);
   for(const f of flies){const fx_=f.x+Math.sin(T0*.6+f.ph)*18,fy_=f.y+Math.cos(T0*.5+f.ph)*14;if(fx_<cx-10||fx_>cx+vw+10||fy_<cy-10||fy_>cy+vh+10)continue;
     const a=.5+.5*Math.sin(T0*2+f.ph);ctx.fillStyle='rgba(200,255,120,'+(.18*a)+')';ctx.beginPath();ctx.arc(fx_,fy_,6,0,7);ctx.fill();ctx.fillStyle='rgba(235,255,170,'+(.4+.6*a)+')';ctx.fillRect(fx_-1,fy_-1,2,2);}
@@ -1154,6 +1158,90 @@ function draw(){
     outline('x'+g.combo,0,0,34*hs,cc,'right');outline('COMBO!',0,28*hs,18*hs,'#ff4a3a','right');ctx.restore();
   }else lastCombo=0;
   if(popT>0)popT-=1/60;
+  if(AD&&(phase==='ad'||phase==='adwait'))adDraw();
+}
+
+
+/* ---------- 광고(트레일러): 실제 게임 엔진을 연출대로 돌린다 (약 30초) ---------- */
+function cap(text,dur,c,y,size){caps.push({text,t0:adT,dur:dur||2,c:c||'#fff',y:y||.78,size:size||1});}
+function up(id,n){for(let i=0;i<n;i++)applyUpgrade(g,id);}
+const AD_TL=[
+  [0.3,()=>cap('고요한 밤…',2.2,'#cfd8ff',.5)],
+  [2.6,()=>cap('그런데…',1.0,'#ff9a9a',.5)],
+  [3.0,()=>{Au.play();Au.setIntensity(0);g.hordeAt=g.time;}],
+  [3.6,()=>{adTitle=adT;flash=1;shake=.6;zk=.3;Au.sfx('boss');ring(g.player.x,g.player.y,420,.8,'255,60,60',10);Au.setIntensity(1);}],
+  [6.8,()=>{cap('도깨비가 나선다!',2.2,'#8fd0ff');up('multi',1);up('blade',2);Au.setIntensity(2);}],
+  [9.0,()=>{cap('쏘고 · 베고 · 태우고!',2.2,'#ffb02e');up('fire',3);up('pierce',1);up('damage',1);}],
+  [11.4,()=>{cap('번개까지 내리친다  ⚡',2,'#bfe6ff');up('thunder',3);up('damage',2);zk=.2;}],
+  [13.6,()=>{cap('끝없이 터지는 콤보!',2,'#ff7ad9');up('rate',2);up('blade',2);up('multi',1);}],
+  [15.8,()=>{cap('새로운 괴물들이 몰려온다!',1.6,'#ffd84a');g.time=70;g.bossesSpawned=1;g.spawnT=0;Au.setIntensity(3);}],
+  [17.6,()=>{cap('🐯 호랑이   🥚 달걀귀신   💀 해골 궁수',2.4,'#fff',.8,.8);}],
+  [20.0,()=>{cap('⚠ 저승사자 출현!',2.2,'#ff4a3a');g.time=60.1;g.bossesSpawned=0;zk=.25;}],
+  [23.0,()=>{cap('필살기 충전 완료!',1.3,'#8fd0ff');g.charges=1;Au.sfx('ready');}],
+  [24.3,()=>{cap('SPACE · 도깨비 대폭발!!',2.0,'#ffd84a',.5,1.15);useSpecial(g);}],
+  [26.6,()=>showCTA()],
+];
+let sd=12345;const REAL_RAND=Math.random;
+function adWait(){
+  phase='adwait';syncBtns();ov.classList.add('solid');
+  show('<div class="t1">탕탕 특공대</div><h1>귀신 천마리</h1><button class="btn" id="go">▶ 광고 재생</button><p>소리를 켜고 보세요 🔊</p>');
+  document.getElementById('go').onclick=startAd;
+}
+function startAd(){
+  if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+  Au.init();Au.resume();Au.stop();
+  sd=12345;Math.random=()=>{sd=(sd*1664525+1013904223)>>>0;return sd/4294967296;}; // 매번 같은 연출
+  g=createGame();parts.length=0;rings.length=0;caps.length=0;toast=null;flash=0;shake=0;hitStop=0;slow=0;punch=0;
+  adT=0;adI=0;adAcc=0;zk=0;adTitle=-9;ZM=1.3;phase='ad';hide();syncBtns();
+}
+function showCTA(){
+  Au.setIntensity(2);
+  show('<div class="t1">탕탕 특공대</div><h1>귀신 천마리</h1><p>도깨비가 되어 천 마리 귀신을 막아내라!\n무료 · 설치 없이 바로 플레이</p><button class="btn" id="go">지금 플레이 ▶</button><button class="small" id="rp">↻ 광고 다시 보기</button>');
+  document.getElementById('go').onclick=()=>{if(GAME_URL){location.href=GAME_URL;return;}Math.random=REAL_RAND;start();};
+  document.getElementById('rp').onclick=startAd;
+}
+function adStep(dt){
+  adT+=dt;
+  while(adI<AD_TL.length&&AD_TL[adI][0]<=adT){AD_TL[adI][1]();adI++;}
+  let sdt=dt;if(hitStop>0){hitStop-=dt;sdt=0;}else if(slow>0){slow-=dt;sdt=dt*.3;}
+  if(sdt>0)step(g,sdt,Math.cos(adT*.9),Math.sin(adT*.7));
+  g.player.hp=g.player.maxHp;g.pendingLevel=0;toast=null; // 광고에서는 무적, 레벨업 창 없음
+  handleEvents(adT>.2);updateParts(dt);
+  if(g.hurt>.15)shake=Math.max(shake,.2);else shake=Math.max(0,shake-dt);
+  zk*=Math.pow(.05,dt);ZM=1+zk+Math.max(0,(4-adT)/4)*.3;
+}
+function dimA(){
+  if(adT<2.4)return .8-.35*adT/2.4;
+  if(adT<3.6)return .45;
+  if(adT<4.3)return .45*(1-(adT-3.6)/.7);
+  if(adT>25.8)return Math.min(.6,(adT-25.8)*.8);
+  return 0;
+}
+function adDraw(){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const da=phase==='adwait'?1:dimA();
+  if(da>0){ctx.fillStyle='rgba(2,3,12,'+da+')';ctx.fillRect(0,0,W,H);}
+  if(phase!=='ad')return;
+  // 타이틀 슬램
+  const a=adT-3.6;
+  if(a>=0&&a<3.3){
+    const out=Math.min(1,(3.3-a)/.5),sc=a<.18?3-(a/.18)*2:1+.02*Math.sin(a*5),u=Math.min(W,H*1.6);
+    ctx.save();ctx.translate(W/2,H*.42);ctx.globalAlpha=Math.min(1,a/.08)*out;
+    ctx.save();ctx.globalCompositeOperation='lighter';ctx.rotate(adT*.4);
+    for(let i=0;i<12;i++){ctx.rotate(Math.PI/6);ctx.fillStyle='rgba(255,90,60,.12)';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(W,-40);ctx.lineTo(W,40);ctx.fill();}
+    ctx.restore();
+    ctx.scale(sc,sc);
+    outline('탕탕 특공대',0,-u/9,u/20,'#9fb4ff','center');
+    outline('귀신 천마리',0,0,u/6.5,'#ff3b3b','center');
+    outline('도깨비 vs 귀신 1,000마리',0,u/10,u/24,'#fff','center');
+    ctx.restore();
+  }
+  for(const c of caps){
+    const age=adT-c.t0;if(age<0||age>c.dur)continue;
+    const k=Math.min(1,age/.22),o=Math.min(1,(c.dur-age)/.3);
+    ctx.save();ctx.globalAlpha=Math.min(k,o);ctx.translate(W/2,H*c.y);const sc=1+(1-k)*.6;ctx.scale(sc,sc);
+    outline(c.text,0,0,Math.min(54,W/13)*c.size,c.c,'center');ctx.restore();
+  }
 }
 
 let last=performance.now();
@@ -1177,10 +1265,12 @@ function loop(now){
     if(g.hurt>.15)shake=Math.max(shake,.2);else shake=Math.max(0,shake-dt);
     Au.setIntensity(Math.min(3,1+Math.floor(g.time/40)+(g.enemies.some(e=>e.kind==='boss')?1:0)));
     if(g.over)gameOver();else if(g.pendingLevel>0)levelUp();
+  }else if(phase==='ad'){
+    adAcc+=Math.min(dt,.1);while(adAcc>=1/60){adAcc-=1/60;adStep(1/60);}
   }else if(phase==='over'){updateParts(dt);shake=Math.max(0,shake-dt);}
   updSpecialUI();draw();requestAnimationFrame(loop);
 }
-menu();requestAnimationFrame(loop);
+if(AD)adWait();else menu();requestAnimationFrame(loop);
 window.__game=()=>g;
 })();
 </script>
