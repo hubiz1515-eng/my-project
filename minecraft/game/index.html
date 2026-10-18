@@ -1,0 +1,1445 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>블록크래프트</title>
+<style>
+:root{--s:min(46px,calc((100vw - 28px) / 9))}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#000;color:#fff;overscroll-behavior:none;
+  font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif}
+button{font-family:inherit;color:inherit}
+#gl{position:fixed;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
+#touch{position:fixed;left:0;top:0;right:0;bottom:0;touch-action:none;z-index:1}
+#water-tint{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(20,70,170,.38);pointer-events:none;display:none;z-index:2}
+#crosshair{position:fixed;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;pointer-events:none;z-index:3;mix-blend-mode:difference}
+#crosshair:before,#crosshair:after{content:"";position:absolute;background:#fff}
+#crosshair:before{left:10px;top:2px;width:2px;height:18px}
+#crosshair:after{left:2px;top:10px;width:18px;height:2px}
+#info{position:fixed;left:10px;top:8px;font-size:11px;line-height:1.5;text-shadow:0 1px 2px #000;pointer-events:none;z-index:3;opacity:.85;white-space:pre}
+#toast{position:fixed;left:50%;bottom:calc(var(--s) + 150px);transform:translateX(-50%);padding:5px 12px;border-radius:14px;background:rgba(0,0,0,.55);font-size:13px;pointer-events:none;z-index:6;opacity:0;transition:opacity .25s;white-space:nowrap}
+#toast.on{opacity:1}
+#topbtns{position:fixed;right:10px;top:8px;display:flex;gap:8px;z-index:6}
+.ib{width:42px;height:42px;border-radius:10px;border:2px solid rgba(255,255,255,.5);background:rgba(0,0,0,.4);font-size:19px;line-height:1;padding:0;touch-action:manipulation}
+.ib.on{background:rgba(80,160,255,.55)}
+#hotbar{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:3px;padding:3px;background:rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.35);border-radius:8px;z-index:6}
+.slot{position:relative;width:var(--s);height:var(--s);border:2px solid rgba(255,255,255,.22);border-radius:4px;background:rgba(0,0,0,.25);padding:0;touch-action:manipulation}
+.slot.sel{border-color:#fff;background:rgba(255,255,255,.25)}
+.slot canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+.slot i{position:absolute;left:2px;top:0;font-size:9px;font-style:normal;opacity:.75;text-shadow:0 1px 1px #000}
+#joy{position:fixed;left:22px;bottom:calc(var(--s) + 30px);width:128px;height:128px;border-radius:50%;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.35);z-index:5;touch-action:none;display:none}
+#knob{position:absolute;left:50%;top:50%;width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,.45);border:2px solid rgba(255,255,255,.7);transform:translate(-50%,-50%);pointer-events:none}
+#jumpwrap{position:fixed;right:22px;bottom:calc(var(--s) + 30px);display:none;flex-direction:column;align-items:center;gap:12px;z-index:5}
+.rb{width:76px;height:76px;border-radius:50%;border:2px solid rgba(255,255,255,.6);background:rgba(255,255,255,.2);font-size:26px;touch-action:none;padding:0}
+.rb.small{width:54px;height:54px;font-size:19px;display:none}
+.rb:active,.rb.held{background:rgba(255,255,255,.45)}
+body.touch #joy{display:block}
+body.touch #jumpwrap{display:flex}
+body.fly .rb.small{display:block}
+.panel{position:fixed;left:0;top:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:20;padding:14px}
+.panel.on{display:flex}
+.card{width:min(440px,100%);max-height:100%;overflow:auto;background:rgba(28,30,36,.96);border:2px solid rgba(255,255,255,.28);border-radius:14px;padding:16px;-webkit-overflow-scrolling:touch}
+.card h2{margin:0 0 4px;font-size:20px;text-align:center}
+.card p,.card li{font-size:13px;line-height:1.55;color:#d6d9e0}
+.card ul{margin:6px 0 10px;padding-left:18px}
+.sub{text-align:center;font-size:12px;color:#9aa0ad;margin:0 0 12px}
+.btn{display:block;width:100%;margin:7px 0;padding:12px;border-radius:9px;border:2px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);font-size:15px;font-weight:600;text-align:center;touch-action:manipulation}
+.btn:active{background:rgba(255,255,255,.25)}
+.btn.main{background:#3d9a3d;border-color:#7be07b}
+.btn.danger{border-color:#ff8a80;color:#ffb4ac}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 8px}
+.grid2 .btn{font-size:14px;padding:11px 6px}
+#palgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;margin-top:10px}
+.pal{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;border-radius:8px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);font-size:11px;touch-action:manipulation}
+.pal canvas{width:44px;height:44px;image-rendering:pixelated}
+#loading{position:fixed;left:0;top:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#1b1d23;z-index:30;font-size:15px}
+#loading .bar{width:180px;height:8px;border-radius:4px;background:rgba(255,255,255,.15);overflow:hidden}
+#loading .bar i{display:block;height:100%;width:0;background:#7be07b;transition:width .2s}
+#loading.off{display:none}
+@media (max-height:480px){
+  .panel{padding:8px}
+  .card{padding:10px 12px}
+  .card h2{font-size:17px}
+  .sub{margin:0 0 6px;font-size:11px}
+  .card p,.card li{font-size:12px;line-height:1.45}
+  .btn{margin:5px 0;padding:8px 6px;font-size:14px}
+  .grid2 .btn{padding:8px 6px}
+  #palgrid{gap:6px;margin-top:6px}
+  .pal{padding:4px 2px}
+  .pal canvas{width:36px;height:36px}
+}
+#help .btn.main{position:sticky;bottom:-2px;box-shadow:0 -10px 10px -4px rgba(28,30,36,.97)}
+</style>
+<!--BLOCKCRAFT_SAVE-->
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="touch"></div>
+<div id="water-tint"></div>
+<div id="crosshair"></div>
+<div id="info"></div>
+<div id="toast"></div>
+<div id="topbtns">
+  <button id="btnFly" class="ib" aria-label="비행 모드">🕊</button>
+  <button id="btnInv" class="ib" aria-label="블록 고르기">🎒</button>
+  <button id="btnMenu" class="ib" aria-label="메뉴">☰</button>
+</div>
+<div id="hotbar"></div>
+<div id="joy"><div id="knob"></div></div>
+<div id="jumpwrap">
+  <button id="btnUp" class="rb" aria-label="점프">▲</button>
+  <button id="btnDown" class="rb small" aria-label="내려가기">▼</button>
+</div>
+
+<div id="menu" class="panel"><div class="card">
+  <h2>블록크래프트</h2>
+  <p class="sub">마인크래프트 스타일 샌드박스 · 자동 저장됨</p>
+  <button class="btn main" id="mResume">계속하기</button>
+  <div class="grid2">
+    <button class="btn" id="mFly"></button>
+    <button class="btn" id="mAuto"></button>
+    <button class="btn" id="mFast"></button>
+    <button class="btn" id="mDist"></button>
+    <button class="btn" id="mSound"></button>
+    <button class="btn" id="mTime"></button>
+    <button class="btn" id="mHelp">조작법 보기</button>
+    <button class="btn danger" id="mNew">새 월드 만들기</button>
+  </div>
+  <button class="btn" id="mExit" style="display:none">게임 나가기</button>
+</div></div>
+
+<div id="palette" class="panel"><div class="card">
+  <h2>블록 고르기</h2>
+  <p class="sub">고른 블록이 선택된 핫바 칸에 들어가요</p>
+  <div id="palgrid"></div>
+  <button class="btn" id="pClose" style="margin-top:12px">닫기</button>
+</div></div>
+
+<div id="help" class="panel"><div class="card">
+  <h2>조작법</h2>
+  <p class="sub">블록을 부수고, 쌓고, 나만의 세계를 만들어 보세요</p>
+  <p><b>📱 터치</b></p>
+  <ul>
+    <li>왼쪽 조이스틱: 이동 · ▲ 버튼: 점프 (두 번 누르면 비행)</li>
+    <li>화면 드래그: 시점 회전</li>
+    <li>화면 <b>짧게 탭</b>: 블록 놓기</li>
+    <li>화면 <b>길게 누르기</b>: 블록 부수기</li>
+    <li>아래 핫바 탭: 블록 선택 (선택된 칸을 다시 탭하면 블록 목록)</li>
+  </ul>
+  <p><b>⌨️ 키보드 · 마우스</b></p>
+  <ul>
+    <li>클릭으로 마우스 잠금 · WASD 이동 · Space 점프(두 번=비행) · Shift 하강</li>
+    <li>좌클릭 부수기 · 우클릭 놓기 · 휠클릭 블록 복사</li>
+    <li>숫자 1~9 / 휠: 블록 선택 · E: 블록 목록 · F: 비행 · Esc: 메뉴</li>
+  </ul>
+  <button class="btn main" id="hClose">시작하기</button>
+</div></div>
+
+<div id="loading"><div id="loadText">월드를 만드는 중…</div><div class="bar"><i id="loadBar"></i></div></div>
+
+<script>
+(function () {
+'use strict';
+
+/* ======================================================================
+ *  상수 / 유틸
+ * ==================================================================== */
+var CS = 16, CH = 64, SEA = 20;            // 청크 가로세로, 월드 높이, 해수면
+var EYE = 1.62, HW = 0.3, HH = 1.8;        // 눈 높이, 플레이어 반폭, 키
+var REACH = 5.5, DAY_LEN = 480;            // 닿는 거리(블록), 하루 길이(초)
+var QMAX = 16000;                          // 메시 한 조각의 최대 면 수 (16bit 인덱스)
+
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function smooth(a, b, v) { var t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+function $(id) { return document.getElementById(id); }
+
+/* ---- 노이즈 ---- */
+var SEED = 1;
+function hash2(x, z, s) {
+  var h = Math.imul(x, 374761393) ^ Math.imul(z, 668265263) ^ Math.imul(s, 1274126177);
+  h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function hash3(x, y, z, s) {
+  var h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(z, 2147483629) ^ Math.imul(s, 1274126177);
+  h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function noise2(x, z, s) {
+  var xi = Math.floor(x), zi = Math.floor(z), xf = x - xi, zf = z - zi;
+  var u = xf * xf * (3 - 2 * xf), v = zf * zf * (3 - 2 * zf), q = s + SEED;
+  var a = hash2(xi, zi, q), b = hash2(xi + 1, zi, q), c = hash2(xi, zi + 1, q), d = hash2(xi + 1, zi + 1, q);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function noise3(x, y, z, s) {
+  var xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+  var xf = x - xi, yf = y - yi, zf = z - zi;
+  var u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), w = zf * zf * (3 - 2 * zf), q = s + SEED;
+  var c000 = hash3(xi, yi, zi, q), c100 = hash3(xi + 1, yi, zi, q), c010 = hash3(xi, yi + 1, zi, q), c110 = hash3(xi + 1, yi + 1, zi, q);
+  var c001 = hash3(xi, yi, zi + 1, q), c101 = hash3(xi + 1, yi, zi + 1, q), c011 = hash3(xi, yi + 1, zi + 1, q), c111 = hash3(xi + 1, yi + 1, zi + 1, q);
+  var x00 = lerp(c000, c100, u), x10 = lerp(c010, c110, u), x01 = lerp(c001, c101, u), x11 = lerp(c011, c111, u);
+  return lerp(lerp(x00, x10, v), lerp(x01, x11, v), w);
+}
+function fbm2(x, z, s, oct) {
+  var amp = 1, f = 1, sum = 0, norm = 0;
+  for (var i = 0; i < oct; i++) { sum += amp * noise2(x * f, z * f, s + i * 31); norm += amp; amp *= 0.5; f *= 2; }
+  return sum / norm;
+}
+
+/* ======================================================================
+ *  블록 정의
+ * ==================================================================== */
+var AIR = 0, GRASS = 1, DIRT = 2, STONE = 3, COBBLE = 4, SAND = 5, LOG = 6, LEAVES = 7, PLANKS = 8,
+    GLASS = 9, BRICK = 10, WATER = 11, SNOW = 12, COAL = 13, IRON = 14, BEDROCK = 15;
+// 텍스처 타일 번호 (8x8 아틀라스)
+var T_GRASS_TOP = 0, T_GRASS_SIDE = 1, T_DIRT = 2, T_STONE = 3, T_COBBLE = 4, T_SAND = 5, T_LOG_SIDE = 6, T_LOG_TOP = 7,
+    T_PLANKS = 8, T_LEAVES = 9, T_GLASS = 10, T_BRICK = 11, T_WATER = 12, T_SNOW = 13, T_SNOW_SIDE = 14,
+    T_COAL = 15, T_IRON = 16, T_BEDROCK = 17, T_CRACK = 24;
+
+var B = [];
+// 면 순서: +x, -x, +y(윗면), -y(아랫면), +z, -z
+function def(id, name, top, bottom, side, o) {
+  var b = { id: id, name: name, tiles: [side, side, top, bottom, side, side], solid: true, opaque: true, hard: 0.5 };
+  for (var k in o) b[k] = o[k];
+  B[id] = b;
+}
+B[AIR] = { id: AIR, name: '공기', tiles: [0, 0, 0, 0, 0, 0], solid: false, opaque: false, hard: 0 };
+def(GRASS, '잔디 블록', T_GRASS_TOP, T_DIRT, T_GRASS_SIDE, { hard: 0.25 });
+def(DIRT, '흙', T_DIRT, T_DIRT, T_DIRT, { hard: 0.25 });
+def(STONE, '돌', T_STONE, T_STONE, T_STONE, { hard: 0.8 });
+def(COBBLE, '조약돌', T_COBBLE, T_COBBLE, T_COBBLE, { hard: 0.8 });
+def(SAND, '모래', T_SAND, T_SAND, T_SAND, { hard: 0.25 });
+def(LOG, '나무 기둥', T_LOG_TOP, T_LOG_TOP, T_LOG_SIDE, { hard: 0.5 });
+def(LEAVES, '나뭇잎', T_LEAVES, T_LEAVES, T_LEAVES, { opaque: false, selfcull: true, hard: 0.1 });
+def(PLANKS, '나무 판자', T_PLANKS, T_PLANKS, T_PLANKS, { hard: 0.45 });
+def(GLASS, '유리', T_GLASS, T_GLASS, T_GLASS, { opaque: false, selfcull: true, hard: 0.2 });
+def(BRICK, '벽돌', T_BRICK, T_BRICK, T_BRICK, { hard: 0.8 });
+def(WATER, '물', T_WATER, T_WATER, T_WATER, { solid: false, opaque: false, liquid: true, hard: 0 });
+def(SNOW, '눈 블록', T_SNOW, T_SNOW, T_SNOW, { hard: 0.2 });
+def(COAL, '석탄 광석', T_COAL, T_COAL, T_COAL, { hard: 1.0 });
+def(IRON, '철 광석', T_IRON, T_IRON, T_IRON, { hard: 1.0 });
+def(BEDROCK, '기반암', T_BEDROCK, T_BEDROCK, T_BEDROCK, { hard: 9999 });
+
+var OPQ = new Uint8Array(256), BLOCKING = new Uint8Array(256);   // 면 가림 / 하늘빛 차단 여부
+for (var bi = 0; bi < B.length; bi++) { OPQ[bi] = B[bi].opaque ? 1 : 0; BLOCKING[bi] = (B[bi].opaque || bi === LEAVES) ? 1 : 0; }
+
+var PALETTE = [GRASS, DIRT, STONE, COBBLE, SAND, SNOW, LOG, PLANKS, LEAVES, GLASS, BRICK, COAL, IRON];
+
+/* ======================================================================
+ *  절차적 텍스처 아틀라스 (외부 이미지 없음)
+ * ==================================================================== */
+var ATLAS_N = 8, ATLAS_T = 16, ATLAS_S = 128;
+var atlasData = new Uint8Array(ATLAS_S * ATLAS_S * 4);
+
+function buildAtlas() {
+  var N = ATLAS_N, T = ATLAS_T, S = ATLAS_S, data = atlasData, rs = 1337;
+  function rnd() { rs = (Math.imul(rs, 1664525) + 1013904223) | 0; return ((rs >>> 8) & 0xffff) / 65536; }
+  function put(tile, x, y, r, g, b, a) {
+    var i = ((((tile / N) | 0) * T + y) * S + (tile % N) * T + x) * 4;
+    data[i] = clamp(r, 0, 255); data[i + 1] = clamp(g, 0, 255); data[i + 2] = clamp(b, 0, 255); data[i + 3] = a === undefined ? 255 : a;
+  }
+  function get(tile, x, y) {
+    var i = ((((tile / N) | 0) * T + y) * S + (tile % N) * T + x) * 4;
+    return [data[i], data[i + 1], data[i + 2], data[i + 3]];
+  }
+  function each(tile, fn) { for (var y = 0; y < T; y++) for (var x = 0; x < T; x++) { var c = fn(x, y); put(tile, x, y, c[0], c[1], c[2], c[3]); } }
+  function n(v) { return (rnd() - 0.5) * 2 * v; }
+
+  each(T_DIRT, function () { var k = n(14), c = rnd() < 0.08 ? -26 : 0; return [134 + k + c, 96 + k + c, 67 + k + c]; });
+  each(T_GRASS_TOP, function () { var k = n(14); return [92 + k, 158 + k, 54 + k]; });
+  var depth = [];   // 잔디가 옆면으로 흘러내린 깊이 (열마다 다름)
+  for (var x = 0; x < T; x++) depth.push(3 + (rnd() < 0.5 ? 1 : 0) + (rnd() < 0.2 ? 1 : 0));
+  each(T_GRASS_SIDE, function (x, y) {
+    if (y < depth[x]) { var k = n(14); return [92 + k, 158 + k, 54 + k]; }
+    return get(T_DIRT, x, y);
+  });
+  each(T_STONE, function (x, y) {
+    var blot = (hash2(x >> 1, y >> 1, 77) - 0.5) * 16, k = n(7);
+    return [126 + blot + k, 126 + blot + k, 126 + blot + k];
+  });
+  each(T_COBBLE, function (x, y) {
+    var row = (y / 4) | 0, xo = (row % 2) * 3, cx = ((x + xo) / 6) | 0;
+    if (y % 4 === 0 || (x + xo) % 6 === 0) return [86, 86, 86];
+    var v = 112 + (hash2(cx, row, 5) - 0.5) * 44 + n(6);
+    return [v, v, v];
+  });
+  each(T_SAND, function () { var k = n(9); return [222 + k, 208 + k, 150 + k]; });
+  each(T_LOG_SIDE, function (x, y) {
+    var s = (hash2(x, 3, 9) - 0.5) * 46 + n(7), knot = (hash2(x >> 1, y >> 2, 21) > 0.93) ? -28 : 0;
+    return [102 + s + knot, 80 + s + knot, 49 + s + knot];
+  });
+  each(T_LOG_TOP, function (x, y) {
+    var dx = x - 7.5, dy = y - 7.5, d = Math.max(Math.abs(dx), Math.abs(dy)), k = n(6);
+    if (d > 6.6) return [98 + k, 76 + k, 46 + k];
+    var ring = Math.floor(Math.sqrt(dx * dx + dy * dy)) % 2;
+    return ring ? [160 + k, 125 + k, 76 + k] : [186 + k, 150 + k, 94 + k];
+  });
+  each(T_PLANKS, function (x, y) {
+    var row = (y / 4) | 0, k = n(6) + (hash2(row, 0, 33) - 0.5) * 16;
+    if (y % 4 === 3) return [128 + k, 96 + k, 56 + k];
+    if (x === (row * 5 + 3) % 16) return [140 + k, 106 + k, 62 + k];
+    return [180 + k, 143 + k, 90 + k];
+  });
+  each(T_LEAVES, function () {
+    if (rnd() < 0.17) return [0, 0, 0, 0];
+    var k = n(26); return [52 + k, 132 + k, 40 + k, 255];
+  });
+  each(T_GLASS, function (x, y) {
+    if (x === 0 || y === 0 || x === 15 || y === 15) return [208, 236, 246, 255];
+    if ((x === 3 && y === 3) || (x === 4 && y === 4) || (x === 3 && y === 5) || (x === 5 && y === 3)) return [255, 255, 255, 215];
+    return [0, 0, 0, 0];
+  });
+  each(T_BRICK, function (x, y) {
+    var row = (y / 4) | 0, k = n(10);
+    if (y % 4 === 3 || (x + (row % 2) * 4) % 8 === 0) return [186 + k * 0.4, 178 + k * 0.4, 168 + k * 0.4];
+    return [154 + k, 72 + k, 54 + k];
+  });
+  each(T_WATER, function (x, y) { var k = n(5) + (((x + y * 2) % 7) === 0 ? 10 : 0); return [44 + k, 96 + k, 212 + k]; });
+  each(T_SNOW, function () { var k = n(4); return [244 + k, 247 + k, 251 + k]; });
+  each(T_SNOW_SIDE, function (x, y) {
+    if (y < 4 + (hash2(x, 8, 4) > 0.6 ? 1 : 0)) { var k = n(4); return [244 + k, 247 + k, 251 + k]; }
+    return get(T_DIRT, x, y);
+  });
+  function ore(tile, col) {
+    each(tile, function (x, y) { return get(T_STONE, x, y); });
+    for (var c = 0; c < 5; c++) {
+      var cx = 2 + ((rnd() * 12) | 0), cy = 2 + ((rnd() * 12) | 0), r = 2 + ((rnd() * 2) | 0);
+      for (var i = 0; i < r + 1; i++) {
+        var px = clamp(cx + ((rnd() * 3) | 0) - 1, 0, 15), py = clamp(cy + ((rnd() * 3) | 0) - 1, 0, 15), k = n(18);
+        put(tile, px, py, col[0] + k, col[1] + k, col[2] + k);
+      }
+    }
+  }
+  ore(T_COAL, [34, 34, 38]);
+  ore(T_IRON, [216, 176, 148]);
+  each(T_BEDROCK, function (x, y) { var v = 36 + hash2(x, y, 3) * 54 + n(8); return [v, v, v]; });
+
+  // 균열 (파괴 진행 10단계): 중앙에서 뻗어 나가는 무작위 선
+  var path = [], seen = {};
+  for (var w = 0; w < 4; w++) {
+    var px = 7 + ((rnd() * 3) | 0) - 1, py = 7 + ((rnd() * 3) | 0) - 1;
+    for (var st = 0; st < 22; st++) {
+      var key = px + ',' + py;
+      if (!seen[key]) { seen[key] = 1; path.push([px, py]); }
+      var r = rnd();
+      if (r < 0.34) px += 1; else if (r < 0.67) px -= 1; else py += (rnd() < 0.5 ? 1 : -1);
+      if (rnd() < 0.5) py += (rnd() < 0.5 ? 1 : -1);
+      px = clamp(px, 0, 15); py = clamp(py, 0, 15);
+    }
+  }
+  for (var s = 0; s < 10; s++) {
+    var cnt = Math.ceil(path.length * (s + 1) / 10);
+    for (var yy = 0; yy < T; yy++) for (var xx = 0; xx < T; xx++) put(T_CRACK + s, xx, yy, 0, 0, 0, 0);
+    for (var i2 = 0; i2 < cnt; i2++) put(T_CRACK + s, path[i2][0], path[i2][1], 12, 12, 12, 235);
+  }
+}
+buildAtlas();
+
+var atlasCanvas = document.createElement('canvas');
+atlasCanvas.width = atlasCanvas.height = ATLAS_S;
+(function () {
+  var c = atlasCanvas.getContext('2d'), img = c.createImageData(ATLAS_S, ATLAS_S);
+  img.data.set(atlasData); c.putImageData(img, 0, 0);
+})();
+
+// 타일 UV (반 텍셀 안쪽으로 줄여 번짐 방지)
+var TU = [], TV = [], TW = 1 / ATLAS_N - 1 / ATLAS_S;
+for (var ti = 0; ti < 64; ti++) { TU[ti] = (ti % ATLAS_N) / ATLAS_N + 0.5 / ATLAS_S; TV[ti] = ((ti / ATLAS_N) | 0) / ATLAS_N + 0.5 / ATLAS_S; }
+
+/* ======================================================================
+ *  지형 생성
+ * ==================================================================== */
+function heightAt(x, z) {
+  var c = fbm2(x * 0.006, z * 0.006, 0, 3);
+  var h = fbm2(x * 0.02, z * 0.02, 100, 4);
+  var m = Math.max(0, fbm2(x * 0.009, z * 0.009, 200, 3) - 0.5) * 2.6;
+  var y = 2.5 + c * 24 + h * 15 + m * m * 52;
+  if (y > 46) y = 46 + (y - 46) * 0.55;   // 정상이 높이 제한에서 평평하게 잘리지 않도록 압축
+  return clamp(Math.floor(y), 3, CH - 8);
+}
+function tempAt(x, z) { return fbm2(x * 0.004, z * 0.004, 300, 2); }
+// 표면 종류: 0 잔디, 1 모래, 2 눈, 3 바위
+function surfaceOf(h, t) {
+  if (h <= SEA + 1) return 1;
+  if (t > 0.6 && h < SEA + 16) return 1;
+  if (h >= 46 || (t < 0.34 && h > SEA + 6)) return 2;
+  if (h >= 41) return 3;
+  return 0;
+}
+function isCave(x, y, z) {
+  var a = noise3(x * 0.05, y * 0.07, z * 0.05, 400);
+  if (Math.abs(a - 0.5) > 0.05) return false;
+  var b = noise3(x * 0.05, y * 0.07, z * 0.05, 500);
+  return Math.abs(b - 0.5) < 0.05;
+}
+function treeAt(wx, wz, h, surf) { return surf === 0 && h > SEA + 1 && h < 40 && hash2(wx, wz, SEED + 99) < 0.012; }
+
+var world = { chunks: new Map(), edits: new Map() };
+function ckey(cx, cz) { return (cx + 32768) * 65536 + (cz + 32768); }
+function cidx(x, y, z) { return (y * CS + z) * CS + x; }
+
+function genChunk(cx, cz) {
+  var data = new Uint8Array(CS * CH * CS), x0 = cx * CS, z0 = cz * CS, M = 3, W = CS + 2 * M;
+  var hm = new Int16Array(W * W), tm = new Float32Array(W * W), maxY = 0;
+  for (var j = 0; j < W; j++) for (var i = 0; i < W; i++) {
+    hm[j * W + i] = heightAt(x0 + i - M, z0 + j - M);
+    tm[j * W + i] = tempAt(x0 + i - M, z0 + j - M);
+  }
+  for (var z = 0; z < CS; z++) for (var x = 0; x < CS; x++) {
+    var wx = x0 + x, wz = z0 + z, hi = (z + M) * W + x + M, h = hm[hi], surf = surfaceOf(h, tm[hi]);
+    for (var y = 0; y <= h; y++) {
+      var b;
+      if (y === 0) b = BEDROCK;
+      else if (y === h) b = surf === 0 ? GRASS : surf === 1 ? SAND : surf === 2 ? SNOW : STONE;
+      else if (y >= h - 3) b = surf === 1 ? SAND : surf === 3 ? STONE : DIRT;
+      else {
+        b = STONE;
+        var r = hash3(wx, y, wz, SEED + 5);
+        if (r < 0.011 && y < 46) b = COAL; else if (r > 0.996 && y < 30) b = IRON;
+      }
+      if (y > 2 && y < h - 4 && isCave(wx, y, wz)) b = AIR;
+      data[cidx(x, y, z)] = b;
+    }
+    for (var wy = h + 1; wy <= SEA; wy++) data[cidx(x, wy, z)] = WATER;
+    maxY = Math.max(maxY, h, h < SEA ? SEA : 0);
+  }
+  // 나무: 청크 경계 밖에서 뻗은 가지도 이 청크 안쪽 부분은 그린다
+  for (var tz = -2; tz < CS + 2; tz++) for (var tx = -2; tx < CS + 2; tx++) {
+    var ti2 = (tz + M) * W + tx + M, th = hm[ti2], twx = x0 + tx, twz = z0 + tz;
+    if (!treeAt(twx, twz, th, surfaceOf(th, tm[ti2]))) continue;
+    var trunk = 4 + Math.floor(hash2(twx, twz, 17) * 3);
+    for (var ly = 1; ly <= trunk; ly++) setLocal(tx, th + ly, tz, LOG, true);
+    // 잎은 지상에서 3칸 위부터 — 키 1.8칸인 플레이어가 나무 밑으로 지나다닐 수 있어야 한다
+    for (var dy = trunk - 1; dy <= trunk + 2; dy++) {
+      var rad = dy >= trunk + 1 ? 1 : 2;
+      for (var dz = -rad; dz <= rad; dz++) for (var dx = -rad; dx <= rad; dx++) {
+        var corner = Math.abs(dx) === rad && Math.abs(dz) === rad;
+        if (corner && hash3(twx + dx, dy, twz + dz, rad === 2 ? 41 : 43) < (rad === 2 ? 0.55 : 0.5)) continue;
+        if (dy === trunk + 2 && Math.abs(dx) + Math.abs(dz) > 1) continue;
+        setLocal(tx + dx, th + dy, tz + dz, LEAVES, false);
+      }
+    }
+  }
+  function setLocal(lx, ly, lz, id, force) {
+    if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || ly < 0 || ly >= CH) return;
+    var k = cidx(lx, ly, lz);
+    if (force || data[k] === AIR) { data[k] = id; if (ly > maxY) maxY = ly; }
+  }
+  // 플레이어가 고친 블록 덮어쓰기
+  var ed = world.edits.get(ckey(cx, cz));
+  if (ed) ed.m.forEach(function (b, k) { data[k] = b; var yy = (k / (CS * CS)) | 0; if (yy > maxY) maxY = yy; });
+  var ch = { cx: cx, cz: cz, data: data, maxY: Math.min(CH - 1, maxY + 1), needMesh: true, opaque: [], water: [] };
+  world.chunks.set(ckey(cx, cz), ch);
+  return ch;
+}
+
+function getBlock(x, y, z) {
+  if (y < 0) return BEDROCK;
+  if (y >= CH) return AIR;
+  var ch = world.chunks.get(ckey(x >> 4, z >> 4));
+  return ch ? ch.data[cidx(x & 15, y, z & 15)] : AIR;
+}
+var dirtySave = false;
+function setBlock(x, y, z, id) {
+  if (y < 0 || y >= CH) return false;
+  var cx = x >> 4, cz = z >> 4, ch = world.chunks.get(ckey(cx, cz));
+  if (!ch) return false;
+  var lx = x & 15, lz = z & 15, k = cidx(lx, y, lz);
+  ch.data[k] = id;
+  if (y > ch.maxY) ch.maxY = Math.min(CH - 1, y + 1);
+  var key = ckey(cx, cz), ed = world.edits.get(key);
+  if (!ed) { ed = { cx: cx, cz: cz, m: new Map() }; world.edits.set(key, ed); }
+  ed.m.set(k, id);
+  dirtySave = true;
+  ch.needMesh = true;
+  if (lx === 0) markMesh(cx - 1, cz); else if (lx === CS - 1) markMesh(cx + 1, cz);
+  if (lz === 0) markMesh(cx, cz - 1); else if (lz === CS - 1) markMesh(cx, cz + 1);
+  if (lx === 0 && lz === 0) markMesh(cx - 1, cz - 1);
+  if (lx === 0 && lz === CS - 1) markMesh(cx - 1, cz + 1);
+  if (lx === CS - 1 && lz === 0) markMesh(cx + 1, cz - 1);
+  if (lx === CS - 1 && lz === CS - 1) markMesh(cx + 1, cz + 1);
+  return true;
+}
+function markMesh(cx, cz) { var c = world.chunks.get(ckey(cx, cz)); if (c) c.needMesh = true; }
+
+/* ======================================================================
+ *  메시 생성 (면 컬링 + 정점 AO + 하늘빛 근사)
+ * ==================================================================== */
+var FACES = [
+  { n: [1, 0, 0],  s: 0.78, c: [[1,0,1],[1,0,0],[1,1,0],[1,1,1]] },
+  { n: [-1, 0, 0], s: 0.78, c: [[0,0,0],[0,0,1],[0,1,1],[0,1,0]] },
+  { n: [0, 1, 0],  s: 1.0,  c: [[0,1,1],[1,1,1],[1,1,0],[0,1,0]] },
+  { n: [0, -1, 0], s: 0.5,  c: [[0,0,0],[1,0,0],[1,0,1],[0,0,1]] },
+  { n: [0, 0, 1],  s: 0.9,  c: [[0,0,1],[1,0,1],[1,1,1],[0,1,1]] },
+  { n: [0, 0, -1], s: 0.9,  c: [[1,0,0],[0,0,0],[0,1,0],[1,1,0]] }
+];
+var UVQ = [[0, 1], [1, 1], [1, 0], [0, 0]];
+var AO_LIGHT = [0.55, 0.7, 0.85, 1.0];
+var PW = CS + 2, PH = CH + 2;
+var pad = new Uint8Array(PW * PW * PH), topH = new Int16Array(PW * PW);
+function pidx(x, y, z) { return ((y + 1) * PW + (z + 1)) * PW + (x + 1); }
+
+function fillPad(ch) {
+  var ox = ch.cx * CS, oz = ch.cz * CS, nb = [];
+  for (var dz = -1; dz <= 1; dz++) for (var dx = -1; dx <= 1; dx++) nb[(dz + 1) * 3 + dx + 1] = world.chunks.get(ckey(ch.cx + dx, ch.cz + dz));
+  for (var z = -1; z <= CS; z++) for (var x = -1; x <= CS; x++) {
+    var sx = x < 0 ? 0 : x >= CS ? 2 : 1, sz = z < 0 ? 0 : z >= CS ? 2 : 1, src = nb[sz * 3 + sx], lx = x & 15, lz = z & 15;
+    var top = -1;
+    for (var y = CH; y >= -1; y--) {
+      var v = y < 0 ? BEDROCK : y >= CH ? AIR : (src ? src.data[cidx(lx, y, lz)] : AIR);
+      pad[pidx(x, y, z)] = v;
+      if (top < 0 && y >= 0 && y < CH && BLOCKING[v]) top = y;
+    }
+    topH[(z + 1) * PW + x + 1] = top;
+  }
+}
+
+function newBuf() { return { a: new Float32Array(QMAX * 24), n: 0, q: 0, parts: [] }; }
+var OB = newBuf(), WB = newBuf();
+function flushBuf(b) {
+  if (!b.q) return;
+  var vbo = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  gl.bufferData(gl.ARRAY_BUFFER, b.a.subarray(0, b.n), gl.STATIC_DRAW);
+  b.parts.push({ vbo: vbo, count: b.q * 6 });
+  b.n = 0; b.q = 0;
+}
+function freeMesh(ch) {
+  for (var i = 0; i < ch.opaque.length; i++) gl.deleteBuffer(ch.opaque[i].vbo);
+  for (var j = 0; j < ch.water.length; j++) gl.deleteBuffer(ch.water[j].vbo);
+  ch.opaque = []; ch.water = [];
+}
+function opq(x, y, z) { return OPQ[pad[pidx(x, y, z)]]; }
+function aoAt(x, y, z, F, c) {
+  var ox = x + F.n[0], oy = y + F.n[1], oz = z + F.n[2], d0 = c[0] ? 1 : -1, d1 = c[1] ? 1 : -1, d2 = c[2] ? 1 : -1, s1, s2, cr;
+  if (F.n[0]) { s1 = opq(ox, oy + d1, oz); s2 = opq(ox, oy, oz + d2); cr = opq(ox, oy + d1, oz + d2); }
+  else if (F.n[1]) { s1 = opq(ox + d0, oy, oz); s2 = opq(ox, oy, oz + d2); cr = opq(ox + d0, oy, oz + d2); }
+  else { s1 = opq(ox + d0, oy, oz); s2 = opq(ox, oy + d1, oz); cr = opq(ox + d0, oy + d1, oz); }
+  return (s1 && s2) ? 0 : 3 - (s1 + s2 + cr);
+}
+
+function buildMesh(ch) {
+  freeMesh(ch);
+  fillPad(ch);
+  OB.parts = []; WB.parts = []; OB.n = OB.q = WB.n = WB.q = 0;
+  var ao = [0, 0, 0, 0];
+  for (var y = 0; y <= ch.maxY; y++) for (var z = 0; z < CS; z++) for (var x = 0; x < CS; x++) {
+    var id = pad[pidx(x, y, z)];
+    if (id === AIR) continue;
+    var d = B[id], isW = !!d.liquid, buf = isW ? WB : OB;
+    for (var f = 0; f < 6; f++) {
+      var F = FACES[f], nbid = pad[pidx(x + F.n[0], y + F.n[1], z + F.n[2])];
+      if (isW) { if (nbid === WATER || OPQ[nbid]) continue; }
+      else { if (OPQ[nbid]) continue; if (d.selfcull && nbid === id) continue; }
+      if (buf.q >= QMAX) flushBuf(buf);
+      var tile = d.tiles[f], u0 = TU[tile], v0 = TV[tile];
+      var oy = y + F.n[1], th = topH[(z + F.n[2] + 1) * PW + (x + F.n[0] + 1)];
+      var sky = oy > th ? 1 : Math.max(0.3, 1 - (th - oy) * 0.06);
+      if (isW) { ao[0] = ao[1] = ao[2] = ao[3] = 3; }
+      else for (var k = 0; k < 4; k++) ao[k] = aoAt(x, y, z, F, F.c[k]);
+      var flip = (ao[0] + ao[2] > ao[1] + ao[3]) ? 1 : 0, a = buf.a, n = buf.n;
+      var lowerTop = isW && pad[pidx(x, y + 1, z)] !== WATER;
+      for (var kk = 0; kk < 4; kk++) {
+        var vi = flip ? (kk + 1) & 3 : kk, c = F.c[vi];
+        a[n++] = x + c[0];
+        a[n++] = y + (c[1] && lowerTop ? 0.875 : c[1]);
+        a[n++] = z + c[2];
+        a[n++] = u0 + TW * UVQ[vi][0];
+        a[n++] = v0 + TW * UVQ[vi][1];
+        a[n++] = F.s * AO_LIGHT[ao[vi]] * sky;
+      }
+      buf.n = n; buf.q++;
+    }
+  }
+  flushBuf(OB); flushBuf(WB);
+  ch.opaque = OB.parts; ch.water = WB.parts; ch.needMesh = false;
+}
+
+/* ======================================================================
+ *  WebGL
+ * ==================================================================== */
+var canvas = $('gl'), gl, mainP, flatP, atlasTex, quadIBO, starVBO, dynVBO, lineVBO;
+var U = {}, FU = {};
+var dpr = 1, vw = 0, vh = 0;
+
+var VS = 'attribute vec3 a_pos;attribute vec2 a_uv;attribute float a_light;uniform mat4 u_vp;uniform vec3 u_off;' +
+  'varying vec2 v_uv;varying float v_light;varying float v_dist;' +
+  'void main(){vec3 p=a_pos+u_off;gl_Position=u_vp*vec4(p,1.0);v_uv=a_uv;v_light=a_light;v_dist=length(p);}';
+var FS = '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n' +
+  'uniform sampler2D u_tex;uniform vec3 u_tint;uniform vec3 u_fog;uniform vec2 u_fogr;uniform float u_alpha;uniform float u_cut;' +
+  'varying vec2 v_uv;varying float v_light;varying float v_dist;' +
+  'void main(){vec4 c=texture2D(u_tex,v_uv);if(c.a<u_cut)discard;vec3 col=c.rgb*v_light*u_tint;' +
+  'float f=clamp((v_dist-u_fogr.x)/(u_fogr.y-u_fogr.x),0.0,1.0);col=mix(col,u_fog,f);gl_FragColor=vec4(col,c.a*u_alpha);}';
+var FVS = 'attribute vec3 a_pos;uniform mat4 u_vp;uniform float u_psize;void main(){gl_Position=u_vp*vec4(a_pos,1.0);gl_PointSize=u_psize;}';
+var FFS = 'precision mediump float;uniform vec4 u_col;void main(){gl_FragColor=u_col;}';
+
+function compile(type, src) {
+  var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error('shader: ' + gl.getShaderInfoLog(s));
+  return s;
+}
+function program(vs, fs) {
+  var p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, vs)); gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+  gl.bindAttribLocation(p, 0, 'a_pos'); gl.bindAttribLocation(p, 1, 'a_uv'); gl.bindAttribLocation(p, 2, 'a_light');
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('link: ' + gl.getProgramInfoLog(p));
+  return p;
+}
+function uniforms(p, names) { var o = {}; names.forEach(function (n) { o[n] = gl.getUniformLocation(p, n); }); return o; }
+
+function initGL() {
+  var opt = { antialias: false, alpha: false, powerPreference: 'high-performance' };
+  gl = canvas.getContext('webgl', opt) || canvas.getContext('experimental-webgl', opt);
+  if (!gl) return false;
+  mainP = program(VS, FS); flatP = program(FVS, FFS);
+  U = uniforms(mainP, ['u_vp', 'u_off', 'u_tex', 'u_tint', 'u_fog', 'u_fogr', 'u_alpha', 'u_cut']);
+  FU = uniforms(flatP, ['u_vp', 'u_col', 'u_psize']);
+  atlasTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, atlasTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, ATLAS_S, ATLAS_S, 0, gl.RGBA, gl.UNSIGNED_BYTE, atlasData);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  var idx = new Uint16Array(QMAX * 6);
+  for (var q = 0; q < QMAX; q++) { var b = q * 4, i = q * 6; idx[i] = b; idx[i + 1] = b + 1; idx[i + 2] = b + 2; idx[i + 3] = b; idx[i + 4] = b + 2; idx[i + 5] = b + 3; }
+  quadIBO = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, quadIBO); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+  var stars = [];
+  for (var s = 0; s < 220; s++) {
+    var th = Math.random() * 6.2832, y = Math.random() * 2 - 0.15, r = Math.sqrt(Math.max(0, 1 - y * y));
+    stars.push(Math.cos(th) * r * 90, y * 90, Math.sin(th) * r * 90);
+  }
+  starVBO = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, starVBO); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(stars), gl.STATIC_DRAW);
+  dynVBO = gl.createBuffer(); lineVBO = gl.createBuffer();
+  gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK); gl.frontFace(gl.CCW);
+  return true;
+}
+
+/* ---- 행렬 ---- */
+function persp(fovy, aspect, n, f) {
+  var t = 1 / Math.tan(fovy / 2), nf = 1 / (n - f);
+  return new Float32Array([t / aspect, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) * nf, -1, 0, 0, 2 * f * n * nf, 0]);
+}
+function mul(a, b) {
+  var o = new Float32Array(16);
+  for (var c = 0; c < 4; c++) for (var r = 0; r < 4; r++) { var s = 0; for (var k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s; }
+  return o;
+}
+function rotX(a) { var c = Math.cos(a), s = Math.sin(a); return new Float32Array([1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1]); }
+function rotY(a) { var c = Math.cos(a), s = Math.sin(a); return new Float32Array([c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]); }
+
+/* ---- 큐브 정점 쓰기 (균열 / 파티클 / 하이라이트 공용) ---- */
+function pushCube(a, n, cx, cy, cz, hs, u0, v0, u1, v1, light) {
+  for (var f = 0; f < 6; f++) {
+    var F = FACES[f];
+    for (var k = 0; k < 4; k++) {
+      var c = F.c[k];
+      a[n++] = cx + (c[0] ? hs : -hs); a[n++] = cy + (c[1] ? hs : -hs); a[n++] = cz + (c[2] ? hs : -hs);
+      a[n++] = UVQ[k][0] ? u1 : u0; a[n++] = UVQ[k][1] ? v1 : v0; a[n++] = light;
+    }
+  }
+  return n;
+}
+
+/* ======================================================================
+ *  플레이어 / 물리
+ * ==================================================================== */
+var P = { x: 0, y: 40, z: 0, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, onGround: false, fly: false, inWater: false, headWater: false };
+var spawn = { x: 0, y: 40, z: 0 };
+var settings = { autoJump: true, fast: false, dist: 4, sound: true };
+var hotbar = [GRASS, DIRT, STONE, COBBLE, PLANKS, LOG, GLASS, BRICK, SAND], sel = 0;
+var timeOfDay = 0.18;
+var input = { jump: false, down: false, mx: 0, mz: 0 };
+var btn = { jump: false, down: false };   // 화면 버튼 상태 (키보드와 합쳐 input 으로)
+
+function solidAt(x, y, z) { return B[getBlock(x, y, z)].solid; }
+function boxHit(px, py, pz) {
+  var x0 = Math.floor(px - HW), x1 = Math.floor(px + HW - 1e-4), y0 = Math.floor(py + 1e-4), y1 = Math.floor(py + HH - 1e-4),
+      z0 = Math.floor(pz - HW), z1 = Math.floor(pz + HW - 1e-4);
+  for (var y = y0; y <= y1; y++) for (var z = z0; z <= z1; z++) for (var x = x0; x <= x1; x++) if (solidAt(x, y, z)) return true;
+  return false;
+}
+function moveAxis(axis, d) {
+  if (d === 0) return false;
+  var steps = Math.ceil(Math.abs(d) / 0.2), step = d / steps;
+  for (var i = 0; i < steps; i++) {
+    var nx = P.x, ny = P.y, nz = P.z;
+    if (axis === 0) nx += step; else if (axis === 1) ny += step; else nz += step;
+    if (boxHit(nx, ny, nz)) {
+      if (axis === 0) P.x = step > 0 ? Math.floor(nx + HW) - HW - 0.001 : Math.floor(nx - HW) + 1 + HW + 0.001;
+      else if (axis === 2) P.z = step > 0 ? Math.floor(nz + HW) - HW - 0.001 : Math.floor(nz - HW) + 1 + HW + 0.001;
+      else P.y = step > 0 ? Math.floor(ny + HH) - HH - 0.001 : Math.floor(ny) + 1;
+      return true;
+    }
+    P.x = nx; P.y = ny; P.z = nz;
+  }
+  return false;
+}
+
+function updatePlayer(dt) {
+  if (!world.chunks.get(ckey(Math.floor(P.x) >> 4, Math.floor(P.z) >> 4))) return;
+  var mx = input.mx, mz = input.mz, len = Math.hypot(mx, mz);
+  if (len > 1) { mx /= len; mz /= len; }
+  var sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
+  var wx = mx * cy - mz * sy, wz = -mx * sy - mz * cy;
+  P.inWater = B[getBlock(Math.floor(P.x), Math.floor(P.y + 0.4), Math.floor(P.z))].liquid === true;
+  P.headWater = B[getBlock(Math.floor(P.x), Math.floor(P.y + EYE), Math.floor(P.z))].liquid === true;
+  var speed = P.fly ? 11 : P.inWater ? 2.6 : 4.9;
+  var k = (P.onGround || P.fly) ? 14 : P.inWater ? 6 : 4;
+  P.vx += (wx * speed - P.vx) * Math.min(1, k * dt);
+  P.vz += (wz * speed - P.vz) * Math.min(1, k * dt);
+  if (P.fly) {
+    var want = ((input.jump ? 1 : 0) - (input.down ? 1 : 0)) * 8;
+    P.vy += (want - P.vy) * Math.min(1, 10 * dt);
+  } else if (P.inWater) {
+    P.vy -= 7 * dt; P.vy *= (1 - Math.min(1, 3 * dt));
+    if (input.jump) P.vy = Math.min(3.6, P.vy + 20 * dt);
+    if (input.jump && !P.headWater) P.vy = Math.max(P.vy, 3.2);   // 물가에서 뭍으로 올라서기
+  } else {
+    P.vy = Math.max(-55, P.vy - 30 * dt);
+    if (input.jump && P.onGround) { P.vy = 8.7; P.onGround = false; }
+  }
+  var bx = moveAxis(0, P.vx * dt), bz = moveAxis(2, P.vz * dt);
+  if (bx) P.vx = 0; if (bz) P.vz = 0;
+  if ((bx || bz) && P.onGround && settings.autoJump && !P.fly && len > 0.3) {
+    var ox = P.x, oy = P.y, oz = P.z;
+    // 위로 1칸 + 진행 방향으로 살짝 이동한 자리가 비어 있으면 점프
+    if (!boxHit(ox + wx * 0.35, oy + 1.05, oz + wz * 0.35) && !boxHit(ox, oy + 1.05, oz)) P.vy = 8.2;
+  }
+  var by = moveAxis(1, P.vy * dt);
+  if (by) { P.onGround = P.vy < 0; P.vy = 0; } else if (!P.fly) P.onGround = false;
+  if (P.y < -25) respawn();
+}
+function respawn() { P.x = spawn.x; P.y = spawn.y; P.z = spawn.z; P.vx = P.vy = P.vz = 0; }
+
+// 반경 3칸 안에 나무가 있으면 줄기에 막히거나 잎 캐노피 아래에서 시작하게 된다
+function nearTree(x, z) {
+  for (var dz = -3; dz <= 3; dz++) for (var dx = -3; dx <= 3; dx++) {
+    var h = heightAt(x + dx, z + dz);
+    if (treeAt(x + dx, z + dz, h, surfaceOf(h, tempAt(x + dx, z + dz)))) return true;
+  }
+  return false;
+}
+// 시작 지점 주변이 평평한지 (반경 5칸 안의 높이차가 1 이하)
+function flatAround(x, z, h) {
+  for (var dz = -5; dz <= 5; dz += 5) for (var dx = -5; dx <= 5; dx += 5) if (Math.abs(heightAt(x + dx, z + dz) - h) > 1) return false;
+  return true;
+}
+// 풀밭 · 나무 없음 · (가능하면) 평평한 곳에서 시작. 못 찾으면 평평함 조건만 풀어서 다시 찾는다
+function findSpawn() {
+  for (var strict = 1; strict >= 0; strict--) {
+    for (var d = 0; d < 400; d += 4) for (var a = 0; a < 8; a++) {
+      var x = Math.round(Math.cos(a * 0.785) * d), z = Math.round(Math.sin(a * 0.785) * d), h = heightAt(x, z);
+      if (h > SEA + 1 && h < 36 && surfaceOf(h, tempAt(x, z)) === 0 && !nearTree(x, z) && (!strict || flatAround(x, z, h)))
+        return { x: x + 0.5, y: h + 1.01, z: z + 0.5 };
+    }
+  }
+  var h0 = Math.max(heightAt(0, 0), SEA + 1);
+  return { x: 0.5, y: h0 + 1.01, z: 0.5 };
+}
+
+/* ======================================================================
+ *  레이캐스트 / 채굴 / 설치
+ * ==================================================================== */
+function forward() {
+  var cp = Math.cos(P.pitch);
+  return [-Math.sin(P.yaw) * cp, Math.sin(P.pitch), -Math.cos(P.yaw) * cp];
+}
+function raycast(ox, oy, oz, dx, dy, dz, maxD) {
+  var x = Math.floor(ox), y = Math.floor(oy), z = Math.floor(oz);
+  var sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1, sz = dz > 0 ? 1 : -1;
+  var tdx = dx !== 0 ? Math.abs(1 / dx) : 1e30, tdy = dy !== 0 ? Math.abs(1 / dy) : 1e30, tdz = dz !== 0 ? Math.abs(1 / dz) : 1e30;
+  var tx = dx !== 0 ? (dx > 0 ? x + 1 - ox : ox - x) * tdx : 1e30;
+  var ty = dy !== 0 ? (dy > 0 ? y + 1 - oy : oy - y) * tdy : 1e30;
+  var tz = dz !== 0 ? (dz > 0 ? z + 1 - oz : oz - z) * tdz : 1e30;
+  var nx = 0, ny = 0, nz = 0, t = 0;
+  if (B[getBlock(x, y, z)].solid) return null;
+  while (t <= maxD) {
+    if (tx < ty && tx < tz) { x += sx; t = tx; tx += tdx; nx = -sx; ny = 0; nz = 0; }
+    else if (ty < tz) { y += sy; t = ty; ty += tdy; nx = 0; ny = -sy; nz = 0; }
+    else { z += sz; t = tz; tz += tdz; nx = 0; ny = 0; nz = -sz; }
+    if (t > maxD) break;
+    if (B[getBlock(x, y, z)].solid) return { x: x, y: y, z: z, nx: nx, ny: ny, nz: nz };
+  }
+  return null;
+}
+
+var target = null, mine = { x: 0, y: 0, z: 0, p: 0, on: false };
+function breakBlock(t) {
+  var id = getBlock(t.x, t.y, t.z);
+  if (id === AIR || id === BEDROCK) return;
+  var flood = getBlock(t.x + 1, t.y, t.z) === WATER || getBlock(t.x - 1, t.y, t.z) === WATER || getBlock(t.x, t.y, t.z + 1) === WATER ||
+              getBlock(t.x, t.y, t.z - 1) === WATER || getBlock(t.x, t.y + 1, t.z) === WATER;
+  setBlock(t.x, t.y, t.z, flood ? WATER : AIR);
+  spawnParticles(t.x + 0.5, t.y + 0.5, t.z + 0.5, id);
+  playSound('break');
+}
+function placeBlock() {
+  if (!target) return;
+  var x = target.x + target.nx, y = target.y + target.ny, z = target.z + target.nz, cur = getBlock(x, y, z);
+  if (cur !== AIR && cur !== WATER) return;
+  if (y < 0 || y >= CH) return;
+  var id = hotbar[sel];
+  // 내 몸과 겹치면 놓을 수 없음
+  if (x + 1 > P.x - HW && x < P.x + HW && z + 1 > P.z - HW && z < P.z + HW && y + 1 > P.y && y < P.y + HH) return;
+  if (setBlock(x, y, z, id)) playSound('place');
+}
+function pickBlock() {
+  if (!target) return;
+  var id = getBlock(target.x, target.y, target.z);
+  if (id === AIR || id === BEDROCK || id === WATER) return;
+  hotbar[sel] = id; refreshHotbar(); toast(B[id].name);
+}
+function updateMining(dt, now) {
+  if (look.id !== -1 && !look.mining && !look.moved && now - look.t0 >= 260) look.mining = true;
+  var holding = mouse.left || look.mining;
+  if (holding && target) {
+    var same = mine.on && mine.x === target.x && mine.y === target.y && mine.z === target.z;
+    if (!same) { mine.x = target.x; mine.y = target.y; mine.z = target.z; mine.p = 0; mine.on = true; }
+    var hard = B[getBlock(target.x, target.y, target.z)].hard;
+    mine.p += settings.fast ? 1 : dt / Math.max(0.05, hard);
+    if (mine.p >= 1) { breakBlock(target); mine.p = 0; mine.on = false; }
+  } else { mine.on = false; mine.p = 0; }
+}
+
+/* ======================================================================
+ *  파티클
+ * ==================================================================== */
+var particles = [], pbuf = new Float32Array(64 * 144);
+function spawnParticles(x, y, z, id) {
+  var tile = B[id].tiles[4];
+  for (var i = 0; i < 16; i++) {
+    particles.push({
+      x: x + (Math.random() - 0.5) * 0.8, y: y + (Math.random() - 0.5) * 0.8, z: z + (Math.random() - 0.5) * 0.8,
+      vx: (Math.random() - 0.5) * 3.2, vy: Math.random() * 3 + 1, vz: (Math.random() - 0.5) * 3.2,
+      life: 0.45 + Math.random() * 0.5, tile: tile, su: (Math.random() * 3) | 0, sv: (Math.random() * 3) | 0
+    });
+  }
+  if (particles.length > 64) particles.splice(0, particles.length - 64);
+}
+function updateParticles(dt) {
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i]; p.life -= dt;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    p.vy -= 18 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+    if (solidAt(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z))) { p.vy = 0; p.vx *= 0.5; p.vz *= 0.5; p.y += 0.02; }
+  }
+}
+
+/* ======================================================================
+ *  청크 스트리밍
+ * ==================================================================== */
+var order = [], orderR = -1, loading = true, onLoaded = null;
+function buildOrder(R) {
+  order = [];
+  for (var dz = -R - 1; dz <= R + 1; dz++) for (var dx = -R - 1; dx <= R + 1; dx++) order.push([dx, dz, dx * dx + dz * dz]);
+  order.sort(function (a, b) { return a[2] - b[2]; });
+  orderR = R;
+}
+function neighborsReady(ch) {
+  for (var dz = -1; dz <= 1; dz++) for (var dx = -1; dx <= 1; dx++) if (!world.chunks.has(ckey(ch.cx + dx, ch.cz + dz))) return false;
+  return true;
+}
+var lastUnload = 0;
+function streamChunks(now) {
+  var R = settings.dist;
+  if (orderR !== R) buildOrder(R);
+  var pcx = Math.floor(P.x / CS), pcz = Math.floor(P.z / CS), t0 = performance.now();
+  var budget = loading ? 22 : 7, gens = 0, meshes = 0, i, e, ch;
+  for (i = 0; i < order.length; i++) {
+    e = order[i];
+    if (world.chunks.has(ckey(pcx + e[0], pcz + e[1]))) continue;
+    genChunk(pcx + e[0], pcz + e[1]); gens++;
+    if (gens >= (loading ? 6 : 2) || performance.now() - t0 > budget) break;
+  }
+  for (i = 0; i < order.length; i++) {
+    e = order[i]; if (Math.abs(e[0]) > R || Math.abs(e[1]) > R) continue;
+    ch = world.chunks.get(ckey(pcx + e[0], pcz + e[1]));
+    if (!ch || !ch.needMesh || !neighborsReady(ch)) continue;
+    buildMesh(ch); meshes++;
+    if (meshes >= (loading ? 4 : 2) || performance.now() - t0 > budget + 3) break;
+  }
+  if (now - lastUnload > 1000) {
+    lastUnload = now;
+    world.chunks.forEach(function (c, key) {
+      if (Math.abs(c.cx - pcx) > R + 2 || Math.abs(c.cz - pcz) > R + 2) { freeMesh(c); world.chunks.delete(key); }
+    });
+  }
+  if (loading) {
+    var ready = 0, need = 0;
+    for (var dz = -2; dz <= 2; dz++) for (var dx = -2; dx <= 2; dx++) { need++; var c2 = world.chunks.get(ckey(pcx + dx, pcz + dz)); if (c2 && !c2.needMesh) ready++; }
+    $('loadBar').style.width = Math.round(ready / need * 100) + '%';
+    if (ready >= need) {
+      loading = false; $('loading').className = 'off';
+      if (onLoaded) { var cb = onLoaded; onLoaded = null; cb(); }   // 로딩이 끝나는 즉시(같은 프레임) 실행
+    }
+  }
+}
+
+/* ======================================================================
+ *  하늘 / 낮밤
+ * ==================================================================== */
+function skyState() {
+  var a = timeOfDay * 6.28318, sy = Math.sin(a), day = smooth(-0.14, 0.26, sy);
+  var dusk = Math.max(0, 1 - Math.abs(sy) / 0.34);
+  var r = lerp(0.025, 0.47, day), g = lerp(0.035, 0.67, day), b = lerp(0.09, 1.0, day);
+  r = lerp(r, 1.0, dusk * 0.72); g = lerp(g, 0.5, dusk * 0.62); b = lerp(b, 0.3, dusk * 0.5);
+  return { r: r, g: g, b: b, day: day, dusk: dusk, sun: [Math.cos(a), sy, 0.35] };
+}
+function norm3(v) { var l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; }
+
+/* ======================================================================
+ *  렌더링
+ * ==================================================================== */
+function resizeIfNeeded() {
+  var d = Math.min(window.devicePixelRatio || 1, 2), w = Math.max(1, Math.floor(window.innerWidth * d)), h = Math.max(1, Math.floor(window.innerHeight * d));
+  if (w !== canvas.width || h !== canvas.height) { canvas.width = w; canvas.height = h; }
+  dpr = d; vw = w; vh = h;
+}
+function drawPart(p) {
+  gl.bindBuffer(gl.ARRAY_BUFFER, p.vbo);
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
+  gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 12);
+  gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 24, 20);
+  gl.drawElements(gl.TRIANGLES, p.count, gl.UNSIGNED_SHORT, 0);
+}
+function enableAttribs(n) { for (var i = 0; i < 3; i++) { if (i < n) gl.enableVertexAttribArray(i); else gl.disableVertexAttribArray(i); } }
+var frameInfo = { drawn: 0 };
+var skyQuad = new Float32Array(18);
+
+function render(now) {
+  var sk = skyState(), cam = [P.x, P.y + EYE, P.z], underwater = P.headWater;
+  gl.viewport(0, 0, vw, vh);
+  var fr = sk.r, fg = sk.g, fb = sk.b, fogStart, fogEnd;
+  if (underwater) { fr = 0.08 * (0.3 + sk.day); fg = 0.25 * (0.3 + sk.day); fb = 0.55 * (0.3 + sk.day); fogStart = 0; fogEnd = 16; }
+  else { fogEnd = settings.dist * CS - 4; fogStart = fogEnd * 0.5; }
+  gl.clearColor(fr, fg, fb, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  var aspect = vw / vh, fovy = 70 * Math.PI / 180;
+  if (aspect < 1) fovy = Math.min(100 * Math.PI / 180, 2 * Math.atan(Math.tan(35 * Math.PI / 180) / aspect));
+  var VP = mul(persp(fovy, aspect, 0.05, 600), mul(rotX(-P.pitch), rotY(-P.yaw)));
+
+  // --- 하늘 (별, 해, 달)
+  gl.useProgram(flatP); enableAttribs(1);
+  gl.uniformMatrix4fv(FU.u_vp, false, VP);
+  gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  if (!underwater) {
+    var night = 1 - sk.day;
+    if (night > 0.05) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, starVBO); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 12, 0);
+      gl.uniform4f(FU.u_col, 1, 1, 1, night); gl.uniform1f(FU.u_psize, Math.max(1.5, dpr * 1.6));
+      gl.drawArrays(gl.POINTS, 0, 220);
+    }
+    var sun = norm3(sk.sun), moon = [-sun[0], -sun[1], -sun[2]], q = skyQuad;
+    var bodies = [[sun, 11, 1, 0.94, 0.7], [moon, 8, 0.86, 0.9, 1]];
+    gl.bindBuffer(gl.ARRAY_BUFFER, dynVBO);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 12, 0);
+    for (var bi2 = 0; bi2 < 2; bi2++) {
+      var bd = bodies[bi2], d = bd[0];
+      if (d[1] < -0.12) continue;
+      var rx = -d[2], rz = d[0], rl = Math.hypot(rx, rz); rx /= rl; rz /= rl;
+      var ux = d[1] * rz, uy = d[2] * rx - d[0] * rz, uz = -d[1] * rx, ul = Math.hypot(ux, uy, uz);
+      ux /= ul; uy /= ul; uz /= ul;
+      var s = bd[1], c = [d[0] * 80, d[1] * 80, d[2] * 80], k = 0;
+      var pts = [[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]];
+      for (var pi = 0; pi < 6; pi++) {
+        q[k++] = c[0] + (rx * pts[pi][0] + ux * pts[pi][1]) * s;
+        q[k++] = c[1] + (uy * pts[pi][1]) * s;
+        q[k++] = c[2] + (rz * pts[pi][0] + uz * pts[pi][1]) * s;
+      }
+      gl.bufferData(gl.ARRAY_BUFFER, q.subarray(0, 18), gl.DYNAMIC_DRAW);
+      gl.uniform4f(FU.u_col, bd[2], bd[3], bd[4], bi2 === 0 ? 1 : clamp(night * 1.4, 0, 1));
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+  }
+
+  // --- 블록 (불투명 / 컷아웃)
+  gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.disable(gl.BLEND);
+  gl.useProgram(mainP); enableAttribs(3);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, quadIBO);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, atlasTex); gl.uniform1i(U.u_tex, 0);
+  gl.uniformMatrix4fv(U.u_vp, false, VP);
+  var dayMul = lerp(0.3, 1, sk.day);
+  var tint = underwater ? [0.6 * dayMul + 0.15, 0.8 * dayMul + 0.15, dayMul + 0.2]
+                        : [lerp(0.3, 1, sk.day) * (1 + sk.dusk * 0.4), lerp(0.34, 1, sk.day) * (1 + sk.dusk * 0.1), lerp(0.55, 1, sk.day) * (1 - sk.dusk * 0.2)];   // 노을엔 따뜻한 빛
+  gl.uniform3f(U.u_tint, tint[0], tint[1], tint[2]);
+  gl.uniform3f(U.u_fog, fr, fg, fb); gl.uniform2f(U.u_fogr, fogStart, fogEnd);
+  gl.uniform1f(U.u_alpha, 1); gl.uniform1f(U.u_cut, 0.5);
+
+  var f = forward(), tanY = Math.tan(fovy / 2), tanX = tanY * aspect, halfDiag = Math.atan(Math.hypot(tanX, tanY));
+  var vis = [], drawn = 0;
+  world.chunks.forEach(function (ch) {
+    if (!ch.opaque.length && !ch.water.length) return;
+    var cx = ch.cx * CS + 8 - cam[0], cy = 28 - cam[1], cz = ch.cz * CS + 8 - cam[2], dist = Math.hypot(cx, cy, cz);
+    if (dist > 40) {
+      var dot = (cx * f[0] + cy * f[1] + cz * f[2]) / dist;
+      if (Math.acos(clamp(dot, -1, 1)) > halfDiag + Math.asin(Math.min(1, 38 / dist))) return;
+    }
+    vis.push(ch);
+  });
+  for (var vi2 = 0; vi2 < vis.length; vi2++) {
+    var ch = vis[vi2];
+    gl.uniform3f(U.u_off, ch.cx * CS - cam[0], -cam[1], ch.cz * CS - cam[2]);
+    for (var pi2 = 0; pi2 < ch.opaque.length; pi2++) { drawPart(ch.opaque[pi2]); drawn++; }
+  }
+  frameInfo.drawn = drawn;
+
+  // --- 선택 블록 하이라이트 + 균열
+  if (target) {
+    var tx = target.x + 0.5 - cam[0], ty = target.y + 0.5 - cam[1], tz = target.z + 0.5 - cam[2];
+    gl.uniform3f(U.u_off, 0, 0, 0);
+    if (mine.on && mine.p > 0) {
+      var stage = Math.min(9, Math.floor(mine.p * 10)), tl = T_CRACK + stage;
+      var n1 = pushCube(pbuf, 0, tx, ty, tz, 0.503, TU[tl], TV[tl], TU[tl] + TW, TV[tl] + TW, 1);
+      gl.enable(gl.BLEND); gl.uniform1f(U.u_cut, 0.1); gl.uniform1f(U.u_alpha, 1);
+      gl.uniform3f(U.u_tint, 1, 1, 1); gl.uniform2f(U.u_fogr, 9999, 10000);
+      gl.bindBuffer(gl.ARRAY_BUFFER, dynVBO); gl.bufferData(gl.ARRAY_BUFFER, pbuf.subarray(0, n1), gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 12); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 24, 20);
+      gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+      gl.disable(gl.BLEND); gl.uniform1f(U.u_cut, 0.5);
+      gl.uniform3f(U.u_tint, tint[0], tint[1], tint[2]); gl.uniform2f(U.u_fogr, fogStart, fogEnd);
+    }
+    // 외곽선
+    gl.useProgram(flatP); enableAttribs(1); gl.uniformMatrix4fv(FU.u_vp, false, VP);
+    var e = 0.003, lo = [tx - 0.5 - e, ty - 0.5 - e, tz - 0.5 - e], hi = [tx + 0.5 + e, ty + 0.5 + e, tz + 0.5 + e], L = [];
+    var cs = [[0,0,0],[1,0,0],[1,0,1],[0,0,1],[0,1,0],[1,1,0],[1,1,1],[0,1,1]];
+    var ed = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+    for (var ei = 0; ei < 12; ei++) for (var ej = 0; ej < 2; ej++) {
+      var cc = cs[ed[ei][ej]]; L.push(cc[0] ? hi[0] : lo[0], cc[1] ? hi[1] : lo[1], cc[2] ? hi[2] : lo[2]);
+    }
+    gl.enable(gl.BLEND); gl.bindBuffer(gl.ARRAY_BUFFER, lineVBO); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(L), gl.DYNAMIC_DRAW);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 12, 0);
+    gl.uniform4f(FU.u_col, 0, 0, 0, 0.75); gl.drawArrays(gl.LINES, 0, 24);
+    gl.disable(gl.BLEND);
+    gl.useProgram(mainP); enableAttribs(3);
+  }
+
+  // --- 파티클
+  if (particles.length) {
+    var pn = 0;
+    for (var pa = 0; pa < particles.length; pa++) {
+      var p = particles[pa], tl2 = p.tile, w4 = TW / 4, pu = TU[tl2] + p.su * w4, pv = TV[tl2] + p.sv * w4;
+      pn = pushCube(pbuf, pn, p.x - cam[0], p.y - cam[1], p.z - cam[2], 0.055, pu, pv, pu + w4, pv + w4, 0.95);
+    }
+    gl.uniform3f(U.u_off, 0, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, dynVBO); gl.bufferData(gl.ARRAY_BUFFER, pbuf.subarray(0, pn), gl.DYNAMIC_DRAW);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 12); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 24, 20);
+    gl.drawElements(gl.TRIANGLES, particles.length * 36, gl.UNSIGNED_SHORT, 0);
+  }
+
+  // --- 물 (반투명, 마지막)
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+  gl.uniform1f(U.u_alpha, 0.62); gl.uniform1f(U.u_cut, 0.01);
+  if (underwater) gl.disable(gl.CULL_FACE);
+  for (var vi3 = 0; vi3 < vis.length; vi3++) {
+    var wc = vis[vi3];
+    if (!wc.water.length) continue;
+    gl.uniform3f(U.u_off, wc.cx * CS - cam[0], -cam[1], wc.cz * CS - cam[2]);
+    for (var wp = 0; wp < wc.water.length; wp++) drawPart(wc.water[wp]);
+  }
+  gl.depthMask(true); gl.disable(gl.BLEND);
+  $('water-tint').style.display = underwater ? 'block' : 'none';
+}
+
+/* ======================================================================
+ *  사운드 (WebAudio, 외부 파일 없음)
+ * ==================================================================== */
+var actx = null, noiseBuf = null;
+function initAudio() {
+  if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    noiseBuf = actx.createBuffer(1, Math.floor(actx.sampleRate * 0.16), actx.sampleRate);
+    var ch0 = noiseBuf.getChannelData(0);
+    for (var i = 0; i < ch0.length; i++) ch0[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / ch0.length, 2.2);
+  } catch (e) { actx = null; }
+}
+function playSound(kind) {
+  if (!settings.sound || !actx) return;
+  try {
+    var t = actx.currentTime, g = actx.createGain();
+    g.connect(actx.destination);
+    if (kind === 'break') {
+      var s = actx.createBufferSource(), f = actx.createBiquadFilter();
+      s.buffer = noiseBuf; f.type = 'lowpass'; f.frequency.value = 1400;
+      g.gain.value = 0.35; s.connect(f); f.connect(g); s.start(t);
+    } else {
+      var o = actx.createOscillator();
+      o.type = 'triangle'; o.frequency.setValueAtTime(240, t); o.frequency.exponentialRampToValueAtTime(90, t + 0.09);
+      g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      o.connect(g); o.start(t); o.stop(t + 0.11);
+    }
+  } catch (e) { /* 소리는 선택 사항 */ }
+}
+
+/* ======================================================================
+ *  입력
+ * ==================================================================== */
+var paused = true;
+var look = { id: -1, sx: 0, sy: 0, lx: 0, ly: 0, t0: 0, moved: false, mining: false };
+var mouse = { locked: false, left: false };
+var keys = {};
+var touchEl = $('touch'), isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+if (isTouch) document.body.className = 'touch';
+
+function lookBy(dx, dy, sens) {
+  P.yaw -= dx * sens;
+  P.pitch = clamp(P.pitch - dy * sens, -1.55, 1.55);
+}
+touchEl.addEventListener('pointerdown', function (e) {
+  initAudio();
+  if (paused) return;
+  if (e.pointerType === 'mouse') {
+    if (!mouse.locked) { try { var r = touchEl.requestPointerLock(); if (r && r.catch) r.catch(function () {}); } catch (err) {} return; }
+    if (e.button === 0) mouse.left = true; else if (e.button === 2) placeBlock(); else if (e.button === 1) pickBlock();
+    e.preventDefault(); return;
+  }
+  if (look.id !== -1) return;
+  look.id = e.pointerId; look.sx = look.lx = e.clientX; look.sy = look.ly = e.clientY; look.t0 = performance.now(); look.moved = false; look.mining = false;
+  try { touchEl.setPointerCapture(e.pointerId); } catch (err) {}
+});
+touchEl.addEventListener('pointermove', function (e) {
+  if (e.pointerType === 'mouse' || e.pointerId !== look.id) return;
+  lookBy(e.clientX - look.lx, e.clientY - look.ly, 0.0055);
+  look.lx = e.clientX; look.ly = e.clientY;
+  if (!look.moved && Math.hypot(e.clientX - look.sx, e.clientY - look.sy) > 14) look.moved = true;
+});
+function lookEnd(e) {
+  if (e.pointerType === 'mouse') { if (e.button === 0) mouse.left = false; return; }
+  if (e.pointerId !== look.id) return;
+  if (e.type === 'pointerup' && !look.moved && !look.mining && performance.now() - look.t0 < 260) placeBlock();
+  look.id = -1; look.mining = false;
+}
+touchEl.addEventListener('pointerup', lookEnd);
+touchEl.addEventListener('pointercancel', lookEnd);
+document.addEventListener('mouseup', function (e) { if (e.button === 0) mouse.left = false; });
+document.addEventListener('mousemove', function (e) { if (mouse.locked && !paused) lookBy(e.movementX, e.movementY, 0.0024); });
+document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+// 화면 스크롤/바운스는 막되, 메뉴 카드 안에서는 스크롤 허용
+document.addEventListener('touchmove', function (e) {
+  if (!(e.target && e.target.closest && e.target.closest('.card'))) e.preventDefault();
+}, { passive: false });
+document.addEventListener('pointerlockchange', function () {
+  mouse.locked = document.pointerLockElement === touchEl;
+  if (!mouse.locked && !paused && !loading) openPanel('menu');
+});
+window.addEventListener('wheel', function (e) { if (paused) return; selectSlot((sel + (e.deltaY > 0 ? 1 : 8)) % 9); }, { passive: true });
+
+// 가상 조이스틱
+var joyEl = $('joy'), knob = $('knob'), joy = { id: -1, x: 0, y: 0 };
+function joyMove(e) {
+  var r = joyEl.getBoundingClientRect(), R = r.width / 2 * 0.8;
+  var dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2), l = Math.hypot(dx, dy);
+  if (l > R) { dx = dx / l * R; dy = dy / l * R; }
+  joy.x = dx / R; joy.y = dy / R;
+  knob.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))';
+}
+function joyEnd(e) {
+  if (e.pointerId !== joy.id) return;
+  joy.id = -1; joy.x = joy.y = 0; knob.style.transform = 'translate(-50%,-50%)';
+}
+joyEl.addEventListener('pointerdown', function (e) {
+  initAudio(); if (joy.id !== -1) return;
+  joy.id = e.pointerId; try { joyEl.setPointerCapture(e.pointerId); } catch (err) {} joyMove(e); e.preventDefault();
+});
+joyEl.addEventListener('pointermove', function (e) { if (e.pointerId === joy.id) joyMove(e); });
+joyEl.addEventListener('pointerup', joyEnd); joyEl.addEventListener('pointercancel', joyEnd);
+
+// 점프 / 하강 버튼 (점프 두 번 = 비행)
+var lastJumpTap = 0;
+function holdButton(el, onDown, onUp) {
+  el.addEventListener('pointerdown', function (e) { initAudio(); try { el.setPointerCapture(e.pointerId); } catch (err) {} el.classList.add('held'); onDown(); e.preventDefault(); });
+  function up() { el.classList.remove('held'); onUp(); }
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+}
+holdButton($('btnUp'), function () {
+  var now = performance.now();
+  if (!paused && now - lastJumpTap < 320) { setFly(!P.fly); lastJumpTap = 0; }   // 세 번째 탭이 또 더블탭이 되지 않게
+  else lastJumpTap = now;
+  btn.jump = true;
+}, function () { btn.jump = false; });
+holdButton($('btnDown'), function () { btn.down = true; }, function () { btn.down = false; });
+
+// 키보드
+window.addEventListener('keydown', function (e) {
+  initAudio();
+  if (e.code === 'Escape') { toggleMenu(); return; }
+  if (paused) return;
+  keys[e.code] = true;
+  if (e.code === 'Space') {
+    if (!e.repeat) { var now = performance.now(); if (now - lastJumpTap < 300) { setFly(!P.fly); lastJumpTap = 0; } else lastJumpTap = now; }
+    e.preventDefault();
+  } else if (e.code === 'KeyF') setFly(!P.fly);
+  else if (e.code === 'KeyE') openPanel('palette');
+  else if (e.code.indexOf('Digit') === 0) { var n = +e.code.charAt(5); if (n >= 1 && n <= 9) selectSlot(n - 1); }
+});
+window.addEventListener('keyup', function (e) { keys[e.code] = false; });
+window.addEventListener('blur', function () { keys = {}; mouse.left = false; });
+
+function pollKeys() {
+  var kx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
+  var kz = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0);
+  var jx = Math.abs(joy.x) > 0.12 ? joy.x : 0, jz = Math.abs(joy.y) > 0.12 ? -joy.y : 0;
+  input.mx = kx + jx; input.mz = kz + jz;
+  input.jump = !!keys.Space || btn.jump;
+  input.down = !!(keys.ShiftLeft || keys.ShiftRight || keys.KeyC) || btn.down;
+}
+
+/* ======================================================================
+ *  UI : 핫바 / 팔레트 / 메뉴
+ * ==================================================================== */
+function drawIcon(cv, id) {
+  var s = cv.width, c = cv.getContext('2d'), d = B[id];
+  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, s, s); c.imageSmoothingEnabled = false;
+  var r = s * 0.47, cx = s / 2, cy = s / 2, a = r * 0.866, T = ATLAS_T;
+  function face(tile, ox, oy, ux, uy, vx, vy, shade) {
+    c.setTransform(ux / T, uy / T, vx / T, vy / T, ox, oy);
+    c.drawImage(atlasCanvas, (tile % ATLAS_N) * T, ((tile / ATLAS_N) | 0) * T, T, T, 0, 0, T, T);
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    if (shade) {
+      c.fillStyle = 'rgba(0,0,0,' + shade + ')'; c.beginPath();
+      c.moveTo(ox, oy); c.lineTo(ox + ux, oy + uy); c.lineTo(ox + ux + vx, oy + uy + vy); c.lineTo(ox + vx, oy + vy); c.closePath(); c.fill();
+    }
+  }
+  face(d.tiles[2], cx, cy - r, a, r / 2, -a, r / 2, 0);                 // 윗면
+  face(d.tiles[4], cx - a, cy - r / 2, a, r / 2, 0, r, 0.22);            // 왼쪽면
+  face(d.tiles[0], cx, cy, a, -r / 2, 0, r, 0.42);                       // 오른쪽면
+}
+var hotEl = $('hotbar'), slotEls = [];
+function buildHotbar() {
+  hotEl.innerHTML = '';
+  for (var i = 0; i < 9; i++) {
+    (function (i) {
+      var b = document.createElement('button'), cv = document.createElement('canvas'), n = document.createElement('i');
+      b.className = 'slot'; cv.width = cv.height = 64; n.textContent = i + 1; b.appendChild(cv); b.appendChild(n);
+      b.addEventListener('click', function () { if (sel === i) openPanel('palette'); else selectSlot(i); });
+      hotEl.appendChild(b); slotEls.push(b);
+    })(i);
+  }
+  refreshHotbar();
+}
+function refreshHotbar() {
+  for (var i = 0; i < 9; i++) { drawIcon(slotEls[i].firstChild, hotbar[i]); slotEls[i].className = 'slot' + (i === sel ? ' sel' : ''); }
+}
+var toastT = 0;
+function toast(msg) {
+  var t = $('toast'); t.textContent = msg; t.className = 'on';
+  clearTimeout(toastT); toastT = setTimeout(function () { t.className = ''; }, 1400);
+}
+function selectSlot(i) { sel = i; refreshHotbar(); toast(B[hotbar[i]].name); dirtySave = true; }
+
+function buildPalette() {
+  var g = $('palgrid'); g.innerHTML = '';
+  PALETTE.forEach(function (id) {
+    var b = document.createElement('button'), cv = document.createElement('canvas'), s = document.createElement('span');
+    b.className = 'pal'; cv.width = cv.height = 64; s.textContent = B[id].name.replace(' 블록', '');
+    drawIcon(cv, id); b.appendChild(cv); b.appendChild(s);
+    b.addEventListener('click', function () {
+      var at = hotbar.indexOf(id);
+      if (at >= 0 && at !== sel) hotbar[at] = hotbar[sel];
+      hotbar[sel] = id; refreshHotbar(); closePanels(); toast(B[id].name); dirtySave = true;
+    });
+    g.appendChild(b);
+  });
+}
+
+function setFly(on) {
+  P.fly = !!on; P.vy = 0;
+  document.body.classList[P.fly ? 'add' : 'remove']('fly');
+  $('btnFly').classList[P.fly ? 'add' : 'remove']('on');
+  toast(P.fly ? '비행 모드 켜짐' : '비행 모드 꺼짐');
+  refreshMenu(); dirtySave = true;
+}
+var DIST_NAMES = { 3: '가까움 (3)', 4: '보통 (4)', 6: '멀리 (6)', 8: '매우 멀리 (8)' };
+function refreshMenu() {
+  $('mFly').textContent = '비행 모드: ' + (P.fly ? '켜짐' : '꺼짐');
+  $('mAuto').textContent = '자동 점프: ' + (settings.autoJump ? '켜짐' : '꺼짐');
+  $('mFast').textContent = '즉시 채굴: ' + (settings.fast ? '켜짐' : '꺼짐');
+  $('mDist').textContent = '시야 거리: ' + DIST_NAMES[settings.dist];
+  $('mSound').textContent = '소리: ' + (settings.sound ? '켜짐' : '꺼짐');
+  $('mTime').textContent = timeOfDay < 0.5 ? '밤으로 바꾸기 🌙' : '낮으로 바꾸기 ☀️';
+}
+function openPanel(id) {
+  if (loading) return;
+  closePanels(true);
+  paused = true; $(id).className = 'panel on';
+  if (id === 'menu') { refreshMenu(); saveNow(); }
+  if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+  input.jump = input.down = btn.jump = btn.down = false; joy.x = joy.y = 0; mouse.left = false; look.id = -1; look.mining = false;
+}
+function closePanels(keepPaused) {
+  ['menu', 'palette', 'help'].forEach(function (p) { $(p).className = 'panel'; });
+  if (!keepPaused) paused = false;
+}
+['menu', 'palette'].forEach(function (id) {
+  $(id).addEventListener('click', function (e) { if (e.target === $(id)) closePanels(); });
+});
+function toggleMenu() {   // Esc 키 / 안드로이드 뒤로가기: 메뉴 열기·닫기
+  if (loading) return;
+  if (paused) closePanels(); else openPanel('menu');
+}
+$('btnMenu').addEventListener('click', function () { openPanel('menu'); });
+$('btnInv').addEventListener('click', function () { openPanel('palette'); });
+$('btnFly').addEventListener('click', function () { setFly(!P.fly); });
+$('mResume').addEventListener('click', function () { closePanels(); });
+$('pClose').addEventListener('click', function () { closePanels(); });
+$('hClose').addEventListener('click', function () { closePanels(); });
+$('mHelp').addEventListener('click', function () { openPanel('help'); });
+$('mFly').addEventListener('click', function () { setFly(!P.fly); });
+$('mAuto').addEventListener('click', function () { settings.autoJump = !settings.autoJump; refreshMenu(); dirtySave = true; });
+$('mFast').addEventListener('click', function () { settings.fast = !settings.fast; refreshMenu(); dirtySave = true; });
+$('mSound').addEventListener('click', function () { settings.sound = !settings.sound; refreshMenu(); dirtySave = true; });
+$('mDist').addEventListener('click', function () {
+  var list = [3, 4, 6, 8]; settings.dist = list[(list.indexOf(settings.dist) + 1) % list.length]; refreshMenu(); dirtySave = true;
+});
+$('mTime').addEventListener('click', function () { timeOfDay = timeOfDay < 0.5 ? 0.75 : 0.22; refreshMenu(); dirtySave = true; });
+var newArmed = 0;
+$('mNew').addEventListener('click', function () {
+  var b = $('mNew');
+  if (!newArmed) { newArmed = 1; b.textContent = '정말 지울까요? 한 번 더!'; setTimeout(function () { newArmed = 0; b.textContent = '새 월드 만들기'; }, 3500); return; }
+  newArmed = 0; b.textContent = '새 월드 만들기'; newWorld(); closePanels();
+});
+$('mExit').addEventListener('click', function () { saveNow(); post({ type: 'exit' }); });
+
+/* ======================================================================
+ *  저장 / 호스트(React Native · iframe) 브리지
+ * ==================================================================== */
+// 호스트 앱(React Native / iframe)이 저장을 맡는 경우 래퍼가 __BLOCKCRAFT_SAVE__ 를 (저장이 없으면 null 로) 항상 심어 준다.
+// 안드로이드 WebView 는 window.ReactNativeWebView 를 페이지 시작 후에 주입할 수 있어서, 시작 시점의 존재 여부로 판단하지 않는다.
+var MANAGED = window.__BLOCKCRAFT_SAVE__ !== undefined;
+function inHost() { return !!window.ReactNativeWebView || window.parent !== window; }
+function post(msg) {
+  var s = JSON.stringify(msg);
+  try {
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(s);
+    else if (window.parent !== window) window.parent.postMessage(s, '*');
+  } catch (e) {}
+}
+function serialize() {
+  var e = [];
+  world.edits.forEach(function (ed) { ed.m.forEach(function (b, k) { e.push(ed.cx, ed.cz, k, b); }); });
+  return JSON.stringify({
+    v: 1, seed: SEED, e: e, p: [P.x, P.y, P.z, P.yaw, P.pitch, P.fly ? 1 : 0], hb: hotbar, sel: sel, t: timeOfDay,
+    s: [settings.autoJump ? 1 : 0, settings.fast ? 1 : 0, settings.dist, settings.sound ? 1 : 0]
+  });
+}
+var savedAt = { x: 0, z: 0 };
+function saveNow() {
+  if (loading) return;
+  var data = serialize(); dirtySave = false; savedAt.x = P.x; savedAt.z = P.z;
+  if (MANAGED || inHost()) post({ type: 'save', data: data });
+  else { try { localStorage.setItem('blockcraft.save', data); } catch (e) {} }
+}
+function readSave() {
+  var raw = window.__BLOCKCRAFT_SAVE__;
+  if (raw === undefined) { try { raw = localStorage.getItem('blockcraft.save'); } catch (e) { raw = null; } }   // 단독 실행(브라우저)
+  if (!raw) return null;
+  try { var o = JSON.parse(raw); return o && o.v === 1 ? o : null; } catch (e) { return null; }
+}
+function applySave(o) {
+  SEED = o.seed | 0;
+  world.edits = new Map();
+  for (var i = 0; i + 3 < o.e.length; i += 4) {
+    var key = ckey(o.e[i], o.e[i + 1]), ed = world.edits.get(key);
+    if (!ed) { ed = { cx: o.e[i], cz: o.e[i + 1], m: new Map() }; world.edits.set(key, ed); }
+    ed.m.set(o.e[i + 2], o.e[i + 3]);
+  }
+  P.x = o.p[0]; P.y = o.p[1]; P.z = o.p[2]; P.yaw = o.p[3]; P.pitch = o.p[4]; P.fly = !!o.p[5];
+  if (o.hb && o.hb.length === 9) hotbar = o.hb.map(function (b) { return B[b] && b !== AIR ? b : STONE; });
+  sel = clamp(o.sel | 0, 0, 8); timeOfDay = typeof o.t === 'number' ? o.t : 0.18;
+  if (o.s) { settings.autoJump = !!o.s[0]; settings.fast = !!o.s[1]; settings.dist = DIST_NAMES[o.s[2]] ? o.s[2] : 4; settings.sound = !!o.s[3]; }
+  spawn = findSpawn();
+}
+function freshWorld() {
+  SEED = (Math.random() * 2147483000) | 0 || 1;
+  world.edits = new Map();
+  spawn = findSpawn();
+  P.x = spawn.x; P.y = spawn.y; P.z = spawn.z; P.vx = P.vy = P.vz = 0; P.yaw = 0; P.pitch = -0.1; P.fly = false;
+  timeOfDay = 0.18;
+}
+function newWorld() {
+  world.chunks.forEach(function (c) { freeMesh(c); }); world.chunks.clear();
+  particles = []; freshWorld();
+  document.body.classList.remove('fly'); $('btnFly').classList.remove('on');
+  loading = true; $('loading').className = ''; $('loadText').textContent = '새 월드를 만드는 중…'; $('loadBar').style.width = '0%';
+  dirtySave = true;
+}
+window.addEventListener('pagehide', saveNow);
+document.addEventListener('visibilitychange', function () { if (document.hidden) saveNow(); });
+
+/* ======================================================================
+ *  메인 루프
+ * ==================================================================== */
+var last = 0, fpsN = 0, fpsT = 0, fps = 0, infoT = 0, saveT = 0, posT = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  var dt = Math.min(0.05, (now - last) / 1000); last = now;
+  resizeIfNeeded();
+  fpsN++; fpsT += dt;
+  if (fpsT >= 0.5) { fps = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; }
+  if (!paused && !loading) {
+    pollKeys();
+    updatePlayer(dt);
+    timeOfDay = (timeOfDay + dt / DAY_LEN) % 1;
+  }
+  if (!loading) {
+    var f = forward();
+    target = paused ? null : raycast(P.x, P.y + EYE, P.z, f[0], f[1], f[2], REACH);
+    if (!paused) updateMining(dt, now);
+  } else target = null;
+  updateParticles(dt);
+  streamChunks(now);
+  render(now);
+  if (now - infoT > 250) {
+    infoT = now;
+    $('info').textContent = fps + ' FPS\nX ' + P.x.toFixed(1) + '  Y ' + P.y.toFixed(1) + '  Z ' + P.z.toFixed(1);
+  }
+  // 돌아다니기만 해도(블록을 안 고쳐도) 앱이 강제 종료될 때 위치를 잃지 않도록
+  if (now - posT > 8000) { posT = now; if (!loading && Math.hypot(P.x - savedAt.x, P.z - savedAt.z) > 3) dirtySave = true; }
+  if (dirtySave && now - saveT > 6000) { saveT = now; saveNow(); }
+}
+
+function start() {
+  if (!initGL()) {
+    $('loadText').textContent = '이 기기에서는 3D 화면(WebGL)을 사용할 수 없어요.';
+    return;
+  }
+  canvas.addEventListener('webglcontextlost', function (e) { e.preventDefault(); $('loading').className = ''; $('loadText').textContent = '화면을 다시 불러오는 중…'; });
+  canvas.addEventListener('webglcontextrestored', function () { location.reload(); });
+  buildHotbar(); buildPalette();
+  var sv = readSave();
+  if (sv) applySave(sv); else freshWorld();
+  if (window.__BLOCKCRAFT_CAN_EXIT__) $('mExit').style.display = 'block';   // 호스트 앱이 종료를 처리할 수 있을 때만
+  setFlyQuiet(P.fly);
+  refreshMenu();
+  requestAnimationFrame(function (t) { last = t; requestAnimationFrame(frame); });
+  if (!sv) { loadingThen(function () { openPanel('help'); }); }
+  else loadingThen(function () { paused = false; });
+}
+function setFlyQuiet(on) {
+  document.body.classList[on ? 'add' : 'remove']('fly'); $('btnFly').classList[on ? 'add' : 'remove']('on');
+}
+function loadingThen(fn) { onLoaded = fn; }
+start();
+
+// 호스트 앱(React Native) · 자동 테스트용 공개 API. 게임 내부 로직은 이 객체를 쓰지 않는다.
+window.blockcraft = {
+  toggleMenu: toggleMenu, drawIcon: drawIcon,
+  P: P, B: B, world: world, hotbar: function () { return hotbar; }, getBlock: getBlock, setBlock: setBlock, heightAt: heightAt,
+  isLoading: function () { return loading; }, isPaused: function () { return paused; }, target: function () { return target; },
+  setTime: function (t) { timeOfDay = t; }, placeBlock: placeBlock, breakBlock: breakBlock, settings: settings,
+  serialize: serialize, info: function () { return { fps: fps, drawn: frameInfo.drawn, chunks: world.chunks.size, seed: SEED }; },
+  openPanel: openPanel, closePanels: closePanels, selectSlot: selectSlot, setFly: setFly, spawn: function () { return spawn; },
+  genChunk: genChunk, buildMesh: buildMesh,
+  withSeed: function (s, fn) { var old = SEED; SEED = s; try { return fn(); } finally { SEED = old; } }
+};
+})();
+</script>
+</body>
+</html>

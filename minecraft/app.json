@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "블록크래프트",
+    "slug": "blockcraft",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "scheme": "blockcraft",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#000000",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.blockcraft.game"
+    },
+    "android": {
+      "package": "com.blockcraft.game",
+      "adaptiveIcon": {
+        "backgroundColor": "#6aa8ff",
+        "foregroundImage": "./assets/adaptive-icon.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
