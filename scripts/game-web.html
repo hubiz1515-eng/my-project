@@ -38,6 +38,8 @@
   #sp.ready{animation:pop .6s ease-in-out infinite;box-shadow:0 0 24px #ffd84a;background:#ffd84a}
   #sp.ready .in{background:#7a3a10;color:#ffe9a0}
   #ov.solid{background:#05060f}
+  .dfs{display:flex;gap:6px}
+  .dif{opacity:.55;font-weight:800}.dif.on{opacity:1;box-shadow:inset 0 0 0 3px currentColor}
   .small{background:#262a52;color:#fff;border:3px solid #000;box-shadow:inset 0 0 0 2px #4a52a3;padding:8px 16px;font-size:14px}
   #ov{z-index:10}
 </style>
@@ -59,12 +61,14 @@ const AD=/*__AD__*/false,GAME_URL='';
 let W=0,H=0,dpr=1,Z=1,vig=null;
 const fmt=t=>String(Math.floor(t/60)).padStart(2,'0')+':'+String(Math.floor(t%60)).padStart(2,'0');
 /* 기록: 상위 10개 판(생존 시간 순) + 누적 최고치(처치·콤보)를 브라우저 localStorage 에 저장 */
+let diff=2;try{const d=localStorage.getItem('tangtang:diff');if(d!==null&&DIFFICULTIES[+d])diff=+d;}catch(e){}
+const DC=['#7ddc6a','#ffd84a','#ff7a3a','#ff3b3b'];
 const REC='tangtang:records2',BST='tangtang:bests';
 const jget=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
 const jset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const getBest=()=>{const r=jget(REC,[]);let v=r.length?r[0].t:0;try{v=Math.max(v,Number(localStorage.getItem(BEST))||0)}catch(e){}return v;};
 function addRecord(g){
-  const rec={t:g.time,k:g.kills,l:g.player.level,c:g.bestCombo,coins:g.coins,d:Date.now()};
+  const rec={t:g.time,k:g.kills,l:g.player.level,c:g.bestCombo,coins:g.coins,d:Date.now(),df:g.diff};
   const prevBest=getBest(),bs=jget(BST,{k:0,c:0});
   const out={newTime:rec.t>prevBest,newKills:bs.k>0&&rec.k>bs.k,newCombo:bs.c>0&&rec.c>bs.c};
   const arr=jget(REC,[]);arr.push(rec);arr.sort((a,b)=>b.t-a.t||b.k-a.k);
@@ -75,7 +79,7 @@ function addRecord(g){
 const fdate=d=>{const x=new Date(d);return (x.getMonth()+1)+'/'+x.getDate();};
 function recTable(hi){
   const r=jget(REC,[]);if(!r.length)return '<p>아직 기록이 없습니다.</p>';
-  return '<table class="tbl"><tr><th>순위</th><th>생존</th><th>처치</th><th>Lv</th><th>콤보</th><th>날짜</th></tr>'+r.map((x,i)=>'<tr'+(hi&&x.d===hi.d&&x.t===hi.t?' class="me"':'')+'><td>'+(i===0?'🏆':i+1)+'</td><td>'+fmt(x.t)+'</td><td>'+x.k+'</td><td>'+x.l+'</td><td>'+x.c+'</td><td>'+fdate(x.d)+'</td></tr>').join('')+'</table>';
+  return '<table class="tbl"><tr><th>순위</th><th>생존</th><th>처치</th><th>Lv</th><th>콤보</th><th>난이도</th><th>날짜</th></tr>'+r.map((x,i)=>'<tr'+(hi&&x.d===hi.d&&x.t===hi.t?' class="me"':'')+'><td>'+(i===0?'🏆':i+1)+'</td><td>'+fmt(x.t)+'</td><td>'+x.k+'</td><td>'+x.l+'</td><td>'+x.c+'</td><td style="color:'+DC[x.df||0]+'">'+DIFFICULTIES[x.df||0].name+'</td><td>'+fdate(x.d)+'</td></tr>').join('')+'</table>';
 }
 
 
@@ -417,8 +421,9 @@ function muteLbl(){return (Au.muted()?'🔇 소리 꺼짐':'🔊 소리 켜짐')
 function syncBtns(){document.getElementById('bm').textContent=Au.muted()?'🔇':'🔊';document.getElementById('bp').style.display=phase==='playing'?'':'none';}
 function menu(){
   const b=getBest(),bs=jget(BST,{k:0,c:0});phase='ready';syncBtns();
-  show('<div class="t1">탕탕 특공대</div><h1>귀신 천마리</h1><p>도깨비가 되어 몰려오는 귀신·강시·구미호를 막아내세요!\n\n화면 드래그 / WASD · 방향키 = 이동\n공격은 가장 가까운 적을 자동 조준합니다.\n레벨업마다 강화를 골라 최대한 오래 버티세요.\nSPACE = 필살기 (20마리 처치마다 충전)\nP = 일시정지   M = 소리</p>'+(b?'<div class="best">🏆 최고 기록 '+fmt(b)+' · 최다 처치 '+bs.k+' · 최대 콤보 '+bs.c+'</div>':'')+'<button class="btn" id="go">게임 시작</button><div><button class="small" id="rc">🏆 기록 보기</button> <button class="small" id="mu">'+muteLbl()+'</button></div>');
+  show('<div class="t1">탕탕 특공대</div><h1>귀신 천마리</h1><p>도깨비가 되어 몰려오는 귀신·강시·구미호를 막아내세요!\n\n화면 드래그 / WASD · 방향키 = 이동\n공격은 가장 가까운 적을 자동 조준합니다.\n레벨업마다 강화를 골라 최대한 오래 버티세요.\nSPACE = 필살기 (20마리 처치마다 충전)\nP = 일시정지   M = 소리</p>'+(b?'<div class="best">🏆 최고 기록 '+fmt(b)+' · 최다 처치 '+bs.k+' · 최대 콤보 '+bs.c+'</div>':'')+'<div class="dfs">'+DIFFICULTIES.map((d,i)=>'<button class="small dif'+(i===diff?' on':'')+'" data-d="'+i+'" style="color:'+DC[i]+'">'+d.name+'</button>').join('')+'</div><button class="btn" id="go">게임 시작</button><div><button class="small" id="rc">🏆 기록 보기</button> <button class="small" id="mu">'+muteLbl()+'</button></div>');
   document.getElementById('go').onclick=start;
+  ov.querySelectorAll('.dif').forEach(el=>el.onclick=()=>{diff=+el.dataset.d;try{localStorage.setItem('tangtang:diff',String(diff))}catch(e){}Au.sfx('click');menu();});
   document.getElementById('rc').onclick=records;
   document.getElementById('mu').onclick=e=>{Au.init();Au.toggleMute();e.target.textContent=muteLbl();syncBtns();};
 }
@@ -427,7 +432,7 @@ function records(back){
   document.getElementById('bk').onclick=()=>phase==='over'?gameOver(true):menu();
   document.getElementById('cl').onclick=()=>{if(confirm('저장된 기록을 모두 지울까요?')){try{localStorage.removeItem(REC);localStorage.removeItem(BST);localStorage.removeItem(BEST)}catch(e){}records();}};
 }
-function start(){ZM=1;zk=0;if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();Au.init();Au.resume();g=createGame();parts.length=0;toast=null;phase='playing';paused=false;choosing=false;mv={x:0,y:0};stick=null;lastCombo=0;hide();syncBtns();Au.play();}
+function start(){ZM=1;zk=0;if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();Au.init();Au.resume();g=createGame(diff);parts.length=0;toast=null;phase='playing';paused=false;choosing=false;mv={x:0,y:0};stick=null;lastCombo=0;hide();syncBtns();Au.play();}
 function levelUp(){toast=null;
   choosing=true;stick=null;mv={x:0,y:0};
   const cs=pickUpgrades(g);
@@ -441,7 +446,7 @@ function gameOver(again){
   const r=lastResult,tags=[];
   if(r.newTime)tags.push('🏆 신기록!');else if(r.rank>=0)tags.push('TOP 10 '+(r.rank+1)+'위');
   if(r.newKills)tags.push('최다 처치 갱신');if(r.newCombo)tags.push('최대 콤보 갱신');
-  show('<h2>GAME OVER</h2>'+(tags.length?'<div class="new">'+tags.join(' · ')+'</div>':'')+'<p>생존 시간  '+fmt(g.time)+'\n처치  '+g.kills+'   최대 콤보  '+g.bestCombo+'\n레벨  '+g.player.level+'   엽전  '+g.coins+'</p>'+recTable(r.me)+'<button class="btn" id="go">다시 도전</button><button class="small" id="mn">메인 화면</button>');
+  show('<h2>GAME OVER</h2>'+(tags.length?'<div class="new">'+tags.join(' · ')+'</div>':'')+'<p style="color:'+DC[g.diff]+'">난이도  '+DIFFICULTIES[g.diff].name+'</p><p>생존 시간  '+fmt(g.time)+'\n처치  '+g.kills+'   최대 콤보  '+g.bestCombo+'\n레벨  '+g.player.level+'   엽전  '+g.coins+'</p>'+recTable(r.me)+'<button class="btn" id="go">다시 도전</button><button class="small" id="mn">메인 화면</button>');
   document.getElementById('go').onclick=start;
   document.getElementById('mn').onclick=()=>{g=createGame();menu();};
 }
@@ -546,7 +551,8 @@ function draw(){
   // 적 (아래쪽부터 그려 겹침 자연스럽게)
   const en=g.enemies.filter(e=>vis(e.x,e.y,50)).sort((a,b)=>a.y-b.y);
   for(const e of en){
-    const sz=SIZE[e.kind];let bob=0,sy=1,sw=1,al=1;
+    const sz=SIZE[e.kind]*(e.elite?1.3:1);let bob=0,sy=1,sw=1,al=1;
+    if(e.elite){const ga=.3+.12*Math.sin(T*8+e.id),gr=ctx.createRadialGradient(e.x,e.y,4,e.x,e.y,sz*.9);gr.addColorStop(0,'rgba(255,60,40,'+ga+')');gr.addColorStop(1,'rgba(255,60,40,0)');ctx.globalCompositeOperation='lighter';ctx.fillStyle=gr;ctx.fillRect(e.x-sz,e.y-sz,sz*2,sz*2);ctx.globalCompositeOperation='source-over';}
     if(e.kind==='grunt'){bob=Math.sin(T*3+e.id)*3-3;al=.93;sy=1+Math.sin(T*6+e.id)*.04;}
     else if(e.kind==='fast'){bob=Math.sin(T*14+e.id)*1.5;sy=1+Math.sin(T*14+e.id)*.07;}
     else if(e.kind==='tank'){const h=Math.abs(Math.sin(T*5+e.id));bob=-h*7;sw=1-h*.25;sy=1+(1-h)*-.05;}
@@ -562,6 +568,7 @@ function draw(){
     ctx.globalAlpha=al;
     drawSpr(S[SPR[e.kind]+(e.flash>0?'F':'')],e.x,e.y+bob-(e.kind==='boss'?4:0),sz,p.x<e.x,sy);
     ctx.globalAlpha=1;
+    if(e.elite){const w=sz*.8;ctx.fillStyle='#000';ctx.fillRect(e.x-w/2-1,e.y-sz/2-10,w+2,6);ctx.fillStyle='#ff4a2a';ctx.fillRect(e.x-w/2,e.y-sz/2-9,w*Math.max(0,e.hp/e.maxHp),4);}
     if(e.kind==='tiger'&&e.st===1){ctx.strokeStyle='rgba(255,60,60,.4)';ctx.lineWidth=4;ctx.setLineDash([8,6]);ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.x+e.vx*190,e.y+e.vy*190);ctx.stroke();ctx.setLineDash([]);outline('!',e.x,e.y-sz/2-8,24,'#ff3b3b','center');}
     if(e.kind==='boss'){const w=80;ctx.fillStyle='#000';ctx.fillRect(e.x-w/2-1,e.y-sz/2-14,w+2,8);ctx.fillStyle='#d62828';ctx.fillRect(e.x-w/2,e.y-sz/2-13,w*Math.max(0,e.hp/e.maxHp),6);}
   }
@@ -650,6 +657,7 @@ function draw(){
     outline(String(ic.l),ix+sz-2,iy+sz-4,11*hs,'#ffd84a','right');});
   // 타이머 / 엽전 / 처치
   outline(fmt(g.time),W/2,bh+22*hs,26*hs,'#fff','center');
+  if(phase==='playing')outline(DIFFICULTIES[g.diff].name,W/2,bh+46*hs,12*hs,DC[g.diff],'center');
   outline('●',W-96*hs,bh+20*hs,14*hs,'#ffc933','center');outline(String(g.coins),W-84*hs,bh+20*hs,16*hs,'#ffe38a','left');
   outline('☠',W-96*hs,bh+44*hs,14*hs,'#e6e6e6','center');outline(String(g.kills),W-84*hs,bh+44*hs,16*hs,'#fff','left');
   if(toast){const k=Math.min(1,toast.t/.4),pop=1+Math.max(0,toast.t-(toast===null?0:toast.t))*0;ctx.globalAlpha=k;outline(toast.text,W/2,H*.27,Math.min(34,W/14)*Math.max(1,hs*.8),toast.c,'center');ctx.globalAlpha=1;}

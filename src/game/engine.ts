@@ -22,6 +22,8 @@ export type Enemy = {
   flash: number;
   orbitCd: number;
   age: number;
+  /** 정예: 체력 4배·크기 1.3배·경험치 3배 */
+  elite: boolean;
   /** 행동 상태(호랑이: 0 추적 / 1 예고 / 2 돌진) · 행동 타이머 · 돌진 방향 */
   st: number;
   ai: number;
@@ -31,7 +33,23 @@ export type Enemy = {
 
 export type Bullet = { id: number; x: number; y: number; vx: number; vy: number; dmg: number; life: number; pierce: number; hit: Set<number> };
 export type Gem = { id: number; x: number; y: number; v: number };
-export type EnemyShot = { id: number; x: number; y: number; vx: number; vy: number; life: number };
+export type EnemyShot = { id: number; x: number; y: number; vx: number; vy: number; life: number; dmg: number };
+
+/**
+ * 난이도. 0(쉬움)이 기본 밸런스이고 위로 갈수록 적이 단단하고(hp) 아프고(dmg) 많고(spawn) 빨라진다(speed).
+ * grow = 분당 추가 체력 증가율(복리), 난이도 배율은 초반 40%에서 시작해 약 3분에 100%로 올라간다
+ * xp = 경험치 획득 배율, regen = 기본 체력 재생, heal = 떡 회복량, elite = 정예 출현 확률,
+ * horde/hordeN = 포위 웨이브 간격(초)/마릿수, bossShots = 보스가 4초마다 뿌리는 탄막 수
+ */
+export const DIFFICULTIES = [
+  { name: '쉬움', hp: 1, dmg: 1, spawn: 1, speed: 1, grow: 0, xp: 1, regen: 0.4, heal: 25, elite: 0, horde: 75, hordeN: 40, bossShots: 0 },
+  { name: '보통', hp: 1.25, dmg: 1.25, spawn: 1.15, speed: 1.05, grow: 0.08, xp: 0.9, regen: 0.2, heal: 20, elite: 0.04, horde: 65, hordeN: 50, bossShots: 6 },
+  { name: '어려움', hp: 1.5, dmg: 1.5, spawn: 1.3, speed: 1.1, grow: 0.12, xp: 0.8, regen: 0, heal: 15, elite: 0.08, horde: 55, hordeN: 60, bossShots: 8 },
+  { name: '지옥', hp: 2, dmg: 2, spawn: 1.6, speed: 1.15, grow: 0.18, xp: 0.7, regen: 0, heal: 10, elite: 0.14, horde: 45, hordeN: 70, bossShots: 10 },
+];
+const D = (g: Game) => DIFFICULTIES[g.diff];
+/** 난이도 배율 적용 강도: 시작 직후 40% → 약 3분에 100% */
+const easeIn = (g: Game) => Math.min(1, 0.4 + g.time / 200);
 export type Pickup = { id: number; x: number; y: number; type: 'coin' | 'heal' };
 /** 떠오르는 데미지 숫자. kind 0=총알/방망이, 1=도깨비불 */
 export type Floater = { x: number; y: number; text: number; life: number; kind: number };
@@ -77,6 +95,7 @@ export type Game = {
   bestCombo: number;
   burstT: number;
   hordeAt: number;
+  diff: number;
   hurt: number;
   charges: number;
   chargeKills: number;
@@ -96,7 +115,8 @@ export type Game = {
   bursts: Burst[];
 };
 
-export function createGame(): Game {
+export function createGame(diff = 0): Game {
+  const d = DIFFICULTIES[diff];
   return {
     time: 0,
     kills: 0,
@@ -115,7 +135,8 @@ export function createGame(): Game {
     comboT: 0,
     bestCombo: 0,
     burstT: 2,
-    hordeAt: 75,
+    hordeAt: d.horde,
+    diff,
     hurt: 0,
     charges: 0,
     chargeKills: 0,
@@ -125,7 +146,7 @@ export function createGame(): Game {
     thunders: [],
     events: [],
     player: { x: WORLD / 2, y: WORLD / 2, hp: 100, maxHp: 100, level: 1, xp: 0, xpNext: 5, r: 14 },
-    stats: { damage: 10, fireInterval: 0.45, bullets: 1, pierce: 1, range: 320, speed: 150, magnet: 70, regen: 0.4, blades: 0 },
+    stats: { damage: 10, fireInterval: 0.45, bullets: 1, pierce: 1, range: 320, speed: 150, magnet: 70, regen: d.regen, blades: 0 },
     upgrades: { damage: 0, rate: 0, multi: 0, pierce: 0, speed: 0, hp: 0, magnet: 0, regen: 0, blade: 0, range: 0, fire: 0, thunder: 0 },
     enemies: [],
     bullets: [],
@@ -190,7 +211,7 @@ function spawnEnemy(g: Game, kind: EnemyKind, angle?: number, at?: { x: number; 
   const d = Math.hypot(g.view.w, g.view.h) / 2 + 30;
   const x = Math.min(WORLD - 20, Math.max(20, at ? at.x : g.player.x + Math.cos(a) * d));
   const y = Math.min(WORLD - 20, Math.max(20, at ? at.y : g.player.y + Math.sin(a) * d));
-  let e: Omit<Enemy, 'id' | 'x' | 'y' | 'flash' | 'orbitCd' | 'maxHp' | 'age' | 'st' | 'ai' | 'vx' | 'vy'> & { hp: number };
+  let e: Omit<Enemy, 'id' | 'x' | 'y' | 'flash' | 'orbitCd' | 'maxHp' | 'age' | 'elite' | 'st' | 'ai' | 'vx' | 'vy'> & { hp: number };
   switch (kind) {
     case 'fast': e = { kind, hp: 12 * scale, r: 11, speed: 115, dmg: 4, xp: 1 }; break;
     case 'tank': e = { kind, hp: 70 * scale, r: 18, speed: 48, dmg: 9, xp: 4 }; break;
@@ -201,7 +222,20 @@ function spawnEnemy(g: Game, kind: EnemyKind, angle?: number, at?: { x: number; 
     case 'archer': e = { kind, hp: 25 * scale, r: 12, speed: 50, dmg: 5, xp: 3 }; break;
     default: e = { kind: 'grunt', hp: 22 * scale, r: 13, speed: 70, dmg: 5, xp: 1 };
   }
-  g.enemies.push({ ...e, id: g.nextId++, x, y, maxHp: e.hp, flash: 0, orbitCd: 0, age: 0, st: 0, ai: 1 + Math.random() * 2, vx: 0, vy: 0 });
+  const dd = D(g);
+  const mul = (v: number) => 1 + (v - 1) * easeIn(g);
+  e.hp *= mul(dd.hp) * Math.pow(1 + dd.grow, minutes);
+  e.dmg = Math.round(e.dmg * mul(dd.dmg) * (1 + minutes * 0.08 * (1 + g.diff)));
+  e.speed *= mul(dd.speed) * (1 + Math.min(0.4, minutes * 0.04)); // 시간이 갈수록 적이 점점 빨라진다
+  let elite = false;
+  if (kind !== 'boss' && kind !== 'mini' && g.time > 40 && Math.random() < dd.elite * (1 + minutes * 0.1)) {
+    elite = true;
+    e.hp *= 4;
+    e.dmg = Math.round(e.dmg * 1.4);
+    e.r *= 1.3;
+    e.xp *= 3;
+  }
+  g.enemies.push({ ...e, elite, id: g.nextId++, x, y, maxHp: e.hp, flash: 0, orbitCd: 0, age: 0, st: 0, ai: 1 + Math.random() * 2, vx: 0, vy: 0 });
   if (kind === 'boss') emit(g, 'boss', x, y);
 }
 
@@ -232,7 +266,7 @@ function damageEnemy(g: Game, e: Enemy, dmg: number, kind = 0) {
     for (let i = 0; i < coins; i++) {
       g.pickups.push({ id: g.nextId++, x: e.x + (Math.random() - 0.5) * 30, y: e.y + (Math.random() - 0.5) * 30, type: 'coin' });
     }
-    if (boss || Math.random() < 0.012) g.pickups.push({ id: g.nextId++, x: e.x, y: e.y, type: 'heal' });
+    if (boss || Math.random() < 0.012 * (g.diff > 1 ? 0.6 : 1)) g.pickups.push({ id: g.nextId++, x: e.x, y: e.y, type: 'heal' });
     e.xp = 0; // 중복 처리 방지 (hp<=0 로 이후 제거)
   }
 }
@@ -293,7 +327,7 @@ export function step(g: Game, dt: number, mx: number, my: number) {
   g.spawnT -= dt;
   if (g.spawnT <= 0) {
     const t = g.time;
-    g.spawnT = Math.max(0.08, 0.7 - t * 0.006);
+    g.spawnT = Math.max(0.05, (0.7 - t * 0.006) / (1 + (D(g).spawn - 1) * easeIn(g)));
     const batch = 1 + Math.floor(t / 25);
     for (let i = 0; i < batch && g.enemies.length < MAX_ENEMIES; i++) {
       const r = Math.random();
@@ -308,9 +342,9 @@ export function step(g: Game, dt: number, mx: number, my: number) {
   }
   // 귀신 떼: 일정 간격으로 플레이어를 둘러싸는 포위 웨이브
   if (g.time >= g.hordeAt) {
-    g.hordeAt += 75;
+    g.hordeAt += D(g).horde;
     emit(g, 'horde', p.x, p.y);
-    for (let i = 0; i < 40 && g.enemies.length < MAX_ENEMIES; i++) spawnEnemy(g, 'grunt', (i / 40) * Math.PI * 2);
+    for (let i = 0; i < D(g).hordeN && g.enemies.length < MAX_ENEMIES; i++) spawnEnemy(g, 'grunt', (i / D(g).hordeN) * Math.PI * 2);
   }
   if (g.time >= (g.bossesSpawned + 1) * 60) {
     spawnEnemy(g, 'boss');
@@ -374,6 +408,19 @@ export function step(g: Game, dt: number, mx: number, my: number) {
     let sp = e.speed;
     let mvx = (dx - dy * wob) / d;
     let mvy = (dy + dx * wob) / d;
+    if (e.kind === 'boss' && D(g).bossShots > 0) {
+      // 저승사자: 4초마다 사방으로 불덩이를 뿌린다
+      e.ai -= dt;
+      if (e.ai <= 0) {
+        e.ai = 4;
+        const n = D(g).bossShots;
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * Math.PI * 2 + g.time;
+          g.shots.push({ id: g.nextId++, x: e.x, y: e.y, vx: Math.cos(a) * 150, vy: Math.sin(a) * 150, life: 4, dmg: Math.round(10 * D(g).dmg) });
+        }
+        emit(g, 'eshot', e.x, e.y);
+      }
+    }
     if (e.kind === 'tiger') {
       // 호랑이: 가까워지면 잠깐 웅크렸다가(예고) 일직선으로 돌진
       e.ai -= dt;
@@ -388,7 +435,7 @@ export function step(g: Game, dt: number, mx: number, my: number) {
       mvy = (dy / d) * want + (dx / d) * 0.5;
       if (e.ai <= 0 && d < 420) {
         e.ai = 2.2 + Math.random() * 0.6;
-        g.shots.push({ id: g.nextId++, x: e.x, y: e.y, vx: (dx / d) * 170, vy: (dy / d) * 170, life: 3.5 });
+        g.shots.push({ id: g.nextId++, x: e.x, y: e.y, vx: (dx / d) * 170 * (1 + 0.1 * g.diff), vy: (dy / d) * 170 * (1 + 0.1 * g.diff), life: 3.5, dmg: Math.round(8 * D(g).dmg * (1 + (g.time / 60) * 0.08)) });
         emit(g, 'eshot', e.x, e.y);
       }
     }
@@ -419,7 +466,7 @@ export function step(g: Game, dt: number, mx: number, my: number) {
     sh.y += sh.vy * dt;
     sh.life -= dt;
     if (g.iframe <= 0 && (sh.x - p.x) ** 2 + (sh.y - p.y) ** 2 < (p.r + 5) ** 2) {
-      p.hp -= 8;
+      p.hp -= sh.dmg;
       g.iframe = 0.6;
       g.hurt = 0.2;
       emit(g, 'hurt', p.x, p.y);
@@ -439,7 +486,7 @@ export function step(g: Game, dt: number, mx: number, my: number) {
     }
     if (d < p.r + 6) {
       emit(g, 'gem', gem.x, gem.y);
-      p.xp += gem.v;
+      p.xp += gem.v * D(g).xp;
       gem.v = 0;
     }
   }
@@ -455,7 +502,7 @@ export function step(g: Game, dt: number, mx: number, my: number) {
     if (d < p.r + 8) {
       emit(g, k.type, k.x, k.y);
       if (k.type === 'coin') g.coins++;
-      else p.hp = Math.min(p.maxHp, p.hp + 25);
+      else p.hp = Math.min(p.maxHp, p.hp + D(g).heal);
       k.id = -1;
     }
   }

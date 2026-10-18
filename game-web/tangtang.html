@@ -38,6 +38,8 @@
   #sp.ready{animation:pop .6s ease-in-out infinite;box-shadow:0 0 24px #ffd84a;background:#ffd84a}
   #sp.ready .in{background:#7a3a10;color:#ffe9a0}
   #ov.solid{background:#05060f}
+  .dfs{display:flex;gap:6px}
+  .dif{opacity:.55;font-weight:800}.dif.on{opacity:1;box-shadow:inset 0 0 0 3px currentColor}
   .small{background:#262a52;color:#fff;border:3px solid #000;box-shadow:inset 0 0 0 2px #4a52a3;padding:8px 16px;font-size:14px}
   #ov{z-index:10}
 </style>
@@ -53,6 +55,21 @@ const WORLD = 2400;
 /** 필살기: 적을 SPECIAL_COST 마리 처치할 때마다 1회 충전 (최대 MAX_CHARGES 회) */
 const SPECIAL_COST = 20;
 const MAX_CHARGES = 3;
+/**
+ * 난이도. 0(쉬움)이 기본 밸런스이고 위로 갈수록 적이 단단하고(hp) 아프고(dmg) 많고(spawn) 빨라진다(speed).
+ * grow = 분당 추가 체력 증가율(복리), 난이도 배율은 초반 40%에서 시작해 약 3분에 100%로 올라간다
+ * xp = 경험치 획득 배율, regen = 기본 체력 재생, heal = 떡 회복량, elite = 정예 출현 확률,
+ * horde/hordeN = 포위 웨이브 간격(초)/마릿수, bossShots = 보스가 4초마다 뿌리는 탄막 수
+ */
+const DIFFICULTIES = [
+    { name: '쉬움', hp: 1, dmg: 1, spawn: 1, speed: 1, grow: 0, xp: 1, regen: 0.4, heal: 25, elite: 0, horde: 75, hordeN: 40, bossShots: 0 },
+    { name: '보통', hp: 1.25, dmg: 1.25, spawn: 1.15, speed: 1.05, grow: 0.08, xp: 0.9, regen: 0.2, heal: 20, elite: 0.04, horde: 65, hordeN: 50, bossShots: 6 },
+    { name: '어려움', hp: 1.5, dmg: 1.5, spawn: 1.3, speed: 1.1, grow: 0.12, xp: 0.8, regen: 0, heal: 15, elite: 0.08, horde: 55, hordeN: 60, bossShots: 8 },
+    { name: '지옥', hp: 2, dmg: 2, spawn: 1.6, speed: 1.15, grow: 0.18, xp: 0.7, regen: 0, heal: 10, elite: 0.14, horde: 45, hordeN: 70, bossShots: 10 },
+];
+const D = (g) => DIFFICULTIES[g.diff];
+/** 난이도 배율 적용 강도: 시작 직후 40% → 약 3분에 100% */
+const easeIn = (g) => Math.min(1, 0.4 + g.time / 200);
 const UPGRADES = [
     { id: 'damage', name: '공격력 강화', desc: '총알 피해 +25%', emoji: '💥', max: 8 },
     { id: 'rate', name: '연사 속도', desc: '발사 간격 -15%', emoji: '⚡', max: 8 },
@@ -67,7 +84,8 @@ const UPGRADES = [
     { id: 'thunder', name: '도깨비 번개', desc: '주기적으로 적에게 번개를 내리침', emoji: '⚡', max: 6 },
     { id: 'fire', name: '도깨비불', desc: '주기적으로 주변에 불꽃을 터뜨림', emoji: '🔥', max: 6 },
 ];
-function createGame() {
+function createGame(diff = 0) {
+    const d = DIFFICULTIES[diff];
     return {
         time: 0,
         kills: 0,
@@ -86,7 +104,8 @@ function createGame() {
         comboT: 0,
         bestCombo: 0,
         burstT: 2,
-        hordeAt: 75,
+        hordeAt: d.horde,
+        diff,
         hurt: 0,
         charges: 0,
         chargeKills: 0,
@@ -96,7 +115,7 @@ function createGame() {
         thunders: [],
         events: [],
         player: { x: WORLD / 2, y: WORLD / 2, hp: 100, maxHp: 100, level: 1, xp: 0, xpNext: 5, r: 14 },
-        stats: { damage: 10, fireInterval: 0.45, bullets: 1, pierce: 1, range: 320, speed: 150, magnet: 70, regen: 0.4, blades: 0 },
+        stats: { damage: 10, fireInterval: 0.45, bullets: 1, pierce: 1, range: 320, speed: 150, magnet: 70, regen: d.regen, blades: 0 },
         upgrades: { damage: 0, rate: 0, multi: 0, pierce: 0, speed: 0, hp: 0, magnet: 0, regen: 0, blade: 0, range: 0, fire: 0, thunder: 0 },
         enemies: [],
         bullets: [],
@@ -203,7 +222,20 @@ function spawnEnemy(g, kind, angle, at) {
             break;
         default: e = { kind: 'grunt', hp: 22 * scale, r: 13, speed: 70, dmg: 5, xp: 1 };
     }
-    g.enemies.push({ ...e, id: g.nextId++, x, y, maxHp: e.hp, flash: 0, orbitCd: 0, age: 0, st: 0, ai: 1 + Math.random() * 2, vx: 0, vy: 0 });
+    const dd = D(g);
+    const mul = (v) => 1 + (v - 1) * easeIn(g);
+    e.hp *= mul(dd.hp) * Math.pow(1 + dd.grow, minutes);
+    e.dmg = Math.round(e.dmg * mul(dd.dmg) * (1 + minutes * 0.08 * (1 + g.diff)));
+    e.speed *= mul(dd.speed) * (1 + Math.min(0.4, minutes * 0.04)); // 시간이 갈수록 적이 점점 빨라진다
+    let elite = false;
+    if (kind !== 'boss' && kind !== 'mini' && g.time > 40 && Math.random() < dd.elite * (1 + minutes * 0.1)) {
+        elite = true;
+        e.hp *= 4;
+        e.dmg = Math.round(e.dmg * 1.4);
+        e.r *= 1.3;
+        e.xp *= 3;
+    }
+    g.enemies.push({ ...e, elite, id: g.nextId++, x, y, maxHp: e.hp, flash: 0, orbitCd: 0, age: 0, st: 0, ai: 1 + Math.random() * 2, vx: 0, vy: 0 });
     if (kind === 'boss')
         emit(g, 'boss', x, y);
 }
@@ -235,7 +267,7 @@ function damageEnemy(g, e, dmg, kind = 0) {
         for (let i = 0; i < coins; i++) {
             g.pickups.push({ id: g.nextId++, x: e.x + (Math.random() - 0.5) * 30, y: e.y + (Math.random() - 0.5) * 30, type: 'coin' });
         }
-        if (boss || Math.random() < 0.012)
+        if (boss || Math.random() < 0.012 * (g.diff > 1 ? 0.6 : 1))
             g.pickups.push({ id: g.nextId++, x: e.x, y: e.y, type: 'heal' });
         e.xp = 0; // 중복 처리 방지 (hp<=0 로 이후 제거)
     }
@@ -302,7 +334,7 @@ function step(g, dt, mx, my) {
     g.spawnT -= dt;
     if (g.spawnT <= 0) {
         const t = g.time;
-        g.spawnT = Math.max(0.08, 0.7 - t * 0.006);
+        g.spawnT = Math.max(0.05, (0.7 - t * 0.006) / (1 + (D(g).spawn - 1) * easeIn(g)));
         const batch = 1 + Math.floor(t / 25);
         for (let i = 0; i < batch && g.enemies.length < MAX_ENEMIES; i++) {
             const r = Math.random();
@@ -322,10 +354,10 @@ function step(g, dt, mx, my) {
     }
     // 귀신 떼: 일정 간격으로 플레이어를 둘러싸는 포위 웨이브
     if (g.time >= g.hordeAt) {
-        g.hordeAt += 75;
+        g.hordeAt += D(g).horde;
         emit(g, 'horde', p.x, p.y);
-        for (let i = 0; i < 40 && g.enemies.length < MAX_ENEMIES; i++)
-            spawnEnemy(g, 'grunt', (i / 40) * Math.PI * 2);
+        for (let i = 0; i < D(g).hordeN && g.enemies.length < MAX_ENEMIES; i++)
+            spawnEnemy(g, 'grunt', (i / D(g).hordeN) * Math.PI * 2);
     }
     if (g.time >= (g.bossesSpawned + 1) * 60) {
         spawnEnemy(g, 'boss');
@@ -395,6 +427,19 @@ function step(g, dt, mx, my) {
         let sp = e.speed;
         let mvx = (dx - dy * wob) / d;
         let mvy = (dy + dx * wob) / d;
+        if (e.kind === 'boss' && D(g).bossShots > 0) {
+            // 저승사자: 4초마다 사방으로 불덩이를 뿌린다
+            e.ai -= dt;
+            if (e.ai <= 0) {
+                e.ai = 4;
+                const n = D(g).bossShots;
+                for (let i = 0; i < n; i++) {
+                    const a = (i / n) * Math.PI * 2 + g.time;
+                    g.shots.push({ id: g.nextId++, x: e.x, y: e.y, vx: Math.cos(a) * 150, vy: Math.sin(a) * 150, life: 4, dmg: Math.round(10 * D(g).dmg) });
+                }
+                emit(g, 'eshot', e.x, e.y);
+            }
+        }
         if (e.kind === 'tiger') {
             // 호랑이: 가까워지면 잠깐 웅크렸다가(예고) 일직선으로 돌진
             e.ai -= dt;
@@ -429,7 +474,7 @@ function step(g, dt, mx, my) {
             mvy = (dy / d) * want + (dx / d) * 0.5;
             if (e.ai <= 0 && d < 420) {
                 e.ai = 2.2 + Math.random() * 0.6;
-                g.shots.push({ id: g.nextId++, x: e.x, y: e.y, vx: (dx / d) * 170, vy: (dy / d) * 170, life: 3.5 });
+                g.shots.push({ id: g.nextId++, x: e.x, y: e.y, vx: (dx / d) * 170 * (1 + 0.1 * g.diff), vy: (dy / d) * 170 * (1 + 0.1 * g.diff), life: 3.5, dmg: Math.round(8 * D(g).dmg * (1 + (g.time / 60) * 0.08)) });
                 emit(g, 'eshot', e.x, e.y);
             }
         }
@@ -459,7 +504,7 @@ function step(g, dt, mx, my) {
         sh.y += sh.vy * dt;
         sh.life -= dt;
         if (g.iframe <= 0 && (sh.x - p.x) ** 2 + (sh.y - p.y) ** 2 < (p.r + 5) ** 2) {
-            p.hp -= 8;
+            p.hp -= sh.dmg;
             g.iframe = 0.6;
             g.hurt = 0.2;
             emit(g, 'hurt', p.x, p.y);
@@ -478,7 +523,7 @@ function step(g, dt, mx, my) {
         }
         if (d < p.r + 6) {
             emit(g, 'gem', gem.x, gem.y);
-            p.xp += gem.v;
+            p.xp += gem.v * D(g).xp;
             gem.v = 0;
         }
     }
@@ -496,7 +541,7 @@ function step(g, dt, mx, my) {
             if (k.type === 'coin')
                 g.coins++;
             else
-                p.hp = Math.min(p.maxHp, p.hp + 25);
+                p.hp = Math.min(p.maxHp, p.hp + D(g).heal);
             k.id = -1;
         }
     }
@@ -554,12 +599,14 @@ const AD=/*__AD__*/false,GAME_URL='';
 let W=0,H=0,dpr=1,Z=1,vig=null;
 const fmt=t=>String(Math.floor(t/60)).padStart(2,'0')+':'+String(Math.floor(t%60)).padStart(2,'0');
 /* 기록: 상위 10개 판(생존 시간 순) + 누적 최고치(처치·콤보)를 브라우저 localStorage 에 저장 */
+let diff=2;try{const d=localStorage.getItem('tangtang:diff');if(d!==null&&DIFFICULTIES[+d])diff=+d;}catch(e){}
+const DC=['#7ddc6a','#ffd84a','#ff7a3a','#ff3b3b'];
 const REC='tangtang:records2',BST='tangtang:bests';
 const jget=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
 const jset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const getBest=()=>{const r=jget(REC,[]);let v=r.length?r[0].t:0;try{v=Math.max(v,Number(localStorage.getItem(BEST))||0)}catch(e){}return v;};
 function addRecord(g){
-  const rec={t:g.time,k:g.kills,l:g.player.level,c:g.bestCombo,coins:g.coins,d:Date.now()};
+  const rec={t:g.time,k:g.kills,l:g.player.level,c:g.bestCombo,coins:g.coins,d:Date.now(),df:g.diff};
   const prevBest=getBest(),bs=jget(BST,{k:0,c:0});
   const out={newTime:rec.t>prevBest,newKills:bs.k>0&&rec.k>bs.k,newCombo:bs.c>0&&rec.c>bs.c};
   const arr=jget(REC,[]);arr.push(rec);arr.sort((a,b)=>b.t-a.t||b.k-a.k);
@@ -570,7 +617,7 @@ function addRecord(g){
 const fdate=d=>{const x=new Date(d);return (x.getMonth()+1)+'/'+x.getDate();};
 function recTable(hi){
   const r=jget(REC,[]);if(!r.length)return '<p>아직 기록이 없습니다.</p>';
-  return '<table class="tbl"><tr><th>순위</th><th>생존</th><th>처치</th><th>Lv</th><th>콤보</th><th>날짜</th></tr>'+r.map((x,i)=>'<tr'+(hi&&x.d===hi.d&&x.t===hi.t?' class="me"':'')+'><td>'+(i===0?'🏆':i+1)+'</td><td>'+fmt(x.t)+'</td><td>'+x.k+'</td><td>'+x.l+'</td><td>'+x.c+'</td><td>'+fdate(x.d)+'</td></tr>').join('')+'</table>';
+  return '<table class="tbl"><tr><th>순위</th><th>생존</th><th>처치</th><th>Lv</th><th>콤보</th><th>난이도</th><th>날짜</th></tr>'+r.map((x,i)=>'<tr'+(hi&&x.d===hi.d&&x.t===hi.t?' class="me"':'')+'><td>'+(i===0?'🏆':i+1)+'</td><td>'+fmt(x.t)+'</td><td>'+x.k+'</td><td>'+x.l+'</td><td>'+x.c+'</td><td style="color:'+DC[x.df||0]+'">'+DIFFICULTIES[x.df||0].name+'</td><td>'+fdate(x.d)+'</td></tr>').join('')+'</table>';
 }
 
 
@@ -912,8 +959,9 @@ function muteLbl(){return (Au.muted()?'🔇 소리 꺼짐':'🔊 소리 켜짐')
 function syncBtns(){document.getElementById('bm').textContent=Au.muted()?'🔇':'🔊';document.getElementById('bp').style.display=phase==='playing'?'':'none';}
 function menu(){
   const b=getBest(),bs=jget(BST,{k:0,c:0});phase='ready';syncBtns();
-  show('<div class="t1">탕탕 특공대</div><h1>귀신 천마리</h1><p>도깨비가 되어 몰려오는 귀신·강시·구미호를 막아내세요!\n\n화면 드래그 / WASD · 방향키 = 이동\n공격은 가장 가까운 적을 자동 조준합니다.\n레벨업마다 강화를 골라 최대한 오래 버티세요.\nSPACE = 필살기 (20마리 처치마다 충전)\nP = 일시정지   M = 소리</p>'+(b?'<div class="best">🏆 최고 기록 '+fmt(b)+' · 최다 처치 '+bs.k+' · 최대 콤보 '+bs.c+'</div>':'')+'<button class="btn" id="go">게임 시작</button><div><button class="small" id="rc">🏆 기록 보기</button> <button class="small" id="mu">'+muteLbl()+'</button></div>');
+  show('<div class="t1">탕탕 특공대</div><h1>귀신 천마리</h1><p>도깨비가 되어 몰려오는 귀신·강시·구미호를 막아내세요!\n\n화면 드래그 / WASD · 방향키 = 이동\n공격은 가장 가까운 적을 자동 조준합니다.\n레벨업마다 강화를 골라 최대한 오래 버티세요.\nSPACE = 필살기 (20마리 처치마다 충전)\nP = 일시정지   M = 소리</p>'+(b?'<div class="best">🏆 최고 기록 '+fmt(b)+' · 최다 처치 '+bs.k+' · 최대 콤보 '+bs.c+'</div>':'')+'<div class="dfs">'+DIFFICULTIES.map((d,i)=>'<button class="small dif'+(i===diff?' on':'')+'" data-d="'+i+'" style="color:'+DC[i]+'">'+d.name+'</button>').join('')+'</div><button class="btn" id="go">게임 시작</button><div><button class="small" id="rc">🏆 기록 보기</button> <button class="small" id="mu">'+muteLbl()+'</button></div>');
   document.getElementById('go').onclick=start;
+  ov.querySelectorAll('.dif').forEach(el=>el.onclick=()=>{diff=+el.dataset.d;try{localStorage.setItem('tangtang:diff',String(diff))}catch(e){}Au.sfx('click');menu();});
   document.getElementById('rc').onclick=records;
   document.getElementById('mu').onclick=e=>{Au.init();Au.toggleMute();e.target.textContent=muteLbl();syncBtns();};
 }
@@ -922,7 +970,7 @@ function records(back){
   document.getElementById('bk').onclick=()=>phase==='over'?gameOver(true):menu();
   document.getElementById('cl').onclick=()=>{if(confirm('저장된 기록을 모두 지울까요?')){try{localStorage.removeItem(REC);localStorage.removeItem(BST);localStorage.removeItem(BEST)}catch(e){}records();}};
 }
-function start(){ZM=1;zk=0;if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();Au.init();Au.resume();g=createGame();parts.length=0;toast=null;phase='playing';paused=false;choosing=false;mv={x:0,y:0};stick=null;lastCombo=0;hide();syncBtns();Au.play();}
+function start(){ZM=1;zk=0;if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();Au.init();Au.resume();g=createGame(diff);parts.length=0;toast=null;phase='playing';paused=false;choosing=false;mv={x:0,y:0};stick=null;lastCombo=0;hide();syncBtns();Au.play();}
 function levelUp(){toast=null;
   choosing=true;stick=null;mv={x:0,y:0};
   const cs=pickUpgrades(g);
@@ -936,7 +984,7 @@ function gameOver(again){
   const r=lastResult,tags=[];
   if(r.newTime)tags.push('🏆 신기록!');else if(r.rank>=0)tags.push('TOP 10 '+(r.rank+1)+'위');
   if(r.newKills)tags.push('최다 처치 갱신');if(r.newCombo)tags.push('최대 콤보 갱신');
-  show('<h2>GAME OVER</h2>'+(tags.length?'<div class="new">'+tags.join(' · ')+'</div>':'')+'<p>생존 시간  '+fmt(g.time)+'\n처치  '+g.kills+'   최대 콤보  '+g.bestCombo+'\n레벨  '+g.player.level+'   엽전  '+g.coins+'</p>'+recTable(r.me)+'<button class="btn" id="go">다시 도전</button><button class="small" id="mn">메인 화면</button>');
+  show('<h2>GAME OVER</h2>'+(tags.length?'<div class="new">'+tags.join(' · ')+'</div>':'')+'<p style="color:'+DC[g.diff]+'">난이도  '+DIFFICULTIES[g.diff].name+'</p><p>생존 시간  '+fmt(g.time)+'\n처치  '+g.kills+'   최대 콤보  '+g.bestCombo+'\n레벨  '+g.player.level+'   엽전  '+g.coins+'</p>'+recTable(r.me)+'<button class="btn" id="go">다시 도전</button><button class="small" id="mn">메인 화면</button>');
   document.getElementById('go').onclick=start;
   document.getElementById('mn').onclick=()=>{g=createGame();menu();};
 }
@@ -1041,7 +1089,8 @@ function draw(){
   // 적 (아래쪽부터 그려 겹침 자연스럽게)
   const en=g.enemies.filter(e=>vis(e.x,e.y,50)).sort((a,b)=>a.y-b.y);
   for(const e of en){
-    const sz=SIZE[e.kind];let bob=0,sy=1,sw=1,al=1;
+    const sz=SIZE[e.kind]*(e.elite?1.3:1);let bob=0,sy=1,sw=1,al=1;
+    if(e.elite){const ga=.3+.12*Math.sin(T*8+e.id),gr=ctx.createRadialGradient(e.x,e.y,4,e.x,e.y,sz*.9);gr.addColorStop(0,'rgba(255,60,40,'+ga+')');gr.addColorStop(1,'rgba(255,60,40,0)');ctx.globalCompositeOperation='lighter';ctx.fillStyle=gr;ctx.fillRect(e.x-sz,e.y-sz,sz*2,sz*2);ctx.globalCompositeOperation='source-over';}
     if(e.kind==='grunt'){bob=Math.sin(T*3+e.id)*3-3;al=.93;sy=1+Math.sin(T*6+e.id)*.04;}
     else if(e.kind==='fast'){bob=Math.sin(T*14+e.id)*1.5;sy=1+Math.sin(T*14+e.id)*.07;}
     else if(e.kind==='tank'){const h=Math.abs(Math.sin(T*5+e.id));bob=-h*7;sw=1-h*.25;sy=1+(1-h)*-.05;}
@@ -1057,6 +1106,7 @@ function draw(){
     ctx.globalAlpha=al;
     drawSpr(S[SPR[e.kind]+(e.flash>0?'F':'')],e.x,e.y+bob-(e.kind==='boss'?4:0),sz,p.x<e.x,sy);
     ctx.globalAlpha=1;
+    if(e.elite){const w=sz*.8;ctx.fillStyle='#000';ctx.fillRect(e.x-w/2-1,e.y-sz/2-10,w+2,6);ctx.fillStyle='#ff4a2a';ctx.fillRect(e.x-w/2,e.y-sz/2-9,w*Math.max(0,e.hp/e.maxHp),4);}
     if(e.kind==='tiger'&&e.st===1){ctx.strokeStyle='rgba(255,60,60,.4)';ctx.lineWidth=4;ctx.setLineDash([8,6]);ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.x+e.vx*190,e.y+e.vy*190);ctx.stroke();ctx.setLineDash([]);outline('!',e.x,e.y-sz/2-8,24,'#ff3b3b','center');}
     if(e.kind==='boss'){const w=80;ctx.fillStyle='#000';ctx.fillRect(e.x-w/2-1,e.y-sz/2-14,w+2,8);ctx.fillStyle='#d62828';ctx.fillRect(e.x-w/2,e.y-sz/2-13,w*Math.max(0,e.hp/e.maxHp),6);}
   }
@@ -1145,6 +1195,7 @@ function draw(){
     outline(String(ic.l),ix+sz-2,iy+sz-4,11*hs,'#ffd84a','right');});
   // 타이머 / 엽전 / 처치
   outline(fmt(g.time),W/2,bh+22*hs,26*hs,'#fff','center');
+  if(phase==='playing')outline(DIFFICULTIES[g.diff].name,W/2,bh+46*hs,12*hs,DC[g.diff],'center');
   outline('●',W-96*hs,bh+20*hs,14*hs,'#ffc933','center');outline(String(g.coins),W-84*hs,bh+20*hs,16*hs,'#ffe38a','left');
   outline('☠',W-96*hs,bh+44*hs,14*hs,'#e6e6e6','center');outline(String(g.kills),W-84*hs,bh+44*hs,16*hs,'#fff','left');
   if(toast){const k=Math.min(1,toast.t/.4),pop=1+Math.max(0,toast.t-(toast===null?0:toast.t))*0;ctx.globalAlpha=k;outline(toast.text,W/2,H*.27,Math.min(34,W/14)*Math.max(1,hs*.8),toast.c,'center');ctx.globalAlpha=1;}
