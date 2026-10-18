@@ -58,6 +58,22 @@ body.fly .rb.small{display:block}
 #loading .bar{width:180px;height:8px;border-radius:4px;background:rgba(255,255,255,.15);overflow:hidden}
 #loading .bar i{display:block;height:100%;width:0;background:#7be07b;transition:width .2s}
 #loading.off{display:none}
+.slot b{position:absolute;right:3px;bottom:1px;font-size:11px;font-weight:700;text-shadow:0 1px 2px #000,0 0 3px #000}
+.slot.empty canvas{opacity:.3}
+#invtabs{display:flex;gap:6px;margin:4px 0 8px}
+.tab{flex:1;padding:9px 4px;border-radius:8px;border:2px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);font-size:14px;font-weight:700;touch-action:manipulation}
+.tab.on{background:#3d9a3d;border-color:#7be07b}
+.pal{position:relative}
+.pal b{position:absolute;right:6px;top:3px;font-size:11px;text-shadow:0 1px 2px #000}
+#craftlist{display:none;flex-direction:column;gap:8px;margin-top:6px}
+.rec{display:flex;align-items:center;gap:10px;padding:8px;border-radius:9px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06)}
+.rec canvas{width:40px;height:40px;image-rendering:pixelated;flex:none}
+.rt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;font-size:13px}
+.rt span{font-size:11px;color:#b8bec9}
+.rt i{font-style:normal}
+.rt i.no{color:#ff8a80}
+.mk{padding:8px 12px;border-radius:8px;border:2px solid #7be07b;background:#3d9a3d;font-weight:700;font-size:13px;touch-action:manipulation}
+.mk:disabled{opacity:.35;border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.1)}
 #hurt{position:fixed;left:0;top:0;right:0;bottom:0;background:radial-gradient(ellipse at center,rgba(255,0,0,.12),rgba(210,0,0,.7));opacity:0;transition:opacity .35s;pointer-events:none;z-index:2}
 #hurt.on{opacity:1;transition:none}
 #hearts{position:fixed;left:50%;bottom:calc(var(--s) + 26px);transform:translateX(-50%);display:none;gap:1px;z-index:5;pointer-events:none;font-size:17px;line-height:1}
@@ -123,9 +139,11 @@ body.fly .rb.small{display:block}
 </div></div>
 
 <div id="palette" class="panel"><div class="card">
-  <h2>블록 고르기</h2>
-  <p class="sub">고른 블록이 선택된 핫바 칸에 들어가요</p>
+  <h2>가방</h2>
+  <div id="invtabs"><button class="tab on" data-tab="blocks">블록</button><button class="tab" data-tab="items">아이템</button><button class="tab" data-tab="craft">제작</button></div>
+  <p class="sub" id="invhint"></p>
   <div id="palgrid"></div>
+  <div id="craftlist"></div>
   <button class="btn" id="pClose" style="margin-top:12px">닫기</button>
 </div></div>
 
@@ -146,6 +164,12 @@ body.fly .rb.small{display:block}
     <li>몬스터를 <b>탭(PC는 좌클릭)</b>하면 공격! 크로스헤어가 빨갛게 변해요</li>
     <li>좀비·스켈레톤은 햇빛에 타요 · <b>크리퍼는 다가가면 폭발</b>해서 땅이 파여요</li>
     <li>♥가 모두 사라지면 쓰러져요 (잠시 맞지 않으면 회복). 메뉴에서 몬스터를 끌 수 있어요</li>
+  </ul>
+  <p><b>🐖 동물 · 아이템 · 무기</b></p>
+  <ul>
+    <li>낮의 풀밭에는 돼지·소·양·닭이 살아요. 사냥하면 고기·가죽·양털·깃털이 떨어져요 (가까이 가면 주워져요)</li>
+    <li>통나무·돌·석탄·철광석을 캐도 아이템이 나와요. 🎒 가방의 <b>제작</b> 탭에서 검·도끼·활·화살·폭탄·구운 고기를 만들 수 있어요</li>
+    <li>아이템은 가방에서 핫바에 넣어 써요: 검/도끼는 탭해서 공격, <b>활</b>은 탭해서 발사(화살 필요), <b>폭탄</b>은 탭해서 던지기, <b>음식</b>은 탭해서 먹기 (PC는 우클릭)</li>
   </ul>
   <p><b>⌨️ 키보드 · 마우스</b></p>
   <ul>
@@ -224,7 +248,12 @@ var T_GRASS_TOP = 0, T_GRASS_SIDE = 1, T_DIRT = 2, T_STONE = 3, T_COBBLE = 4, T_
     T_PLANKS = 8, T_LEAVES = 9, T_GLASS = 10, T_BRICK = 11, T_WATER = 12, T_SNOW = 13, T_SNOW_SIDE = 14,
     T_COAL = 15, T_IRON = 16, T_BEDROCK = 17, T_CRACK = 24,
     T_ZFACE = 40, T_ZSKIN = 41, T_ZSHIRT = 42, T_ZPANTS = 43, T_CFACE = 44, T_CSKIN = 45,
-    T_SFACE = 46, T_BONE = 47, T_RIBS = 48, T_ARROW = 49;   // 몬스터 · 화살
+    T_SFACE = 46, T_BONE = 47, T_RIBS = 48, T_ARROW = 49,   // 몬스터 · 화살
+    T_PIG = 50, T_PIGFACE = 51, T_COW = 52, T_COWFACE = 53, T_WOOL = 54, T_SHEEPFACE = 55, T_SHEEPSKIN = 56,
+    T_CHICK = 57, T_CHICKFACE = 58, T_BEAK = 59, T_CHICKLEG = 60;   // 동물
+var TI = { coal: 64, iron: 65, stick: 66, bone: 67, feather: 68, leather: 69, wool: 70, gunpowder: 71, flesh: 72,
+           pork: 73, beef: 74, mutton: 75, chicken: 76, cpork: 77, steak: 78, cmutton: 79, cchicken: 80, bandage: 81,
+           arrow: 82, wsword: 83, ssword: 84, isword: 85, axe: 86, bow: 87, bomb: 88 };   // 아이템 아이콘 타일
 
 var B = [];
 // 면 순서: +x, -x, +y(윗면), -y(아랫면), +z, -z
@@ -256,9 +285,84 @@ for (var bi = 0; bi < B.length; bi++) { OPQ[bi] = B[bi].opaque ? 1 : 0; BLOCKING
 var PALETTE = [GRASS, DIRT, STONE, COBBLE, SAND, SNOW, LOG, PLANKS, LEAVES, GLASS, BRICK, COAL, IRON];
 
 /* ======================================================================
+ *  아이템 · 인벤토리 · 제작
+ *  블록은 id < 100 (창작 모드라 무한), 아이템은 id >= 100 (개수가 있음). 핫바에는 둘 다 넣을 수 있다.
+ * ==================================================================== */
+var ITEM_BASE = 100, IT = {}, ITEM_IDS = [];
+function defItem(key, name, o) {
+  var id = ITEM_BASE + ITEM_IDS.length, it = { id: id, key: key, name: name, kind: 'res', tile: TI[key] };
+  for (var k in o) it[k] = o[k];
+  IT[id] = it; ITEM_IDS.push(id);
+  return id;
+}
+var I_LOG = defItem('log', '통나무', { block: LOG }),
+    I_COBBLE = defItem('cobble', '조약돌', { block: COBBLE }),
+    I_COAL = defItem('coal', '석탄'),
+    I_IRON = defItem('iron', '철 주괴'),
+    I_STICK = defItem('stick', '막대'),
+    I_BONE = defItem('bone', '뼈'),
+    I_FEATHER = defItem('feather', '깃털'),
+    I_LEATHER = defItem('leather', '가죽'),
+    I_WOOL = defItem('wool', '양털'),
+    I_GUNPOWDER = defItem('gunpowder', '화약'),
+    I_FLESH = defItem('flesh', '썩은 살점', { kind: 'food', heal: 2 }),
+    I_PORK = defItem('pork', '날 돼지고기', { kind: 'food', heal: 2 }),
+    I_BEEF = defItem('beef', '날 소고기', { kind: 'food', heal: 2 }),
+    I_MUTTON = defItem('mutton', '날 양고기', { kind: 'food', heal: 2 }),
+    I_CHICKEN = defItem('chicken', '날 닭고기', { kind: 'food', heal: 2 }),
+    I_CPORK = defItem('cpork', '구운 돼지고기', { kind: 'food', heal: 8 }),
+    I_STEAK = defItem('steak', '스테이크', { kind: 'food', heal: 8 }),
+    I_CMUTTON = defItem('cmutton', '구운 양고기', { kind: 'food', heal: 8 }),
+    I_CCHICKEN = defItem('cchicken', '구운 닭고기', { kind: 'food', heal: 6 }),
+    I_BANDAGE = defItem('bandage', '붕대', { kind: 'food', heal: 6 }),
+    I_ARROW = defItem('arrow', '화살', { kind: 'ammo' }),
+    I_WSWORD = defItem('wsword', '나무 검', { kind: 'weapon', dmg: 6, cd: 0.38 }),
+    I_SSWORD = defItem('ssword', '돌 검', { kind: 'weapon', dmg: 7, cd: 0.38 }),
+    I_ISWORD = defItem('isword', '철 검', { kind: 'weapon', dmg: 9, cd: 0.38 }),
+    I_AXE = defItem('axe', '철 도끼', { kind: 'weapon', dmg: 12, cd: 0.85 }),
+    I_BOW = defItem('bow', '활', { kind: 'bow', dmg: 7, cd: 0.65 }),
+    I_BOMB = defItem('bomb', '폭탄', { kind: 'bomb', cd: 0.8 });
+
+var inv = {};
+inv[I_WSWORD] = 1;
+function invCount(id) { return inv[id] || 0; }
+function giveItem(id, n) { inv[id] = invCount(id) + n; dirtySave = true; refreshHotbarCounts(); }
+function takeItem(id, n) { inv[id] = Math.max(0, invCount(id) - n); dirtySave = true; refreshHotbarCounts(); }
+function nameOf(v) { return v >= ITEM_BASE ? IT[v].name : B[v].name; }
+
+// 제작법: 재료 [아이템, 개수] → 결과
+var RECIPES = [
+  { out: I_STICK, n: 4, need: [[I_LOG, 1]] },
+  { out: I_WSWORD, n: 1, need: [[I_LOG, 2], [I_STICK, 1]] },
+  { out: I_SSWORD, n: 1, need: [[I_COBBLE, 2], [I_STICK, 1]] },
+  { out: I_ISWORD, n: 1, need: [[I_IRON, 2], [I_STICK, 1]] },
+  { out: I_AXE, n: 1, need: [[I_IRON, 3], [I_STICK, 2]] },
+  { out: I_BOW, n: 1, need: [[I_STICK, 3], [I_LEATHER, 1]] },
+  { out: I_ARROW, n: 4, need: [[I_STICK, 1], [I_BONE, 1], [I_FEATHER, 1]] },
+  { out: I_BOMB, n: 1, need: [[I_GUNPOWDER, 2], [I_COBBLE, 1]] },
+  { out: I_BANDAGE, n: 1, need: [[I_WOOL, 2]] },
+  { out: I_CPORK, n: 1, need: [[I_PORK, 1], [I_STICK, 1]] },
+  { out: I_STEAK, n: 1, need: [[I_BEEF, 1], [I_STICK, 1]] },
+  { out: I_CMUTTON, n: 1, need: [[I_MUTTON, 1], [I_STICK, 1]] },
+  { out: I_CCHICKEN, n: 1, need: [[I_CHICKEN, 1], [I_STICK, 1]] }
+];
+function canCraft(r) { return r.need.every(function (p) { return invCount(p[0]) >= p[1]; }); }
+function craft(i) {
+  var r = RECIPES[i];
+  if (!r || !canCraft(r)) return false;
+  r.need.forEach(function (p) { inv[p[0]] -= p[1]; });
+  giveItem(r.out, r.n);
+  var it = IT[r.out];
+  // 무기류는 만들면 선택된 핫바 칸에 바로 들려 준다
+  if ((it.kind === 'weapon' || it.kind === 'bow' || it.kind === 'bomb') && hotbar.indexOf(r.out) < 0) { hotbar[sel] = r.out; refreshHotbar(); }
+  playSound('place'); toast(it.name + ' 제작!');
+  return true;
+}
+
+/* ======================================================================
  *  절차적 텍스처 아틀라스 (외부 이미지 없음)
  * ==================================================================== */
-var ATLAS_N = 8, ATLAS_T = 16, ATLAS_S = 128;
+var ATLAS_N = 16, ATLAS_T = 16, ATLAS_S = 256;
 var atlasData = new Uint8Array(ATLAS_S * ATLAS_S * 4);
 
 function buildAtlas() {
@@ -372,6 +476,117 @@ function buildAtlas() {
     return [118 + k, 84 + k, 46 + k];
   });
 
+  // ---- 동물 피부 ----
+  fillTile(T_PIG, [236, 160, 160], 8);
+  fillTile(T_PIGFACE, [236, 160, 160], 8);
+  rect(T_PIGFACE, 3, 5, 4, 6, [34, 28, 30]); rect(T_PIGFACE, 11, 5, 12, 6, [34, 28, 30]);
+  rect(T_PIGFACE, 5, 9, 10, 13, [246, 186, 184]); rect(T_PIGFACE, 6, 10, 6, 11, [176, 92, 98]); rect(T_PIGFACE, 9, 10, 9, 11, [176, 92, 98]);
+  each(T_COW, function (x, y) { var dark = hash2(x >> 2, y >> 2, 91) < 0.36, k = n(7); return dark ? [64 + k, 48 + k, 40 + k] : [236 + k, 236 + k, 230 + k]; });
+  fillTile(T_COWFACE, [112, 82, 62], 8);
+  rect(T_COWFACE, 4, 9, 11, 14, [226, 206, 190]); rect(T_COWFACE, 5, 11, 6, 12, [150, 110, 100]); rect(T_COWFACE, 9, 11, 10, 12, [150, 110, 100]);
+  rect(T_COWFACE, 2, 4, 3, 5, [24, 22, 22]); rect(T_COWFACE, 12, 4, 13, 5, [24, 22, 22]);
+  each(T_WOOL, function () { var k = n(10); return [238 + k, 238 + k, 236 + k]; });
+  fillTile(T_SHEEPSKIN, [196, 176, 146], 8);
+  fillTile(T_SHEEPFACE, [196, 176, 146], 8);
+  rect(T_SHEEPFACE, 3, 6, 4, 7, [30, 26, 24]); rect(T_SHEEPFACE, 11, 6, 12, 7, [30, 26, 24]); rect(T_SHEEPFACE, 6, 10, 9, 12, [214, 160, 150]);
+  fillTile(T_CHICK, [242, 242, 236], 8);
+  fillTile(T_CHICKFACE, [242, 242, 236], 6);
+  rect(T_CHICKFACE, 3, 6, 4, 7, [20, 20, 20]); rect(T_CHICKFACE, 11, 6, 12, 7, [20, 20, 20]);
+  rect(T_CHICKFACE, 6, 0, 9, 2, [204, 44, 44]); rect(T_CHICKFACE, 7, 12, 8, 14, [204, 44, 44]);
+  fillTile(T_BEAK, [240, 176, 44], 8);
+  fillTile(T_CHICKLEG, [232, 172, 50], 8);
+
+  // ---- 아이템 아이콘 (투명 배경 16x16 픽셀아트) ----
+  function clearTile(t) { for (var yy = 0; yy < T; yy++) for (var xx = 0; xx < T; xx++) put(t, xx, yy, 0, 0, 0, 0); }
+  function dot(t, x, y, c) { if (x >= 0 && x < T && y >= 0 && y < T) put(t, x, y, c[0], c[1], c[2]); }
+  function ln(t, x0, y0, x1, y1, c, w) {
+    var steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1);
+    for (var i = 0; i <= steps; i++) {
+      var x = Math.round(x0 + (x1 - x0) * i / steps), y = Math.round(y0 + (y1 - y0) * i / steps);
+      dot(t, x, y, c); if (w > 1) { dot(t, x + 1, y, c); dot(t, x, y + 1, c); }
+    }
+  }
+  function ball(t, cx, cy, rx, ry, c, jit) {
+    for (var yy = 0; yy < T; yy++) for (var xx = 0; xx < T; xx++) {
+      var ex = (xx - cx) / rx, ey = (yy - cy) / ry;
+      if (ex * ex + ey * ey <= 1) { var k = jit ? n(jit) : 0; put(t, xx, yy, c[0] + k, c[1] + k, c[2] + k); }
+    }
+  }
+  var WOOD = [120, 80, 44];
+  function sword(t, blade, edge) {
+    clearTile(t);
+    ln(t, 7, 9, 14, 2, blade, 2); ln(t, 8, 8, 14, 2, edge, 1);   // 칼날 + 날
+    ln(t, 4, 8, 8, 12, [78, 68, 60], 2);                          // 보호대
+    ln(t, 5, 11, 2, 14, WOOD, 2); dot(t, 1, 15, [90, 60, 36]);      // 손잡이
+  }
+  sword(TI.wsword, [182, 138, 78], [214, 172, 108]);
+  sword(TI.ssword, [138, 138, 142], [190, 190, 196]);
+  sword(TI.isword, [214, 216, 224], [250, 250, 255]);
+  clearTile(TI.axe);
+  ln(TI.axe, 3, 14, 11, 6, WOOD, 2);
+  [[2, 10, 12], [3, 9, 14], [4, 9, 14], [5, 10, 14], [6, 11, 13], [7, 11, 12]].forEach(function (r) { for (var xx = r[1]; xx <= r[2]; xx++) dot(TI.axe, xx, r[0], [196, 198, 206]); });
+  for (var ay = 3; ay <= 5; ay++) dot(TI.axe, 14, ay, [244, 244, 250]);
+  clearTile(TI.bow);
+  for (var by = 1; by <= 14; by++) { var bx = 12 - Math.round(5 * Math.sin(Math.PI * (by - 1) / 13)); dot(TI.bow, bx, by, [128, 86, 46]); dot(TI.bow, bx + 1, by, [160, 112, 62]); }
+  ln(TI.bow, 12, 1, 12, 14, [236, 236, 226], 1);
+  clearTile(TI.arrow);
+  ln(TI.arrow, 3, 13, 12, 4, [150, 120, 80], 1);
+  [[13, 2], [14, 2], [13, 3], [14, 3], [12, 3]].forEach(function (d2) { dot(TI.arrow, d2[0], d2[1], [176, 176, 184]); });
+  [[2, 12], [3, 11], [4, 14], [3, 15], [2, 13], [4, 13], [1, 12], [3, 14]].forEach(function (d2) { dot(TI.arrow, d2[0], d2[1], [244, 244, 244]); });
+  clearTile(TI.bomb);
+  ball(TI.bomb, 8, 9, 5, 5, [34, 34, 40], 3);
+  [[6, 7], [7, 6], [6, 6], [5, 8]].forEach(function (d2) { dot(TI.bomb, d2[0], d2[1], [112, 112, 128]); });
+  ln(TI.bomb, 10, 5, 12, 3, [176, 146, 96], 1);
+  [[13, 1], [13, 2], [13, 3], [12, 2], [14, 2]].forEach(function (d2) { dot(TI.bomb, d2[0], d2[1], [255, 190, 60]); });
+  dot(TI.bomb, 13, 2, [255, 244, 170]);
+  function meat(t, base, dark, light, small) {
+    clearTile(t);
+    var rx = small ? 4 : 5.5, ry = small ? 3.4 : 4.2;
+    ball(t, 7, 8, rx, ry, base, 6);
+    for (var yy = 0; yy < T; yy++) for (var xx = 0; xx < T; xx++) {
+      var ex = (xx - 7) / rx, ey = (yy - 8) / ry;
+      if (ex * ex + ey * ey <= 1 && yy >= 10) put(t, xx, yy, dark[0], dark[1], dark[2]);
+    }
+    [[5, 6], [6, 6], [5, 7]].forEach(function (d2) { dot(t, d2[0], d2[1], light); });
+    ln(t, 11, 10, 14, 13, [244, 238, 228], 2); dot(t, 15, 12, [244, 238, 228]); dot(t, 14, 15, [244, 238, 228]);
+  }
+  meat(TI.pork, [240, 150, 160], [206, 110, 122], [252, 210, 214], false);
+  meat(TI.beef, [196, 54, 64], [150, 34, 44], [236, 120, 124], false);
+  meat(TI.mutton, [208, 96, 84], [164, 66, 58], [240, 150, 140], false);
+  meat(TI.chicken, [248, 206, 196], [220, 164, 150], [255, 240, 232], true);
+  meat(TI.cpork, [196, 124, 84], [150, 88, 56], [226, 170, 124], false);
+  meat(TI.steak, [128, 66, 38], [92, 44, 26], [176, 108, 70], false);
+  meat(TI.cmutton, [156, 88, 58], [116, 62, 40], [200, 132, 94], false);
+  meat(TI.cchicken, [214, 152, 74], [170, 112, 50], [240, 196, 120], true);
+  clearTile(TI.coal);
+  [[5, 6, 3, 2.6], [10, 7, 3.2, 3], [7, 11, 3.4, 2.8]].forEach(function (b2) { ball(TI.coal, b2[0], b2[1], b2[2], b2[3], [28, 28, 32], 4); });
+  [[4, 5], [9, 6], [6, 10]].forEach(function (d2) { dot(TI.coal, d2[0], d2[1], [96, 96, 108]); });
+  clearTile(TI.iron);
+  rect(TI.iron, 4, 6, 13, 7, [238, 238, 244]); rect(TI.iron, 3, 8, 12, 10, [198, 198, 208]); rect(TI.iron, 3, 11, 12, 11, [150, 150, 162]);
+  clearTile(TI.stick);
+  ln(TI.stick, 3, 13, 12, 4, [134, 92, 50], 2); dot(TI.stick, 6, 9, [96, 64, 34]); dot(TI.stick, 9, 6, [96, 64, 34]);
+  clearTile(TI.bone);
+  ln(TI.bone, 4, 12, 11, 5, [236, 232, 220], 2);
+  [[3, 12], [4, 13], [12, 3], [13, 4]].forEach(function (b2) { ball(TI.bone, b2[0], b2[1], 1.7, 1.7, [236, 232, 220], 0); });
+  clearTile(TI.feather);
+  ln(TI.feather, 3, 13, 13, 3, [200, 200, 196], 1);
+  for (var fi = 1; fi <= 8; fi++) { dot(TI.feather, 3 + fi, 12 - fi, [246, 246, 250]); dot(TI.feather, 4 + fi, 12 - fi + 1, [236, 236, 244]); dot(TI.feather, 2 + fi, 12 - fi, [226, 226, 234]); }
+  clearTile(TI.leather);
+  for (var ly = 4; ly <= 12; ly++) for (var lx = 4; lx <= 12; lx++) { var lk = n(8); put(TI.leather, lx, ly, 154 + lk, 98 + lk, 56 + lk); }
+  [[5, 5], [11, 5], [5, 11], [11, 11]].forEach(function (d2) { dot(TI.leather, d2[0], d2[1], [206, 150, 100]); });
+  clearTile(TI.wool);
+  ball(TI.wool, 8, 8, 5.5, 5, [240, 240, 238], 8);
+  [[6, 6], [10, 9], [7, 10]].forEach(function (d2) { dot(TI.wool, d2[0], d2[1], [206, 206, 210]); });
+  clearTile(TI.gunpowder);
+  ball(TI.gunpowder, 8, 10, 5.5, 3.5, [88, 88, 94], 10);
+  [[6, 9], [9, 8], [8, 11]].forEach(function (d2) { dot(TI.gunpowder, d2[0], d2[1], [124, 124, 132]); });
+  clearTile(TI.flesh);
+  ball(TI.flesh, 8, 8, 5, 4, [108, 128, 70], 10);
+  ball(TI.flesh, 6, 7, 1.8, 1.5, [70, 84, 45], 0); ball(TI.flesh, 10, 10, 1.6, 1.4, [160, 100, 90], 0);
+  clearTile(TI.bandage);
+  rect(TI.bandage, 4, 5, 12, 11, [240, 240, 236]); rect(TI.bandage, 4, 5, 12, 5, [208, 208, 204]); rect(TI.bandage, 4, 11, 12, 11, [198, 198, 194]);
+  rect(TI.bandage, 7, 6, 8, 10, [206, 40, 52]); rect(TI.bandage, 5, 7, 10, 8, [206, 40, 52]);
+
   // 균열 (파괴 진행 10단계): 중앙에서 뻗어 나가는 무작위 선
   var path = [], seen = {};
   for (var w = 0; w < 4; w++) {
@@ -402,7 +617,7 @@ atlasCanvas.width = atlasCanvas.height = ATLAS_S;
 
 // 타일 UV (반 텍셀 안쪽으로 줄여 번짐 방지)
 var TU = [], TV = [], TW = 1 / ATLAS_N - 1 / ATLAS_S;
-for (var ti = 0; ti < 64; ti++) { TU[ti] = (ti % ATLAS_N) / ATLAS_N + 0.5 / ATLAS_S; TV[ti] = ((ti / ATLAS_N) | 0) / ATLAS_N + 0.5 / ATLAS_S; }
+for (var ti = 0; ti < ATLAS_N * ATLAS_N; ti++) { TU[ti] = (ti % ATLAS_N) / ATLAS_N + 0.5 / ATLAS_S; TV[ti] = ((ti / ATLAS_N) | 0) / ATLAS_N + 0.5 / ATLAS_S; }
 
 /* ======================================================================
  *  지형 생성
@@ -707,7 +922,7 @@ function pushCube(a, n, cx, cy, cz, hs, u0, v0, u1, v1, light) {
 var P = { x: 0, y: 40, z: 0, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, hw: HW, hh: HH, onGround: false, fly: false, inWater: false, headWater: false };
 var spawn = { x: 0, y: 40, z: 0 };
 var settings = { autoJump: true, fast: false, dist: 4, sound: true, monsters: true };
-var hotbar = [GRASS, DIRT, STONE, COBBLE, PLANKS, LOG, GLASS, BRICK, SAND], sel = 0;
+var hotbar = [GRASS, DIRT, STONE, COBBLE, PLANKS, LOG, GLASS, BRICK, I_WSWORD], sel = 0;
 var timeOfDay = 0.18;
 var input = { jump: false, down: false, mx: 0, mz: 0 };
 var btn = { jump: false, down: false };   // 화면 버튼 상태 (키보드와 합쳐 input 으로)
@@ -835,10 +1050,11 @@ function breakBlock(t) {
               getBlock(t.x, t.y, t.z - 1) === WATER || getBlock(t.x, t.y + 1, t.z) === WATER;
   setBlock(t.x, t.y, t.z, flood ? WATER : AIR);
   spawnParticles(t.x + 0.5, t.y + 0.5, t.z + 0.5, id);
+  rollDrops(BLOCK_DROP[id], t.x + 0.5, t.y + 0.5, t.z + 0.5);
   playSound('break');
 }
 function placeBlock() {
-  if (!target) return;
+  if (!target || hotbar[sel] >= ITEM_BASE) return;
   var x = target.x + target.nx, y = target.y + target.ny, z = target.z + target.nz, cur = getBlock(x, y, z);
   if (cur !== AIR && cur !== WATER) return;
   if (y < 0 || y >= CH) return;
@@ -856,6 +1072,8 @@ function pickBlock() {
 function updateMining(dt, now) {
   if (look.id !== -1 && !look.mining && !look.moved && now - look.t0 >= 260) look.mining = true;
   var holding = mouse.left || look.mining;
+  var hi = holding ? heldItem() : null;
+  if (hi && hi.kind === 'bow') { shootBow(hi); mine.on = false; mine.p = 0; return; }
   if (holding && mobTarget) { attackMob(mobTarget); mine.on = false; mine.p = 0; return; }
   if (holding && target) {
     var same = mine.on && mine.x === target.x && mine.y === target.y && mine.z === target.z;
@@ -898,9 +1116,13 @@ var hp = MAXHP, hurtInv = 0, sinceHurt = 99, regenT = 0, dead = false, hurtBy = 
 var mobs = [], arrows = [], mobSpawnT = 2, mobSeq = 1;
 
 var MOB = {
-  zombie:   { name: '좀비',     hw: 0.3, hh: 1.9,  hp: 20, speed: 2.7, sight: 28, burns: true,  tile: T_ZSKIN },
-  creeper:  { name: '크리퍼',   hw: 0.3, hh: 1.65, hp: 20, speed: 2.5, sight: 24, burns: false, tile: T_CSKIN },
-  skeleton: { name: '스켈레톤', hw: 0.3, hh: 1.9,  hp: 20, speed: 2.4, sight: 26, burns: true,  tile: T_BONE }
+  zombie:   { name: '좀비',     hw: 0.3, hh: 1.9,  hp: 20, speed: 2.7, sight: 28, burns: true,  tile: T_ZSKIN, drops: [[I_FLESH, 0, 2], [I_IRON, 1, 1, 0.1]] },
+  creeper:  { name: '크리퍼',   hw: 0.3, hh: 1.65, hp: 20, speed: 2.5, sight: 24, burns: false, tile: T_CSKIN, drops: [[I_GUNPOWDER, 0, 2]] },
+  skeleton: { name: '스켈레톤', hw: 0.3, hh: 1.9,  hp: 20, speed: 2.4, sight: 26, burns: true,  tile: T_BONE, drops: [[I_BONE, 0, 2], [I_ARROW, 0, 2]] },
+  pig:      { name: '돼지', hw: 0.45, hh: 0.9, hp: 10, speed: 1.7, animal: true, tile: T_PIG, drops: [[I_PORK, 1, 3]] },
+  cow:      { name: '소',   hw: 0.45, hh: 1.5, hp: 10, speed: 1.5, animal: true, tile: T_COW, drops: [[I_BEEF, 1, 3], [I_LEATHER, 0, 2]] },
+  sheep:    { name: '양',   hw: 0.45, hh: 1.35, hp: 8, speed: 1.6, animal: true, tile: T_WOOL, drops: [[I_MUTTON, 1, 2], [I_WOOL, 1, 3]] },
+  chicken:  { name: '닭',   hw: 0.2, hh: 0.8, hp: 4, speed: 1.6, animal: true, tile: T_CHICK, drops: [[I_CHICKEN, 1, 1], [I_FEATHER, 0, 2]] }
 };
 
 // 모델: 박스는 1/16 블록 단위, 앞쪽이 -z. role=걷기 흔들기 방향(±1), base=기본 X축 회전(팔), swing=흔들림 크기
@@ -932,6 +1154,29 @@ var MODELS = {
     mkPart([-4, 24, -4, 4, 32, 4], [0, 24, 0], [T_BONE, T_BONE, T_BONE, T_BONE, T_BONE, T_SFACE])
   ]
 };
+function quadModel(o) {   // 네발 동물 (앞쪽이 -z): 다리 4 + 몸 + 머리
+  var lh = o.legH, lw = o.legW, bw = o.bw, bl = o.bl, y1 = lh + o.bh, leg = all6(o.legTile), parts = [];
+  parts.push(mkPart([-bw, 0, -bl, -bw + lw, lh, -bl + lw], [-bw + lw / 2, lh, -bl + lw / 2], leg, 1, 0, 0.9));
+  parts.push(mkPart([bw - lw, 0, -bl, bw, lh, -bl + lw], [bw - lw / 2, lh, -bl + lw / 2], leg, -1, 0, 0.9));
+  parts.push(mkPart([-bw, 0, bl - lw, -bw + lw, lh, bl], [-bw + lw / 2, lh, bl - lw / 2], leg, -1, 0, 0.9));
+  parts.push(mkPart([bw - lw, 0, bl - lw, bw, lh, bl], [bw - lw / 2, lh, bl - lw / 2], leg, 1, 0, 0.9));
+  parts.push(mkPart([-bw, lh, -bl, bw, y1, bl], [0, lh, 0], all6(o.bodyTile)));
+  parts.push(mkPart([-o.hw, o.headY, -bl - o.hd, o.hw, o.headY + o.hh, -bl], [0, o.headY, -bl],
+    [o.headTile, o.headTile, o.headTile, o.headTile, o.headTile, o.faceTile]));
+  return parts;
+}
+MODELS.pig = quadModel({ legH: 6, legW: 4, bw: 5, bh: 8, bl: 8, headY: 8, hw: 4, hh: 8, hd: 8, legTile: T_PIG, bodyTile: T_PIG, headTile: T_PIG, faceTile: T_PIGFACE });
+MODELS.cow = quadModel({ legH: 12, legW: 4, bw: 6, bh: 10, bl: 10, headY: 16, hw: 4, hh: 8, hd: 6, legTile: T_COW, bodyTile: T_COW, headTile: T_COW, faceTile: T_COWFACE });
+MODELS.sheep = quadModel({ legH: 12, legW: 4, bw: 6, bh: 9, bl: 9, headY: 15, hw: 3, hh: 6, hd: 8, legTile: T_SHEEPSKIN, bodyTile: T_WOOL, headTile: T_SHEEPSKIN, faceTile: T_SHEEPFACE });
+MODELS.chicken = [
+  mkPart([-2, 0, -1, 0, 5, 1], [-1, 5, 0], all6(T_CHICKLEG), 1, 0, 0.9),
+  mkPart([0, 0, -1, 2, 5, 1], [1, 5, 0], all6(T_CHICKLEG), -1, 0, 0.9),
+  mkPart([-3, 5, -4, 3, 11, 4], [0, 5, 0], all6(T_CHICK)),
+  mkPart([-4, 6, -3, -3, 10, 3], [-3, 10, 0], all6(T_CHICK)),
+  mkPart([3, 6, -3, 4, 10, 3], [3, 10, 0], all6(T_CHICK)),
+  mkPart([-2, 10, -7, 2, 16, -3], [0, 10, -5], [T_CHICK, T_CHICK, T_CHICK, T_CHICK, T_CHICK, T_CHICKFACE]),
+  mkPart([-1, 11, -9, 1, 13, -7], [0, 11, -8], all6(T_BEAK))
+];
 var ARROW_PART = mkPart([-0.7, -0.7, -6, 0.7, 0.7, 6], [0, 0, 0], all6(T_ARROW));
 
 function daylight() { return smooth(-0.14, 0.26, Math.sin(timeOfDay * 6.28318)); }
@@ -950,8 +1195,12 @@ function makeMob(type, x, y, z) {
     id: mobSeq++, type: type, x: x, y: y, z: z, vx: 0, vy: 0, vz: 0, yaw: Math.random() * 6.28318, hw: d.hw, hh: d.hh, hp: d.hp,
     onGround: false, inWater: false, walk: Math.random() * 6, mv: 0, age: 0, hurtT: 0, kbT: 0, atkCd: 0.8, fuse: 0,
     shootCd: 1.5 + Math.random(), wanderT: 0, wanderOn: false, wanderYaw: 0, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: 2,
-    burnT: 0, burning: false, sky: 1, skyT: 0, avoidT: 0, avoidDir: 1
+    burnT: 0, burning: false, sky: 1, skyT: 0, avoidT: 0, avoidDir: 1, panicT: 0, fleeX: 0, fleeZ: 0
   };
+}
+function purgeHostiles() {   // 평화 모드: 몬스터와 몬스터의 화살만 없앤다 (동물과 내 화살은 그대로)
+  for (var q = mobs.length - 1; q >= 0; q--) if (!MOB[mobs[q].type].animal) mobs.splice(q, 1);
+  for (var w = arrows.length - 1; w >= 0; w--) if (arrows[w].owner !== 'p') arrows.splice(w, 1);
 }
 function removeMob(m) { var i = mobs.indexOf(m); if (i >= 0) mobs.splice(i, 1); }
 
@@ -987,7 +1236,8 @@ function die() {
   openPanel('death');
 }
 function respawnPlayer() {
-  dead = false; hp = MAXHP; hurtInv = 1.5; sinceHurt = 99; mobs = []; arrows = [];
+  dead = false; hp = MAXHP; hurtInv = 1.5; sinceHurt = 99; arrows.length = 0;
+  for (var q = mobs.length - 1; q >= 0; q--) if (!MOB[mobs[q].type].animal) mobs.splice(q, 1);   // 동물은 그대로
   P.fly = false; setFlyQuiet(false); respawn();
   refreshHearts(); closePanels();
 }
@@ -1017,14 +1267,17 @@ function raycastMobs(ox, oy, oz, dx, dy, dz, maxD) {
   }
   return best ? { mob: best, t: bt } : null;
 }
+function heldItem() { var v = hotbar[sel]; return (v >= ITEM_BASE && invCount(v) > 0) ? IT[v] : null; }
 function attackMob(m) {
   if (attackCd > 0 || dead) return;
-  attackCd = 0.4;
-  damageMob(m, 5 * ((!P.onGround && P.vy < -1) ? 1.5 : 1), P.x, P.z, 7.5, true);
+  var it = heldItem(), w = it && it.kind === 'weapon' ? it : null;
+  attackCd = w ? w.cd : 0.4;
+  damageMob(m, (w ? w.dmg : 4) * ((!P.onGround && P.vy < -1) ? 1.5 : 1), P.x, P.z, 7.5, true);
 }
 function damageMob(m, dmg, fx, fz, kb, byPlayer) {
   if (m.hp <= 0) return;
   m.hp -= dmg; m.hurtT = 0.35;
+  if (MOB[m.type].animal) { m.panicT = 5; m.fleeX = fx; m.fleeZ = fz; }   // 동물은 맞으면 도망친다
   if (kb > 0) {
     var dx = m.x - fx, dz = m.z - fz, l = Math.hypot(dx, dz) || 1;
     m.vx = dx / l * kb; m.vz = dz / l * kb; m.vy = 4.2; m.onGround = false; m.kbT = 0.35;
@@ -1034,14 +1287,108 @@ function damageMob(m, dmg, fx, fz, kb, byPlayer) {
 }
 function killMob(m, byPlayer) {   // 햇빛에 타 죽은 건 처치로 세지 않는다
   removeMob(m);
+  rollDrops(MOB[m.type].drops, m.x, m.y + 0.5, m.z);
   spawnParticles(m.x, m.y + 0.9, m.z, STONE, MOB[m.type].tile);
   spawnParticles(m.x, m.y + 0.5, m.z, STONE, MOB[m.type].tile);
-  if (byPlayer) { kills++; toast(MOB[m.type].name + ' 처치!'); }
+  if (byPlayer && !MOB[m.type].animal) { kills++; toast(MOB[m.type].name + ' 처치!'); }
 }
-function tapAction() { if (mobTarget) attackMob(mobTarget); else placeBlock(); }
+// 아이템 '사용' (먹기 · 활 · 폭탄). 사용 동작이 없는 아이템이면 false
+function useItem(it) {
+  if (it.kind === 'food') return eat(it);
+  if (it.kind === 'bow') return shootBow(it);
+  if (it.kind === 'bomb') return throwBomb(it);
+  return false;
+}
+function tapAction() {
+  var it = heldItem();
+  if (it && useItem(it)) return;
+  if (mobTarget) attackMob(mobTarget); else if (hotbar[sel] < ITEM_BASE) placeBlock();
+}
+function secondaryAction() {   // PC 우클릭
+  var it = heldItem();
+  if (it && useItem(it)) return;
+  placeBlock();
+}
+function eat(it) {
+  if (attackCd > 0 || dead) return true;
+  if (!settings.monsters) { toast('평화 모드에서는 체력이 줄지 않아요'); return true; }
+  if (hp >= MAXHP) { toast('체력이 가득 찼어요'); return true; }
+  takeItem(it.id, 1); attackCd = 0.5;
+  hp = Math.min(MAXHP, hp + it.heal); refreshHearts();
+  playSound('eat'); toast(it.name + ' 냠냠 (+' + it.heal / 2 + ' ♥)');
+  return true;
+}
+function shootBow(it) {
+  if (attackCd > 0 || dead) return true;
+  if (invCount(I_ARROW) <= 0) { attackCd = 0.4; toast('화살이 없어요'); return true; }
+  takeItem(I_ARROW, 1); attackCd = it.cd;
+  var f = forward(), sp = 30;
+  arrows.push({ x: P.x + f[0] * 0.6, y: P.y + EYE - 0.1 + f[1] * 0.6, z: P.z + f[2] * 0.6, vx: f[0] * sp, vy: f[1] * sp, vz: f[2] * sp, life: 6, stuck: false, owner: 'p', dmg: it.dmg });
+  playSound('shoot');
+  return true;
+}
+var bombs = [];
+function throwBomb(it) {
+  if (attackCd > 0 || dead) return true;
+  takeItem(I_BOMB, 1); attackCd = it.cd;
+  var f = forward();
+  bombs.push({ x: P.x + f[0] * 0.5, y: P.y + EYE - 0.2, z: P.z + f[2] * 0.5, vx: f[0] * 13 + P.vx * 0.5, vy: f[1] * 13 + 3.5, vz: f[2] * 13 + P.vz * 0.5,
+    hw: 0.15, hh: 0.3, fuse: 1.7, onGround: false });
+  playSound('place');
+  return true;
+}
+function updateBombs(dt) {
+  for (var i = bombs.length - 1; i >= 0; i--) {
+    var b = bombs[i];
+    b.fuse -= dt;
+    b.vy = Math.max(-40, b.vy - 28 * dt);
+    if (b.onGround) { b.vx *= 1 - Math.min(1, 5 * dt); b.vz *= 1 - Math.min(1, 5 * dt); }
+    if (moveAxisE(b, 0, b.vx * dt)) b.vx *= -0.4;
+    if (moveAxisE(b, 2, b.vz * dt)) b.vz *= -0.4;
+    if (moveAxisE(b, 1, b.vy * dt)) { b.onGround = b.vy < 0; b.vy = Math.abs(b.vy) > 3 ? -b.vy * 0.3 : 0; } else b.onGround = false;
+    if (b.fuse <= 0 || b.y < -20) { bombs.splice(i, 1); if (b.y >= -20) explode(b.x, b.y + 0.2, b.z, 2.8, true); }
+  }
+}
 
-/* ---- 폭발 (크리퍼) ---- */
-function explode(x, y, z, r) {
+/* ---- 낙하 아이템 ---- */
+var drops = [], dropBuf = new Float32Array(48 * 144);
+function dropItem(id, n, x, y, z) {
+  if (n <= 0) return;
+  drops.push({ x: x, y: y, z: z, vx: (Math.random() - 0.5) * 3, vy: 3 + Math.random() * 2, vz: (Math.random() - 0.5) * 3, id: id, n: n, age: 0, hw: 0.12, hh: 0.25, onGround: false });
+  if (drops.length > 48) drops.splice(0, drops.length - 48);
+}
+function rollDrops(list, x, y, z) {   // [아이템, 최소, 최대, 확률?]
+  if (!list) return;
+  for (var i = 0; i < list.length; i++) {
+    var e = list[i];
+    if (e[3] !== undefined && Math.random() > e[3]) continue;
+    dropItem(e[0], e[1] + Math.floor(Math.random() * (e[2] - e[1] + 1)), x, y, z);
+  }
+}
+var BLOCK_DROP = {};
+BLOCK_DROP[LOG] = [[I_LOG, 1, 1]]; BLOCK_DROP[STONE] = [[I_COBBLE, 1, 1]]; BLOCK_DROP[COBBLE] = [[I_COBBLE, 1, 1]];
+BLOCK_DROP[COAL] = [[I_COAL, 1, 2]]; BLOCK_DROP[IRON] = [[I_IRON, 1, 1]]; BLOCK_DROP[LEAVES] = [[I_STICK, 1, 1, 0.25]];
+function updateDrops(dt) {
+  for (var i = drops.length - 1; i >= 0; i--) {
+    var d = drops[i];
+    d.age += dt;
+    if (d.age > 150 || d.y < -20) { drops.splice(i, 1); continue; }
+    if (!world.chunks.get(ckey(Math.floor(d.x) >> 4, Math.floor(d.z) >> 4))) continue;
+    var dx = P.x - d.x, dy = P.y + 0.7 - d.y, dz = P.z - d.z, dist = Math.hypot(dx, dy, dz);
+    if (!dead && d.age > 0.5 && dist < 1.4) {   // 줍기
+      giveItem(d.id, d.n); toast('+' + d.n + ' ' + IT[d.id].name); playSound('pop'); drops.splice(i, 1); continue;
+    }
+    if (!dead && d.age > 0.7 && dist < 3.4) { var pull = 28 * dt / Math.max(dist, 0.4); d.vx += dx * pull; d.vy += dy * pull; d.vz += dz * pull; }   // 가까이 가면 끌려온다
+    d.vy = Math.max(-30, d.vy - 22 * dt);
+    if (d.onGround) { d.vx *= 1 - Math.min(1, 6 * dt); d.vz *= 1 - Math.min(1, 6 * dt); }
+    if (moveAxisE(d, 0, d.vx * dt)) d.vx *= -0.3;
+    if (moveAxisE(d, 2, d.vz * dt)) d.vz *= -0.3;
+    if (moveAxisE(d, 1, d.vy * dt)) { d.onGround = d.vy < 0; d.vy = d.vy < -3 ? -d.vy * 0.3 : 0; } else d.onGround = false;
+  }
+}
+
+/* ---- 폭발 (크리퍼 · 폭탄) ---- */
+function explode(x, y, z, r, fromPlayer) {
   var cx = Math.floor(x), cy = Math.floor(y), cz = Math.floor(z), R = Math.ceil(r);
   for (var dy = -R; dy <= R; dy++) for (var dz = -R; dz <= R; dz++) for (var dx = -R; dx <= R; dx++) {
     var d = Math.hypot(dx, dy, dz);
@@ -1052,7 +1399,13 @@ function explode(x, y, z, r) {
     if (setBlock(cx + dx, cy + dy, cz + dz, AIR) && Math.random() < 0.1) spawnParticles(cx + dx + 0.5, cy + dy + 0.5, cz + dz + 0.5, id);
   }
   var pd = Math.hypot(P.x - x, P.y + 0.9 - y, P.z - z);
-  if (pd < r + 3.5) hurtPlayer(Math.round((1 - pd / (r + 3.5)) * 14) + 1, x, z, 12, '크리퍼');
+  if (pd < r + 3.5) hurtPlayer(Math.round((1 - pd / (r + 3.5)) * 14) + 1, x, z, 12, fromPlayer ? '폭탄' : '크리퍼');
+  if (fromPlayer) {   // 내가 던진 폭탄은 주변 몬스터·동물에게도 피해
+    mobs.slice().forEach(function (m) {
+      var md = Math.hypot(m.x - x, m.y + m.hh / 2 - y, m.z - z);
+      if (md < r + 2.5) damageMob(m, Math.round((1 - md / (r + 2.5)) * 24) + 2, x, z, 9, true);
+    });
+  }
   spawnParticles(x, y, z, STONE); spawnParticles(x, y, z, COBBLE);
   playSound('boom');
 }
@@ -1065,7 +1418,7 @@ function hasLOS(m) {
 }
 function shootArrow(m) {
   var ox = m.x, oy = m.y + 1.55, oz = m.z, dx = P.x - ox, dy = P.y + 1.1 - oy, dz = P.z - oz, l = Math.hypot(dx, dy, dz) || 1, sp = 20;
-  arrows.push({ x: ox, y: oy, z: oz, vx: dx / l * sp, vy: dy / l * sp + l * 0.1, vz: dz / l * sp, life: 6, stuck: false });
+  arrows.push({ x: ox, y: oy, z: oz, vx: dx / l * sp, vy: dy / l * sp + l * 0.1, vz: dz / l * sp, life: 6, stuck: false, owner: 'm' });
   playSound('shoot');
 }
 function updateArrows(dt) {
@@ -1080,6 +1433,15 @@ function updateArrows(dt) {
     for (var s = 0; s < steps && !done; s++) {
       a.x += a.vx * sdt; a.y += a.vy * sdt; a.z += a.vz * sdt;
       if (solidAt(Math.floor(a.x), Math.floor(a.y), Math.floor(a.z))) { a.stuck = true; a.life = Math.min(a.life, 1.2); done = true; }
+      else if (a.owner === 'p') {   // 내 화살: 몬스터·동물에 명중
+        for (var mi = 0; mi < mobs.length && !done; mi++) {
+          var mb = mobs[mi];
+          if (Math.abs(a.x - mb.x) < mb.hw + 0.1 && Math.abs(a.z - mb.z) < mb.hw + 0.1 && a.y > mb.y - 0.1 && a.y < mb.y + mb.hh + 0.1) {
+            damageMob(mb, a.dmg || 7, a.x - a.vx * 0.1, a.z - a.vz * 0.1, 4, true);
+            arrows.splice(i, 1); done = true;
+          }
+        }
+      }
       else if (!dead && Math.abs(a.x - P.x) < HW + 0.12 && Math.abs(a.z - P.z) < HW + 0.12 && a.y > P.y - 0.1 && a.y < P.y + HH + 0.1) {
         hurtPlayer(4, a.x - a.vx * 0.1, a.z - a.vz * 0.1, 5, '스켈레톤');
         arrows.splice(i, 1); done = true;
@@ -1090,12 +1452,12 @@ function updateArrows(dt) {
 
 /* ---- AI / 물리 ---- */
 function updateMobs(dt) {
-  if (!settings.monsters) { if (mobs.length) mobs = []; if (arrows.length) arrows = []; return; }
+  if (!settings.monsters) purgeHostiles();
   var day = daylight();
   for (var i = mobs.length - 1; i >= 0; i--) {
     var m = mobs[i], d = MOB[m.type];
     var dx = P.x - m.x, dz = P.z - m.z, dist = Math.hypot(dx, dz);
-    if (dist > 60) { mobs.splice(i, 1); continue; }
+    if (dist > (d.animal ? 70 : 60)) { mobs.splice(i, 1); continue; }
     if (!world.chunks.get(ckey(Math.floor(m.x) >> 4, Math.floor(m.z) >> 4))) continue;   // 청크가 아직 없으면 정지
     m.age += dt; m.hurtT = Math.max(0, m.hurtT - dt); m.kbT = Math.max(0, m.kbT - dt); m.atkCd -= dt; m.shootCd -= dt;
     m.skyT -= dt;
@@ -1108,8 +1470,14 @@ function updateMobs(dt) {
       if (m.burnT >= 1) { m.burnT -= 1; damageMob(m, 3, m.x, m.z, 0); if (m.hp <= 0) continue; }
     } else { m.burning = false; m.burnT = 0; }
 
-    var dirx = dist > 0.001 ? dx / dist : 0, dirz = dist > 0.001 ? dz / dist : 0, mvx = 0, mvz = 0, speed = d.speed, fx = null, fz = null;
-    if (!dead && dist < d.sight) {
+    var dirx = dist > 0.001 ? dx / dist : 0, dirz = dist > 0.001 ? dz / dist : 0, mvx = 0, mvz = 0, speed = d.speed, fx = null, fz = null, wander = false;
+    if (d.animal) {
+      if (m.panicT > 0) {   // 맞으면 공격한 쪽 반대로 도망
+        m.panicT -= dt;
+        var ax = m.x - m.fleeX, az = m.z - m.fleeZ, al = Math.hypot(ax, az) || 1;
+        mvx = ax / al; mvz = az / al; speed *= 2.4; fx = mvx; fz = mvz;
+      } else wander = true;
+    } else if (!dead && dist < d.sight) {
       fx = dirx; fz = dirz;
       if (m.type === 'zombie') {
         if (dist > 0.95) { mvx = dirx; mvz = dirz; }
@@ -1126,16 +1494,19 @@ function updateMobs(dt) {
         mvx = dirx * want - dirz * m.strafe * sw; mvz = dirz * want + dirx * m.strafe * sw;
         if (m.shootCd <= 0 && dist < 20 && hasLOS(m)) { shootArrow(m); m.shootCd = 2.0 + Math.random() * 0.8; }
       }
-    } else {   // 어슬렁거리기
+    } else wander = true;
+    if (wander) {   // 어슬렁거리기
       m.wanderT -= dt;
-      if (m.wanderT <= 0) { m.wanderT = 2 + Math.random() * 4; m.wanderOn = Math.random() < 0.55; m.wanderYaw = Math.random() * 6.28318; }
+      if (m.wanderT <= 0) { m.wanderT = 2 + Math.random() * 4; m.wanderOn = Math.random() < (d.animal ? 0.5 : 0.55); m.wanderYaw = Math.random() * 6.28318; }
       if (m.wanderOn) { mvx = -Math.sin(m.wanderYaw); mvz = -Math.cos(m.wanderYaw); speed *= 0.45; fx = mvx; fz = mvz; }
     }
     // 장애물(나무 기둥 등)에 막혀 있으면 잠깐 옆으로 돌아 본다
     if (m.avoidT > 0) {
       m.avoidT -= dt;
-      if (!dead && dist < d.sight && (mvx || mvz)) {
-        mvx = -dirz * m.avoidDir + dirx * 0.25; mvz = dirx * m.avoidDir + dirz * 0.25;
+      var chasing = d.animal ? m.panicT > 0 : (!dead && dist < d.sight);
+      if (chasing && (mvx || mvz)) {
+        var bl2 = Math.hypot(mvx, mvz) || 1, ux = mvx / bl2, uz = mvz / bl2;   // 원래 가려던 방향의 옆으로
+        mvx = -uz * m.avoidDir + ux * 0.25; mvz = ux * m.avoidDir + uz * 0.25;
         fx = mvx; fz = mvz;
       }
     }
@@ -1153,12 +1524,13 @@ function updateMobs(dt) {
     else { m.vx *= 1 - Math.min(1, 1.5 * dt); m.vz *= 1 - Math.min(1, 1.5 * dt); }
     if (m.inWater) m.vy += (1.8 - m.vy) * Math.min(1, 3 * dt);   // 물에서는 떠오른다
     else m.vy = Math.max(-45, m.vy - 30 * dt);
+    if (m.type === 'chicken' && m.vy < -2.5) m.vy = -2.5;   // 닭은 천천히 떨어진다
     var bx = moveAxisE(m, 0, m.vx * dt), bz = moveAxisE(m, 2, m.vz * dt);
     if (bx) m.vx = 0;
     if (bz) m.vz = 0;
     if ((bx || bz) && m.onGround && (mvx || mvz)) {
       if (!boxHitE(m, m.x + mvx * 0.4, m.y + 1.05, m.z + mvz * 0.4) && !boxHitE(m, m.x, m.y + 1.05, m.z)) m.vy = 8.0;   // 1칸 턱은 뛰어넘기
-      else if (m.avoidT <= 0 && !dead && dist < d.sight) { m.avoidT = 0.7 + Math.random() * 0.6; m.avoidDir = Math.random() < 0.5 ? 1 : -1; }
+      else if (m.avoidT <= 0 && (d.animal || (!dead && dist < d.sight))) { m.avoidT = 0.7 + Math.random() * 0.6; m.avoidDir = Math.random() < 0.5 ? 1 : -1; }
     }
     var by = moveAxisE(m, 1, m.vy * dt);
     if (by) { m.onGround = m.vy < 0; m.vy = 0; } else m.onGround = false;
@@ -1170,13 +1542,31 @@ function updateMobs(dt) {
 /* ---- 스폰: 밤 · 어두운 곳(동굴, 숲 그늘)에서 ---- */
 var spawnerHold = false;   // 테스트용: 자동 스폰 일시 정지
 function updateSpawner(dt) {
-  if (!settings.monsters || dead || spawnerHold) return;
+  if (dead || spawnerHold) return;
   mobSpawnT -= dt;
   if (mobSpawnT > 0) return;
   mobSpawnT = 1.1;
-  var day = daylight();
-  if (mobs.length >= (day > 0.55 ? 2 : 8)) return;
-  for (var attempt = 0; attempt < 4; attempt++) if (trySpawnMob(day)) break;
+  var day = daylight(), hostile = 0, animals = 0;
+  for (var i = 0; i < mobs.length; i++) { if (MOB[mobs[i].type].animal) animals++; else hostile++; }
+  if (settings.monsters && hostile < (day > 0.55 ? 2 : 8)) for (var attempt = 0; attempt < 4; attempt++) if (trySpawnMob(day)) break;
+  if (day > 0.3 && animals < 9) for (var a2 = 0; a2 < 3; a2++) if (trySpawnAnimal()) break;
+}
+// 동물: 낮에 하늘이 트인 풀밭에 1~4마리 무리로
+function trySpawnAnimal() {
+  var ang = Math.random() * 6.28318, dist = 14 + Math.random() * 26;
+  var ix = Math.floor(P.x + Math.cos(ang) * dist), iz = Math.floor(P.z + Math.sin(ang) * dist);
+  if (!world.chunks.get(ckey(ix >> 4, iz >> 4))) return false;
+  var y = Math.min(CH - 3, Math.floor(P.y) + 12);
+  while (y > 1 && !B[getBlock(ix, y, iz)].solid) y--;
+  if (getBlock(ix, y, iz) !== GRASS || B[getBlock(ix, y + 1, iz)].solid || B[getBlock(ix, y + 2, iz)].solid || !openSky(ix, y + 1, iz)) return false;
+  var roll = Math.random(), type = roll < 0.3 ? 'pig' : roll < 0.55 ? 'cow' : roll < 0.85 ? 'sheep' : 'chicken';
+  var n = type === 'chicken' ? 2 + Math.floor(Math.random() * 2) : 1 + Math.floor(Math.random() * 2);
+  for (var i = 0; i < n; i++) {
+    var cx = Math.floor(ix + (i ? Math.random() * 3 - 1.5 : 0)), cz = Math.floor(iz + (i ? Math.random() * 3 - 1.5 : 0));
+    if (!B[getBlock(cx, y, cz)].solid || B[getBlock(cx, y + 1, cz)].solid || B[getBlock(cx, y + 2, cz)].solid) continue;
+    mobs.push(makeMob(type, cx + 0.5, y + 1.001, cz + 0.5));
+  }
+  return true;
 }
 function trySpawnMob(day) {
   var ang = Math.random() * 6.28318, dist = 16 + Math.random() * 18;
@@ -1221,14 +1611,17 @@ function emitPart(a, n, part, rx, ox, oy, oz, yaw, bodyPitch, sc, light) {
   }
   return n;
 }
-var mobBuf = new Float32Array(6 * 144);
+var mobBuf = new Float32Array(8 * 144);   // 파츠 최대 7개 (닭)
+var dropParts = {}, bombPart = mkPart([-3, -3, -3, 3, 3, 3], [0, 0, 0], all6(TI.bomb));
+function itemTile(it) { return it.block ? B[it.block].tiles[4] : it.tile; }
+function dropPart(tile) { return dropParts[tile] || (dropParts[tile] = mkPart([-2.5, -2.5, -2.5, 2.5, 2.5, 2.5], [0, 0, 0], all6(tile))); }
 function drawMobs(cam, tint) {
-  if (!mobs.length && !arrows.length) return;
+  if (!mobs.length && !arrows.length && !drops.length && !bombs.length) return;
   gl.uniform3f(U.u_off, 0, 0, 0);
   gl.bindBuffer(gl.ARRAY_BUFFER, dynVBO);
-  function flush(n, quads, r, g, b) {
+  function flush(buf, n, quads, r, g, b) {
     gl.uniform3f(U.u_tint, r, g, b);
-    gl.bufferData(gl.ARRAY_BUFFER, mobBuf.subarray(0, n), gl.DYNAMIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, buf.subarray(0, n), gl.DYNAMIC_DRAW);
     gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 12); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 24, 20);
     gl.drawElements(gl.TRIANGLES, quads * 6, gl.UNSIGNED_SHORT, 0);
   }
@@ -1241,12 +1634,26 @@ function drawMobs(cam, tint) {
     if (m.hurtT > 0) { r = 1.3; g = 0.4; b = 0.4; }
     else if (m.fuse > 0 && (Math.floor(m.fuse * 10) & 1)) { r = g = b = 2.6; }
     else if (m.burning && (Math.floor(m.age * 8) & 1)) { r = 1.3; g = 0.75; b = 0.4; }
-    flush(n, model.length * 6, r, g, b);
+    flush(mobBuf, n, model.length * 6, r, g, b);
   }
   for (var q = 0; q < arrows.length; q++) {
     var a = arrows[q], sp = Math.hypot(a.vx, a.vy, a.vz) || 1;
     var an = emitPart(mobBuf, 0, ARROW_PART, 0, a.x - cam[0], a.y - cam[1], a.z - cam[2], Math.atan2(-a.vx, -a.vz), Math.asin(clamp(a.vy / sp, -1, 1)), 1, 1);
-    flush(an, 6, tint[0], tint[1], tint[2]);
+    flush(mobBuf, an, 6, tint[0], tint[1], tint[2]);
+  }
+  if (drops.length) {   // 바닥의 아이템: 빙글빙글 돌며 위아래로 떠 있는 작은 상자
+    var dn = 0;
+    for (var di = 0; di < drops.length; di++) {
+      var dr = drops[di], ddx = dr.x - cam[0], ddy = dr.y - cam[1], ddz = dr.z - cam[2];
+      if (ddx * ddx + ddy * ddy + ddz * ddz > 60 * 60) continue;
+      dn = emitPart(dropBuf, dn, dropPart(itemTile(IT[dr.id])), 0, ddx, ddy + 0.2 + Math.sin(dr.age * 3) * 0.05, ddz, dr.age * 2, 0, 1, 1);
+    }
+    if (dn) flush(dropBuf, dn, dn / 144 * 6, tint[0], tint[1], tint[2]);
+  }
+  for (var bi2 = 0; bi2 < bombs.length; bi2++) {
+    var bm = bombs[bi2], bn = emitPart(mobBuf, 0, bombPart, 0, bm.x - cam[0], bm.y - cam[1] + 0.1, bm.z - cam[2], bm.fuse * 5, 0, 1, 1);
+    var hot = bm.fuse < 0.8 && (Math.floor(bm.fuse * 10) & 1);
+    flush(mobBuf, bn, 6, hot ? 2.6 : tint[0], hot ? 2.6 : tint[1], hot ? 2.6 : tint[2]);
   }
   gl.uniform3f(U.u_tint, tint[0], tint[1], tint[2]);
 }
@@ -1533,7 +1940,7 @@ touchEl.addEventListener('pointerdown', function (e) {
   if (paused) return;
   if (e.pointerType === 'mouse') {
     if (!mouse.locked) { try { var r = touchEl.requestPointerLock(); if (r && r.catch) r.catch(function () {}); } catch (err) {} return; }
-    if (e.button === 0) mouse.left = true; else if (e.button === 2) placeBlock(); else if (e.button === 1) pickBlock();
+    if (e.button === 0) mouse.left = true; else if (e.button === 2) secondaryAction(); else if (e.button === 1) pickBlock();
     e.preventDefault(); return;
   }
   if (look.id !== -1) return;
@@ -1647,13 +2054,21 @@ function drawIcon(cv, id) {
   face(d.tiles[4], cx - a, cy - r / 2, a, r / 2, 0, r, 0.22);            // 왼쪽면
   face(d.tiles[0], cx, cy, a, -r / 2, 0, r, 0.42);                       // 오른쪽면
 }
+function drawAnyIcon(cv, v) {   // 블록이면 입체 아이콘, 아이템이면 픽셀아트
+  if (v < ITEM_BASE) return drawIcon(cv, v);
+  var it = IT[v];
+  if (it.block) return drawIcon(cv, it.block);
+  var sz = cv.width, c = cv.getContext('2d'), T = ATLAS_T;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, sz, sz); c.imageSmoothingEnabled = false;
+  c.drawImage(atlasCanvas, (it.tile % ATLAS_N) * T, ((it.tile / ATLAS_N) | 0) * T, T, T, sz * 0.06, sz * 0.06, sz * 0.88, sz * 0.88);
+}
 var hotEl = $('hotbar'), slotEls = [];
 function buildHotbar() {
-  hotEl.innerHTML = '';
+  hotEl.innerHTML = ''; slotEls = [];
   for (var i = 0; i < 9; i++) {
     (function (i) {
-      var b = document.createElement('button'), cv = document.createElement('canvas'), n = document.createElement('i');
-      b.className = 'slot'; cv.width = cv.height = 64; n.textContent = i + 1; b.appendChild(cv); b.appendChild(n);
+      var b = document.createElement('button'), cv = document.createElement('canvas'), n = document.createElement('i'), cnt = document.createElement('b');
+      b.className = 'slot'; cv.width = cv.height = 64; n.textContent = i + 1; b.appendChild(cv); b.appendChild(n); b.appendChild(cnt); b.cnt = cnt;
       b.addEventListener('click', function () { if (sel === i) openPanel('palette'); else selectSlot(i); });
       hotEl.appendChild(b); slotEls.push(b);
     })(i);
@@ -1661,29 +2076,78 @@ function buildHotbar() {
   refreshHotbar();
 }
 function refreshHotbar() {
-  for (var i = 0; i < 9; i++) { drawIcon(slotEls[i].firstChild, hotbar[i]); slotEls[i].className = 'slot' + (i === sel ? ' sel' : ''); }
+  for (var i = 0; i < slotEls.length; i++) drawAnyIcon(slotEls[i].firstChild, hotbar[i]);
+  refreshHotbarCounts();
+}
+function refreshHotbarCounts() {   // 개수 표시 · 다 떨어진 아이템은 흐리게
+  for (var i = 0; i < slotEls.length; i++) {
+    var v = hotbar[i], el = slotEls[i], it = v >= ITEM_BASE ? IT[v] : null, n = it ? invCount(v) : 0;
+    el.cnt.textContent = it && it.kind !== 'weapon' && it.kind !== 'bow' ? n : '';
+    el.className = 'slot' + (i === sel ? ' sel' : '') + (it && n === 0 ? ' empty' : '');
+  }
 }
 var toastT = 0;
 function toast(msg) {
   var t = $('toast'); t.textContent = msg; t.className = 'on';
   clearTimeout(toastT); toastT = setTimeout(function () { t.className = ''; }, 1400);
 }
-function selectSlot(i) { sel = i; refreshHotbar(); toast(B[hotbar[i]].name); dirtySave = true; }
+function selectSlot(i) { sel = i; refreshHotbar(); toast(nameOf(hotbar[i])); dirtySave = true; }
 
-function buildPalette() {
-  var g = $('palgrid'); g.innerHTML = '';
-  PALETTE.forEach(function (id) {
-    var b = document.createElement('button'), cv = document.createElement('canvas'), s = document.createElement('span');
-    b.className = 'pal'; cv.width = cv.height = 64; s.textContent = B[id].name.replace(' 블록', '');
-    drawIcon(cv, id); b.appendChild(cv); b.appendChild(s);
-    b.addEventListener('click', function () {
-      var at = hotbar.indexOf(id);
-      if (at >= 0 && at !== sel) hotbar[at] = hotbar[sel];
-      hotbar[sel] = id; refreshHotbar(); closePanels(); toast(B[id].name); dirtySave = true;
-    });
-    g.appendChild(b);
-  });
+var invTab = 'blocks';
+function assignSlot(v) {   // 선택된 핫바 칸에 넣기 (이미 다른 칸에 있으면 서로 바꿈)
+  var at = hotbar.indexOf(v);
+  if (at >= 0 && at !== sel) hotbar[at] = hotbar[sel];
+  hotbar[sel] = v; refreshHotbar(); closePanels(); toast(nameOf(v)); dirtySave = true;
 }
+function invCell(v, label, count) {
+  var b = document.createElement('button'), cv = document.createElement('canvas'), sp = document.createElement('span');
+  b.className = 'pal'; cv.width = cv.height = 64; sp.textContent = label;
+  drawAnyIcon(cv, v); b.appendChild(cv); b.appendChild(sp);
+  if (count > 0) { var cb = document.createElement('b'); cb.textContent = count; b.appendChild(cb); }
+  b.addEventListener('click', function () { assignSlot(v); });
+  return b;
+}
+function recipeRow(r, i) {
+  var row = document.createElement('div'), cv = document.createElement('canvas'), tx = document.createElement('div'), mk = document.createElement('button');
+  row.className = 'rec'; cv.width = cv.height = 64; drawAnyIcon(cv, r.out);
+  tx.className = 'rt';
+  var nm = document.createElement('b'), need = document.createElement('span');
+  nm.textContent = IT[r.out].name + (r.n > 1 ? ' ×' + r.n : '');
+  r.need.forEach(function (p, k) {
+    var e = document.createElement('i');
+    e.textContent = IT[p[0]].name + ' ' + invCount(p[0]) + '/' + p[1];
+    if (invCount(p[0]) < p[1]) e.className = 'no';
+    need.appendChild(e);
+    if (k < r.need.length - 1) need.appendChild(document.createTextNode(' · '));
+  });
+  tx.appendChild(nm); tx.appendChild(need);
+  mk.className = 'mk'; mk.textContent = '만들기'; mk.disabled = !canCraft(r);
+  mk.addEventListener('click', function () { if (craft(i)) renderInv(); });
+  row.appendChild(cv); row.appendChild(tx); row.appendChild(mk);
+  return row;
+}
+function renderInv() {
+  var g = $('palgrid'), cl = $('craftlist'), hint = $('invhint');
+  Array.prototype.forEach.call(document.querySelectorAll('#invtabs .tab'), function (t) {
+    t.className = 'tab' + (t.getAttribute('data-tab') === invTab ? ' on' : '');
+  });
+  g.style.display = invTab === 'craft' ? 'none' : 'grid'; cl.style.display = invTab === 'craft' ? 'flex' : 'none';
+  g.innerHTML = ''; cl.innerHTML = '';
+  if (invTab === 'blocks') {
+    hint.textContent = '고른 블록이 선택된 핫바 칸에 들어가요 (블록은 무한이에요)';
+    PALETTE.forEach(function (id) { g.appendChild(invCell(id, B[id].name.replace(' 블록', ''), 0)); });
+  } else if (invTab === 'items') {
+    var owned = ITEM_IDS.filter(function (id) { return invCount(id) > 0; });
+    hint.textContent = owned.length ? '탭하면 선택된 핫바 칸에 들어가요 (검·활·폭탄·음식은 핫바에서 사용)' : '아직 아이템이 없어요. 동물·몬스터를 사냥하고 나무·돌·광석을 캐 보세요!';
+    owned.forEach(function (id) { g.appendChild(invCell(id, IT[id].name, invCount(id))); });
+  } else {
+    hint.textContent = '재료를 모으면 무기와 음식을 만들 수 있어요';
+    RECIPES.forEach(function (r, i) { cl.appendChild(recipeRow(r, i)); });
+  }
+}
+Array.prototype.forEach.call(document.querySelectorAll('#invtabs .tab'), function (t) {
+  t.addEventListener('click', function () { invTab = t.getAttribute('data-tab'); renderInv(); });
+});
 
 function setFly(on) {
   P.fly = !!on; P.vy = 0;
@@ -1707,6 +2171,7 @@ function openPanel(id) {
   closePanels(true);
   paused = true; $(id).className = 'panel on';
   if (id === 'menu') { refreshMenu(); saveNow(); }
+  if (id === 'palette') renderInv();
   if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
   input.jump = input.down = btn.jump = btn.down = false; joy.x = joy.y = 0; mouse.left = false; look.id = -1; look.mining = false;
 }
@@ -1737,7 +2202,7 @@ $('mDist').addEventListener('click', function () {
 });
 $('mMon').addEventListener('click', function () {
   settings.monsters = !settings.monsters;
-  if (!settings.monsters) { mobs = []; arrows = []; hp = MAXHP; dead = false; }
+  if (!settings.monsters) { purgeHostiles(); hp = MAXHP; dead = false; }   // 동물은 남는다
   refreshHearts(); refreshMenu(); dirtySave = true;
 });
 $('dRespawn').addEventListener('click', respawnPlayer);
@@ -1769,6 +2234,7 @@ function serialize() {
   world.edits.forEach(function (ed) { ed.m.forEach(function (b, k) { e.push(ed.cx, ed.cz, k, b); }); });
   return JSON.stringify({
     v: 1, seed: SEED, e: e, p: [P.x, P.y, P.z, P.yaw, P.pitch, P.fly ? 1 : 0], hb: hotbar, sel: sel, t: timeOfDay,
+    iv: Object.keys(inv).filter(function (k) { return inv[k] > 0; }).map(function (k) { return [+k, inv[k]]; }),
     s: [settings.autoJump ? 1 : 0, settings.fast ? 1 : 0, settings.dist, settings.sound ? 1 : 0, settings.monsters ? 1 : 0]
   });
 }
@@ -1794,12 +2260,19 @@ function applySave(o) {
     ed.m.set(o.e[i + 2], o.e[i + 3]);
   }
   P.x = o.p[0]; P.y = o.p[1]; P.z = o.p[2]; P.yaw = o.p[3]; P.pitch = o.p[4]; P.fly = !!o.p[5];
-  if (o.hb && o.hb.length === 9) hotbar = o.hb.map(function (b) { return B[b] && b !== AIR ? b : STONE; });
+  if (o.hb && o.hb.length === 9) hotbar = o.hb.map(function (b) { return (b >= ITEM_BASE ? IT[b] : (B[b] && b !== AIR)) ? b : STONE; });
+  inv = {};
+  if (o.iv) o.iv.forEach(function (p) { if (IT[p[0]]) inv[p[0]] = p[1] | 0; }); else inv[I_WSWORD] = 1;   // 이전 저장 데이터에는 기본 무기만
   sel = clamp(o.sel | 0, 0, 8); timeOfDay = typeof o.t === 'number' ? o.t : 0.18;
   if (o.s) { settings.autoJump = !!o.s[0]; settings.fast = !!o.s[1]; settings.dist = DIST_NAMES[o.s[2]] ? o.s[2] : 4; settings.sound = !!o.s[3]; settings.monsters = o.s[4] === undefined ? true : !!o.s[4]; }
   spawn = findSpawn();
 }
+function resetKit() {   // 새 월드의 시작 장비: 나무 검
+  inv = {}; inv[I_WSWORD] = 1;
+  hotbar = [GRASS, DIRT, STONE, COBBLE, PLANKS, LOG, GLASS, BRICK, I_WSWORD]; sel = 0;
+}
 function freshWorld() {
+  resetKit();
   SEED = (Math.random() * 2147483000) | 0 || 1;
   world.edits = new Map();
   spawn = findSpawn();
@@ -1808,7 +2281,7 @@ function freshWorld() {
 }
 function newWorld() {
   world.chunks.forEach(function (c) { freeMesh(c); }); world.chunks.clear();
-  particles = []; mobs = []; arrows = []; hp = MAXHP; dead = false; refreshHearts(); freshWorld();
+  particles = []; mobs = []; arrows = []; drops = []; bombs = []; hp = MAXHP; dead = false; refreshHearts(); freshWorld(); refreshHotbar();
   document.body.classList.remove('fly'); $('btnFly').classList.remove('on');
   loading = true; $('loading').className = ''; $('loadText').textContent = '새 월드를 만드는 중…'; $('loadBar').style.width = '0%';
   dirtySave = true;
@@ -1830,7 +2303,7 @@ function frame(now) {
     pollKeys();
     updatePlayer(dt);
     timeOfDay = (timeOfDay + dt / DAY_LEN) % 1;
-    updateVitals(dt); updateSpawner(dt); updateMobs(dt); updateArrows(dt);
+    updateVitals(dt); updateSpawner(dt); updateMobs(dt); updateArrows(dt); updateDrops(dt); updateBombs(dt);
   }
   if (!loading) {
     // 조준: 블록과 몬스터 중 더 가까운 쪽 (몬스터가 앞이면 블록은 가리키지 않음)
@@ -1860,9 +2333,10 @@ function start() {
   }
   canvas.addEventListener('webglcontextlost', function (e) { e.preventDefault(); $('loading').className = ''; $('loadText').textContent = '화면을 다시 불러오는 중…'; });
   canvas.addEventListener('webglcontextrestored', function () { location.reload(); });
-  buildHotbar(); buildPalette(); buildHearts();
+  buildHotbar(); buildHearts();
   var sv = readSave();
   if (sv) applySave(sv); else freshWorld();
+  refreshHotbar();   // 저장된/기본 핫바를 아이콘에 반영
   if (window.__BLOCKCRAFT_CAN_EXIT__) $('mExit').style.display = 'block';   // 호스트 앱이 종료를 처리할 수 있을 때만
   setFlyQuiet(P.fly);
   refreshHearts();
@@ -1888,7 +2362,12 @@ window.blockcraft = {
   genChunk: genChunk, buildMesh: buildMesh,
   mobs: function () { return mobs.map(function (m) { return { id: m.id, type: m.type, x: m.x, y: m.y, z: m.z, hp: m.hp, fuse: m.fuse, burning: m.burning, onGround: m.onGround }; }); },
   spawnMob: function (type, x, y, z) { var m = makeMob(type, x, y, z); mobs.push(m); return m.id; },
-  clearMobs: function () { mobs = []; arrows = []; }, holdSpawner: function (v) { spawnerHold = !!v; },
+  clearMobs: function () { mobs = []; arrows = []; },
+  inv: function () { var o = {}; ITEM_IDS.forEach(function (id) { if (inv[id] > 0) o[IT[id].key] = inv[id]; }); return o; },
+  itemId: function (key) { for (var i = 0; i < ITEM_IDS.length; i++) if (IT[ITEM_IDS[i]].key === key) return ITEM_IDS[i]; return -1; },
+  giveItem: giveItem, craft: craft, recipeCount: function () { return RECIPES.length; }, setSlot: function (i, v) { hotbar[i] = v; refreshHotbar(); },
+  drops: function () { return drops.map(function (d) { return { id: d.id, key: IT[d.id].key, n: d.n, x: d.x, y: d.y, z: d.z, age: d.age }; }); },
+  attackCd: function () { return attackCd; }, held: function () { var it = heldItem(); return it ? it.key : null; }, dropItem: dropItem, bombCount: function () { return bombs.length; }, clearDrops: function () { drops = []; }, tapAction: tapAction, holdSpawner: function (v) { spawnerHold = !!v; },
   arrowCount: function () { return arrows.length; }, addArrow: function (a) { arrows.push(a); },
   hp: function () { return hp; }, setHp: function (v) { hp = v; refreshHearts(); }, kills: function () { return kills; },
   isDead: function () { return dead; }, hurtPlayer: hurtPlayer, daylight: daylight, mobTarget: function () { return mobTarget ? mobTarget.id : null; },
