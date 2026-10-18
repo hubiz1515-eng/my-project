@@ -1374,13 +1374,18 @@ function updateDrops(dt) {
     d.age += dt;
     if (d.age > 150 || d.y < -20) { drops.splice(i, 1); continue; }
     if (!world.chunks.get(ckey(Math.floor(d.x) >> 4, Math.floor(d.z) >> 4))) continue;
-    var dx = P.x - d.x, dy = P.y + 0.7 - d.y, dz = P.z - d.z, dist = Math.hypot(dx, dy, dz);
-    if (!dead && d.age > 0.5 && dist < 1.4) {   // 줍기
+    var dx = P.x - d.x, dy = P.y + 0.9 - d.y, dz = P.z - d.z, dist = Math.hypot(dx, dy, dz);
+    if (!dead && d.age > 0.5 && dist < 1.7) {   // 줍기
       giveItem(d.id, d.n); toast('+' + d.n + ' ' + IT[d.id].name); playSound('pop'); drops.splice(i, 1); continue;
     }
-    if (!dead && d.age > 0.7 && dist < 3.4) { var pull = 28 * dt / Math.max(dist, 0.4); d.vx += dx * pull; d.vy += dy * pull; d.vz += dz * pull; }   // 가까이 가면 끌려온다
-    d.vy = Math.max(-30, d.vy - 22 * dt);
-    if (d.onGround) { d.vx *= 1 - Math.min(1, 6 * dt); d.vz *= 1 - Math.min(1, 6 * dt); }
+    var magnet = !dead && d.age > 0.7 && dist < 4.6;
+    if (magnet) {   // 끌림 범위 안에서는 중력을 무시하고 플레이어 쪽으로 날아온다 (단차 밑에 걸리지 않게)
+      var hsp = 9, hk = Math.min(1, 12 * dt);
+      d.vx += (dx / dist * hsp - d.vx) * hk; d.vy += (dy / dist * hsp - d.vy) * hk; d.vz += (dz / dist * hsp - d.vz) * hk;
+    } else {
+      d.vy = Math.max(-30, d.vy - 22 * dt);
+      if (d.onGround) { d.vx *= 1 - Math.min(1, 6 * dt); d.vz *= 1 - Math.min(1, 6 * dt); }
+    }
     if (moveAxisE(d, 0, d.vx * dt)) d.vx *= -0.3;
     if (moveAxisE(d, 2, d.vz * dt)) d.vz *= -0.3;
     if (moveAxisE(d, 1, d.vy * dt)) { d.onGround = d.vy < 0; d.vy = d.vy < -3 ? -d.vy * 0.3 : 0; } else d.onGround = false;
@@ -2368,6 +2373,7 @@ window.blockcraft = {
   giveItem: giveItem, craft: craft, recipeCount: function () { return RECIPES.length; }, setSlot: function (i, v) { hotbar[i] = v; refreshHotbar(); },
   drops: function () { return drops.map(function (d) { return { id: d.id, key: IT[d.id].key, n: d.n, x: d.x, y: d.y, z: d.z, age: d.age }; }); },
   attackCd: function () { return attackCd; }, held: function () { var it = heldItem(); return it ? it.key : null; }, dropItem: dropItem, bombCount: function () { return bombs.length; }, clearDrops: function () { drops = []; }, tapAction: tapAction, holdSpawner: function (v) { spawnerHold = !!v; },
+  arrowList: function () { return arrows.map(function (a) { return { x: a.x, y: a.y, z: a.z, stuck: a.stuck, owner: a.owner }; }); },
   arrowCount: function () { return arrows.length; }, addArrow: function (a) { arrows.push(a); },
   hp: function () { return hp; }, setHp: function (v) { hp = v; refreshHearts(); }, kills: function () { return kills; },
   isDead: function () { return dead; }, hurtPlayer: hurtPlayer, daylight: daylight, mobTarget: function () { return mobTarget ? mobTarget.id : null; },
