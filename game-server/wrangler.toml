@@ -1,0 +1,8 @@
+name = "tangtang-leaderboard"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tangtang"
+database_id = "여기에-wrangler-d1-create-가-알려준-id"

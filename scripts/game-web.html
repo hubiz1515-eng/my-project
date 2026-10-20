@@ -40,6 +40,11 @@
   #ov.solid{background:#05060f}
   .dfs{display:flex;gap:6px}
   .dif{opacity:.55;font-weight:800}.dif.on{opacity:1;box-shadow:inset 0 0 0 3px currentColor}
+  #nick{font:inherit;font-size:15px;text-align:center;width:190px;padding:8px 10px;background:#15183a;color:#fff;border:3px solid #000;box-shadow:inset 0 0 0 2px #4a52a3;outline:0}
+  #nick:focus{box-shadow:inset 0 0 0 2px #ffd84a}
+  #lb{max-height:48vh;overflow:auto;min-height:60px}
+  #lb .tbl th{position:sticky;top:0;background:#0b0d1a}
+  .tbl td.nm{text-align:left;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .small{background:#262a52;color:#fff;border:3px solid #000;box-shadow:inset 0 0 0 2px #4a52a3;padding:8px 16px;font-size:14px}
   #ov{z-index:10}
 </style>
@@ -63,6 +68,20 @@ const fmt=t=>String(Math.floor(t/60)).padStart(2,'0')+':'+String(Math.floor(t%60
 /* 기록: 상위 10개 판(생존 시간 순) + 누적 최고치(처치·콤보)를 브라우저 localStorage 에 저장 */
 let diff=2;try{const d=localStorage.getItem('tangtang:diff');if(d!==null&&DIFFICULTIES[+d])diff=+d;}catch(e){}
 const DC=['#7ddc6a','#ffd84a','#ff7a3a','#ff3b3b'];
+/* 전체 순위 서버: 빌드할 때 TANGTANG_API=https://... 로 주입 (game-server/README.md). 비어 있으면 내 기록만 쓴다 */
+const API=/*__API__*/'';
+const lget=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lset=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+const rid=n=>{const a=new Uint8Array(n);crypto.getRandomValues(a);return Array.from(a,x=>(x%36).toString(36)).join('');};
+function ident(){let pid=lget('tangtang:pid'),sec=lget('tangtang:sec');if(!pid||!sec){pid=rid(24);sec=rid(32);lset('tangtang:pid',pid);lset('tangtang:sec',sec);}return{pid,sec};}
+function getNick(){let n=lget('tangtang:nick');if(!n){n='도깨비'+(1000+((Math.random()*9000)|0));lset('tangtang:nick',n);}return n;}
+function setNick(v){v=(v||'').replace(/[\u0000-\u001f<>]/g,'').replace(/\s+/g,' ').trim();v=Array.from(v).slice(0,12).join('');if(v)lset('tangtang:nick',v);return v;}
+const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(path,opt){const r=await fetch(API+path,opt);const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||r.status),{status:r.status});return j;}
+function submitScore(rec){
+  if(!API||rec.t<10)return Promise.resolve(null);
+  const id=ident();
+  return api('/score',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({diff:rec.df,pid:id.pid,secret:id.sec,name:getNick(),t:Math.round(rec.t*10)/10,kills:rec.k,lvl:rec.l,combo:rec.c})});
+}
 const REC='tangtang:records2',BST='tangtang:bests';
 const jget=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
 const jset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -421,16 +440,36 @@ function muteLbl(){return (Au.muted()?'🔇 소리 꺼짐':'🔊 소리 켜짐')
 function syncBtns(){document.getElementById('bm').textContent=Au.muted()?'🔇':'🔊';document.getElementById('bp').style.display=phase==='playing'?'':'none';}
 function menu(){
   const b=getBest(),bs=jget(BST,{k:0,c:0});phase='ready';syncBtns();
-  show('<div class="t1">탕탕 특공대</div><h1>귀신 천마리</h1><p>도깨비가 되어 몰려오는 귀신·강시·구미호를 막아내세요!\n\n화면 드래그 / WASD · 방향키 = 이동\n공격은 가장 가까운 적을 자동 조준합니다.\n레벨업마다 강화를 골라 최대한 오래 버티세요.\nSPACE = 필살기 (20마리 처치마다 충전)\nP = 일시정지   M = 소리</p>'+(b?'<div class="best">🏆 최고 기록 '+fmt(b)+' · 최다 처치 '+bs.k+' · 최대 콤보 '+bs.c+'</div>':'')+'<div class="dfs">'+DIFFICULTIES.map((d,i)=>'<button class="small dif'+(i===diff?' on':'')+'" data-d="'+i+'" style="color:'+DC[i]+'">'+d.name+'</button>').join('')+'</div><button class="btn" id="go">게임 시작</button><div><button class="small" id="rc">🏆 기록 보기</button> <button class="small" id="mu">'+muteLbl()+'</button></div>');
+  show('<div class="t1">탕탕 특공대</div><h1>귀신 천마리</h1><p>도깨비가 되어 몰려오는 귀신·강시·구미호를 막아내세요!\n\n화면 드래그 / WASD · 방향키 = 이동\n공격은 가장 가까운 적을 자동 조준합니다.\n레벨업마다 강화를 골라 최대한 오래 버티세요.\nSPACE = 필살기 (20마리 처치마다 충전)\nP = 일시정지   M = 소리</p>'+(b?'<div class="best">🏆 최고 기록 '+fmt(b)+' · 최다 처치 '+bs.k+' · 최대 콤보 '+bs.c+'</div>':'')+'<input id="nick" maxlength="12" placeholder="닉네임" value="'+esc(getNick())+'"><div class="dfs">'+DIFFICULTIES.map((d,i)=>'<button class="small dif'+(i===diff?' on':'')+'" data-d="'+i+'" style="color:'+DC[i]+'">'+d.name+'</button>').join('')+'</div><button class="btn" id="go">게임 시작</button><div><button class="small" id="wr">🌍 전체 순위</button> <button class="small" id="rc">🏆 내 기록</button> <button class="small" id="mu">'+muteLbl()+'</button></div>');
   document.getElementById('go').onclick=start;
   ov.querySelectorAll('.dif').forEach(el=>el.onclick=()=>{diff=+el.dataset.d;try{localStorage.setItem('tangtang:diff',String(diff))}catch(e){}Au.sfx('click');menu();});
   document.getElementById('rc').onclick=records;
+  document.getElementById('wr').onclick=()=>boards(diff,'menu');
+  const nk=document.getElementById('nick');nk.oninput=()=>setNick(nk.value);nk.onblur=()=>{nk.value=setNick(nk.value)||getNick();};
+  nk.onkeydown=e=>e.stopPropagation(); // 닉네임 입력 중에는 게임 단축키(P/M/Space)가 먹지 않게
+  nk.onkeyup=e=>e.stopPropagation();
   document.getElementById('mu').onclick=e=>{Au.init();Au.toggleMute();e.target.textContent=muteLbl();syncBtns();};
 }
 function records(back){
   show('<h2>🏆 최고 기록 TOP 10</h2>'+recTable()+'<div><button class="small" id="bk">돌아가기</button> <button class="small" id="cl">기록 초기화</button></div>');
   document.getElementById('bk').onclick=()=>phase==='over'?gameOver(true):menu();
   document.getElementById('cl').onclick=()=>{if(confirm('저장된 기록을 모두 지울까요?')){try{localStorage.removeItem(REC);localStorage.removeItem(BST);localStorage.removeItem(BEST)}catch(e){}records();}};
+}
+let lbTok=0;
+async function boards(d,back){
+  const tok=++lbTok;
+  show('<h2>🌍 전체 순위</h2><div class="dfs">'+DIFFICULTIES.map((x,i)=>'<button class="small dif'+(i===d?' on':'')+'" data-d="'+i+'" style="color:'+DC[i]+'">'+x.name+'</button>').join('')+'</div><div id="lb"><p>불러오는 중…</p></div><div><button class="small" id="bk">돌아가기</button></div>');
+  ov.querySelectorAll('.dif').forEach(el=>el.onclick=()=>boards(+el.dataset.d,back));
+  document.getElementById('bk').onclick=()=>back==='over'?gameOver(true):menu();
+  const box=document.getElementById('lb');
+  if(!API){box.innerHTML='<p>전체 순위 서버가 아직 설정되지 않았어요.\n(game-server/README.md 참고)</p>';return;}
+  try{
+    const j=await api('/leaderboard?diff='+d+'&limit=50&pid='+encodeURIComponent(ident().pid));
+    if(tok!==lbTok)return;
+    if(!j.rows.length){box.innerHTML='<p>아직 기록이 없어요.\n첫 번째 주인공이 되어 보세요!</p>';return;}
+    const row=r=>'<tr'+(r.me?' class="me"':'')+'><td>'+(r.rank===1?'🥇':r.rank===2?'🥈':r.rank===3?'🥉':r.rank)+'</td><td class="nm">'+esc(r.name)+'</td><td>'+fmt(r.t)+'</td><td>'+r.kills+'</td><td>'+r.lvl+'</td><td>'+r.combo+'</td></tr>';
+    box.innerHTML='<table class="tbl"><tr><th>순위</th><th>닉네임</th><th>생존</th><th>처치</th><th>Lv</th><th>콤보</th></tr>'+j.rows.map(row).join('')+(j.mine?'<tr><td colspan="6">⋮</td></tr>'+row(j.mine):'')+'</table><p style="font-size:13px;color:#9fb4ff">'+DIFFICULTIES[d].name+' · 총 '+j.total+'명 참가</p>';
+  }catch(e){if(tok===lbTok)box.innerHTML='<p>순위를 불러오지 못했어요.\n잠시 후 다시 시도해 주세요.</p>';}
 }
 function start(){ZM=1;zk=0;if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();Au.init();Au.resume();g=createGame(diff);parts.length=0;toast=null;phase='playing';paused=false;choosing=false;mv={x:0,y:0};stick=null;lastCombo=0;hide();syncBtns();Au.play();}
 function levelUp(){toast=null;
@@ -439,14 +478,18 @@ function levelUp(){toast=null;
   show('<h2>LEVEL UP!  Lv.'+g.player.level+'</h2>'+cs.map((u,i)=>'<button class="card" data-i="'+i+'"><span class="e">'+u.emoji+'</span><span><b>'+u.name+'</b><i>Lv.'+(g.upgrades[u.id]+1)+'</i><small>'+u.desc+'</small></span></button>').join(''));
   ov.querySelectorAll('.card').forEach(el=>el.onclick=()=>{applyUpgrade(g,cs[+el.dataset.i].id);choosing=false;hide();});
 }
-let lastResult=null;
+let lastResult=null,lastWorld='';
 function gameOver(again){
   phase='over';syncBtns();
-  if(again!==true){lastResult=addRecord(g);Au.stop();Au.sfx('over');if(lastResult.newTime){setTimeout(()=>Au.sfx('level'),900);}}
+  if(again!==true){lastResult=addRecord(g);Au.stop();Au.sfx('over');if(lastResult.newTime){setTimeout(()=>Au.sfx('level'),900);}
+    lastWorld=API?'🌍 전체 순위 등록 중…':'';
+    if(API)submitScore(lastResult.me).then(j=>{if(!j)return;lastWorld=(j.newBest?'🌍 전체 ':'🌍 내 최고 기록 기준 전체 ')+j.rank+'위 / '+j.total+'명 ('+DIFFICULTIES[g.diff].name+')';const el=document.getElementById('wl');if(el)el.textContent=lastWorld;})
+      .catch(()=>{lastWorld='🌍 순위 서버에 연결하지 못했어요';const el=document.getElementById('wl');if(el)el.textContent=lastWorld;});}
   const r=lastResult,tags=[];
   if(r.newTime)tags.push('🏆 신기록!');else if(r.rank>=0)tags.push('TOP 10 '+(r.rank+1)+'위');
   if(r.newKills)tags.push('최다 처치 갱신');if(r.newCombo)tags.push('최대 콤보 갱신');
-  show('<h2>GAME OVER</h2>'+(tags.length?'<div class="new">'+tags.join(' · ')+'</div>':'')+'<p style="color:'+DC[g.diff]+'">난이도  '+DIFFICULTIES[g.diff].name+'</p><p>생존 시간  '+fmt(g.time)+'\n처치  '+g.kills+'   최대 콤보  '+g.bestCombo+'\n레벨  '+g.player.level+'   엽전  '+g.coins+'</p>'+recTable(r.me)+'<button class="btn" id="go">다시 도전</button><button class="small" id="mn">메인 화면</button>');
+  show('<h2>GAME OVER</h2>'+(tags.length?'<div class="new">'+tags.join(' · ')+'</div>':'')+'<p style="color:'+DC[g.diff]+'">난이도  '+DIFFICULTIES[g.diff].name+'</p><p>생존 시간  '+fmt(g.time)+'\n처치  '+g.kills+'   최대 콤보  '+g.bestCombo+'\n레벨  '+g.player.level+'   엽전  '+g.coins+'</p>'+(API?'<div class="best" id="wl">'+esc(lastWorld)+'</div>':'')+recTable(r.me)+'<button class="btn" id="go">다시 도전</button><div><button class="small" id="wr">🌍 전체 순위</button> <button class="small" id="mn">메인 화면</button></div>');
+  document.getElementById('wr').onclick=()=>boards(g.diff,'over');
   document.getElementById('go').onclick=start;
   document.getElementById('mn').onclick=()=>{g=createGame();menu();};
 }
