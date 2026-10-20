@@ -609,7 +609,7 @@ const DC=['#7ddc6a','#ffd84a','#ff7a3a','#ff3b3b'];
 /* 전체 순위 서버: 빌드할 때 TANGTANG_API=https://... 로 주입 (game-server/README.md). 비어 있으면 내 기록만 쓴다 */
 const API="";
 /* Firebase(Firestore REST) 순위: 빌드할 때 TANGTANG_FB_KEY / TANGTANG_FB_PROJECT 로 주입 (game-server/README.md). 둘 다 있으면 API(Worker)보다 우선 */
-const FB=null;
+const FB={"key":"AIzaSyChIUWt-BB9tBRJHAsNicqKHaHNSlitrxs","project":"tangtang-game-48c6a","signup":"https://identitytoolkit.googleapis.com/v1/accounts:signUp","token":"https://securetoken.googleapis.com/v1/token","fs":"https://firestore.googleapis.com/v1"};
 const BACKEND=FB?'fb':API?'api':'';
 const lget=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lset=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 const rid=n=>{const a=new Uint8Array(n);crypto.getRandomValues(a);return Array.from(a,x=>(x%36).toString(36)).join('');};
