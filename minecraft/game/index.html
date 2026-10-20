@@ -2697,7 +2697,7 @@ function refreshMenu() {
   $('mSound').textContent = '소리: ' + (settings.sound ? '켜짐' : '꺼짐');
   $('mMon').textContent = dim === 1 ? '몬스터: 켜짐 🔒' : '몬스터: ' + (settings.monsters ? '켜짐' : '꺼짐 (평화)');
   $('mLeave').style.display = dim === 1 ? 'block' : 'none';
-  $('mAdmin').style.display = cloud.avail ? 'block' : 'none';
+  $('mAdmin').style.display = document.body.classList.contains('cloud') ? 'block' : 'none';
   $('mQuest').className = dim === 1 ? 'btn' : 'btn wide';
   $('mTime').textContent = timeOfDay < 0.5 ? '밤으로 바꾸기 🌙' : '낮으로 바꾸기 ☀️';
 }
@@ -2968,6 +2968,12 @@ $('cfForce').addEventListener('click', function () {
 function admMsg(t, ok) { var m = $('admMsg'); m.textContent = t || ''; m.className = 'msg' + (ok ? ' ok' : ''); }
 function admAuthed() { return !!adm.token && Date.now() < adm.exp - 5000; }
 function admShow() {
+  if (!cloud.avail) {   // 서버(Netlify)에 배포된 게임이 아니면 관리자 기능을 쓸 수 없다 — 안내만
+    $('admLogin').style.display = 'none'; $('admMain').style.display = 'none';
+    $('admSub').textContent = '관리자 화면은 서버(Netlify)에 배포된 게임에서만 쓸 수 있어요. 지금은 이 기기에만 저장하는 모드로 열려 있어요.';
+    admMsg('');
+    return;
+  }
   var on = admAuthed();
   $('admLogin').style.display = on ? 'none' : 'block'; $('admMain').style.display = on ? 'block' : 'none';
   $('admSub').textContent = on ? '저장된 플레이어를 관리해요' : '관리자 비밀번호를 입력하세요';
@@ -3103,6 +3109,7 @@ function start() {
   canvas.addEventListener('webglcontextlost', function (e) { e.preventDefault(); $('loading').className = ''; $('loadText').textContent = '화면을 다시 불러오는 중…'; });
   canvas.addEventListener('webglcontextrestored', function () { location.reload(); });
   buildHotbar(); buildHearts();
+  if (!MANAGED && !window.ReactNativeWebView && window.parent === window) document.body.classList.add('cloud');   // 흐린 '관리자' 버튼 표시 (앱 안에서는 숨김)
   cloudStart(begin);   // 서버가 있으면 닉네임을 물어 서버 저장을 불러오고, 아니면 바로 이 기기의 저장으로 시작
 }
 function begin(sv) {
