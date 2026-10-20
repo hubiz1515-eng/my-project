@@ -3013,7 +3013,7 @@ function admDownload(nick) {
     if (j.status === 401) return admExpired();
     if (!j.ok) return admMsg('내려받지 못했어요 (' + (j.error || j.status) + ')');
     var a = document.createElement('a'), url = URL.createObjectURL(new Blob([j.data], { type: 'application/json' }));
-    a.href = url; a.download = 'blockcraft-' + nick.replace(/[^\p{L}\p{N}_\-.]+/gu, '_') + '.json';
+    a.href = url; a.download = 'blockcraft-' + nick.replace(/[\\\/:*?"<>|\u0000-\u001f]+/g, '_') + '.json';   // 파일명에 못 쓰는 글자만 치환 (ES5 정규식: 오래된 WebView 에서도 스크립트가 깨지지 않게)
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
     admMsg(nick + ' 저장 데이터를 내려받았어요', true);
   });
