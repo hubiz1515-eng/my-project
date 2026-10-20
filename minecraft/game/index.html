@@ -74,6 +74,20 @@ body.fly .rb.small{display:block}
 .rt i.no{color:#ff8a80}
 .mk{padding:8px 12px;border-radius:8px;border:2px solid #7be07b;background:#3d9a3d;font-weight:700;font-size:13px;touch-action:manipulation}
 .mk:disabled{opacity:.35;border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.1)}
+#ptint{position:fixed;left:0;top:0;right:0;bottom:0;background:radial-gradient(ellipse at center,rgba(170,90,255,.55),rgba(60,10,120,.9));opacity:0;pointer-events:none;z-index:2}
+#qtrack{position:fixed;left:10px;top:66px;max-width:44vw;padding:5px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.42);font-size:11px;line-height:1.4;text-align:left;white-space:pre-line;z-index:4;touch-action:manipulation;text-shadow:0 1px 2px #000}
+#boss{position:fixed;left:50%;top:10px;transform:translateX(-50%);width:min(40vw,300px);display:none;z-index:4;pointer-events:none;text-align:center;font-size:12px;font-weight:700;text-shadow:0 1px 2px #000}
+#boss .bar{height:12px;margin-top:3px;border-radius:6px;border:2px solid rgba(255,255,255,.55);background:rgba(0,0,0,.55);overflow:hidden}
+#boss .bar i{display:block;height:100%;width:100%;background:linear-gradient(#d06bff,#7a24c8)}
+body.boss #boss{display:block}
+@media (max-width:560px){#boss{top:56px;width:min(70vw,300px)} body.boss #qtrack{top:96px}}
+.qi{display:flex;gap:9px;align-items:flex-start;padding:7px 9px;margin:6px 0;border-radius:9px;border:2px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05)}
+.qi b{flex:none;width:20px;text-align:center;font-size:15px;line-height:1.3}
+.qi div{flex:1;min-width:0;font-size:13px}
+.qi div span{display:block;margin-top:2px;font-size:11.5px;line-height:1.45;color:#b8bec9}
+.qi.done{opacity:.55}
+.qi.now{border-color:#c98bff;background:rgba(170,90,255,.16)}
+.qi:not(.now) div span{display:none}
 #hurt{position:fixed;left:0;top:0;right:0;bottom:0;background:radial-gradient(ellipse at center,rgba(255,0,0,.12),rgba(210,0,0,.7));opacity:0;transition:opacity .35s;pointer-events:none;z-index:2}
 #hurt.on{opacity:1;transition:none}
 #hearts{position:fixed;left:50%;bottom:calc(var(--s) + 26px);transform:translateX(-50%);display:none;gap:1px;z-index:5;pointer-events:none;font-size:17px;line-height:1}
@@ -104,6 +118,7 @@ body.fly .rb.small{display:block}
 <div id="touch"></div>
 <div id="water-tint"></div>
 <div id="hurt"></div>
+<div id="ptint"></div>
 <div id="crosshair"></div>
 <div id="info"></div>
 <div id="toast"></div>
@@ -112,6 +127,8 @@ body.fly .rb.small{display:block}
   <button id="btnInv" class="ib" aria-label="블록 고르기">🎒</button>
   <button id="btnMenu" class="ib" aria-label="메뉴">☰</button>
 </div>
+<button id="qtrack" aria-label="목표"></button>
+<div id="boss"><div id="bossName">엔더 드래곤</div><div class="bar"><i id="bossFill"></i></div></div>
 <div id="hearts"></div>
 <div id="hotbar"></div>
 <div id="joy"><div id="knob"></div></div>
@@ -125,6 +142,8 @@ body.fly .rb.small{display:block}
   <p class="sub">마인크래프트 스타일 샌드박스 · 자동 저장됨</p>
   <button class="btn main" id="mResume">계속하기</button>
   <div class="grid2">
+    <button class="btn wide" id="mQuest">🎯 목표 보기</button>
+    <button class="btn" id="mLeave" style="display:none">🌍 오버월드로</button>
     <button class="btn" id="mFly"></button>
     <button class="btn" id="mAuto"></button>
     <button class="btn" id="mFast"></button>
@@ -171,6 +190,13 @@ body.fly .rb.small{display:block}
     <li>통나무·돌·석탄·철광석을 캐도 아이템이 나와요. 🎒 가방의 <b>제작</b> 탭에서 검·도끼·활·화살·폭탄·구운 고기를 만들 수 있어요</li>
     <li>아이템은 가방에서 핫바에 넣어 써요: 검/도끼는 탭해서 공격, <b>활</b>은 탭해서 발사(화살 필요), <b>폭탄</b>은 탭해서 던지기, <b>음식</b>은 탭해서 먹기 (PC는 우클릭)</li>
   </ul>
+  <p><b>🐉 최종 목표: 엔더 드래곤</b></p>
+  <ul>
+    <li>왼쪽 위 <b>🎯 목표</b>를 눌러(또는 메뉴 → 목표 보기 · Q 키) 단계별 안내를 볼 수 있어요</li>
+    <li>엔더맨의 <b>엔더 진주</b> + 크리퍼의 <b>화약</b> → <b>엔더의 눈</b> → <b>포털 프레임</b>. 프레임 8개를 가운데가 빈 3×3 고리로 바닥에 놓으면 <b>엔드 포털</b>이 열려요</li>
+    <li>포털 안에 서서 기다리면 엔드로 이동! 높은 기둥 위의 <b>엔드 크리스탈</b>을 부수고 <b>엔더 드래곤</b>을 처치하세요</li>
+    <li>철/다이아 <b>갑옷</b>은 가방에 있으면 자동으로 입어요 (받는 피해 감소)</li>
+  </ul>
   <p><b>⌨️ 키보드 · 마우스</b></p>
   <ul>
     <li>클릭으로 마우스 잠금 · WASD 이동 · Space 점프(두 번=비행) · Shift 하강</li>
@@ -178,6 +204,21 @@ body.fly .rb.small{display:block}
     <li>숫자 1~9 / 휠: 블록 선택 · E: 블록 목록 · F: 비행 · Esc: 메뉴</li>
   </ul>
   <button class="btn main" id="hClose">시작하기</button>
+</div></div>
+
+<div id="quest" class="panel"><div class="card">
+  <h2>🎯 목표</h2>
+  <p class="sub">엔드로 가서 엔더 드래곤을 쓰러뜨리자!</p>
+  <div id="qlist"></div>
+  <button class="btn main" id="qClose">닫기</button>
+</div></div>
+
+<div id="win" class="panel"><div class="card" style="text-align:center">
+  <h2>🏆 클리어!</h2>
+  <p class="sub">엔더 드래곤을 쓰러뜨렸어요!</p>
+  <p>섬 한가운데에 오버월드로 돌아가는 포털이 생겼어요.<br>엔드를 더 둘러봐도 좋고, 돌아가서 계속 만들어도 좋아요.</p>
+  <button class="btn main" id="wContinue">계속하기</button>
+  <button class="btn" id="wReturn">🌍 오버월드로 돌아가기</button>
 </div></div>
 
 <div id="death" class="panel"><div class="card" style="text-align:center">
@@ -250,10 +291,13 @@ var T_GRASS_TOP = 0, T_GRASS_SIDE = 1, T_DIRT = 2, T_STONE = 3, T_COBBLE = 4, T_
     T_ZFACE = 40, T_ZSKIN = 41, T_ZSHIRT = 42, T_ZPANTS = 43, T_CFACE = 44, T_CSKIN = 45,
     T_SFACE = 46, T_BONE = 47, T_RIBS = 48, T_ARROW = 49,   // 몬스터 · 화살
     T_PIG = 50, T_PIGFACE = 51, T_COW = 52, T_COWFACE = 53, T_WOOL = 54, T_SHEEPFACE = 55, T_SHEEPSKIN = 56,
-    T_CHICK = 57, T_CHICKFACE = 58, T_BEAK = 59, T_CHICKLEG = 60;   // 동물
+    T_CHICK = 57, T_CHICKFACE = 58, T_BEAK = 59, T_CHICKLEG = 60,   // 동물
+    T_DIAMOND = 100, T_OBSIDIAN = 101, T_ENDSTONE = 102, T_FRAME_TOP = 103, T_FRAME_SIDE = 104, T_PORTAL = 105,
+    T_ENDERMAN = 107, T_ENDER_FACE = 108, T_DRAGON = 109, T_DRAGON_HEAD = 110, T_DRAGON_WING = 111, T_CRYSTAL = 112, T_FIREBALL = 113;   // 엔드
 var TI = { coal: 64, iron: 65, stick: 66, bone: 67, feather: 68, leather: 69, wool: 70, gunpowder: 71, flesh: 72,
            pork: 73, beef: 74, mutton: 75, chicken: 76, cpork: 77, steak: 78, cmutton: 79, cchicken: 80, bandage: 81,
-           arrow: 82, wsword: 83, ssword: 84, isword: 85, axe: 86, bow: 87, bomb: 88 };   // 아이템 아이콘 타일
+           arrow: 82, wsword: 83, ssword: 84, isword: 85, axe: 86, bow: 87, bomb: 88,
+           pearl: 120, eye: 121, diamond: 122, iarmor: 123, darmor: 124, dsword: 125 };   // 아이템 아이콘 타일
 
 var B = [];
 // 면 순서: +x, -x, +y(윗면), -y(아랫면), +z, -z
@@ -278,11 +322,18 @@ def(SNOW, '눈 블록', T_SNOW, T_SNOW, T_SNOW, { hard: 0.2 });
 def(COAL, '석탄 광석', T_COAL, T_COAL, T_COAL, { hard: 1.0 });
 def(IRON, '철 광석', T_IRON, T_IRON, T_IRON, { hard: 1.0 });
 def(BEDROCK, '기반암', T_BEDROCK, T_BEDROCK, T_BEDROCK, { hard: 9999 });
+var DIAMOND = 16, OBSIDIAN = 17, ENDSTONE = 18, FRAME = 19, PORTAL = 20, WOOLB = 21;
+def(DIAMOND, '다이아몬드 광석', T_DIAMOND, T_DIAMOND, T_DIAMOND, { hard: 1.3 });
+def(OBSIDIAN, '흑요석', T_OBSIDIAN, T_OBSIDIAN, T_OBSIDIAN, { hard: 3.0 });
+def(ENDSTONE, '엔드 돌', T_ENDSTONE, T_ENDSTONE, T_ENDSTONE, { hard: 0.9 });
+def(FRAME, '엔드 포털 프레임', T_FRAME_TOP, T_FRAME_SIDE, T_FRAME_SIDE, { hard: 1.2 });
+def(PORTAL, '엔드 포털', T_PORTAL, T_PORTAL, T_PORTAL, { solid: false, opaque: false, portal: true, hard: 0 });
+def(WOOLB, '양털 블록', T_WOOL, T_WOOL, T_WOOL, { hard: 0.25 });
 
 var OPQ = new Uint8Array(256), BLOCKING = new Uint8Array(256);   // 면 가림 / 하늘빛 차단 여부
 for (var bi = 0; bi < B.length; bi++) { OPQ[bi] = B[bi].opaque ? 1 : 0; BLOCKING[bi] = (B[bi].opaque || bi === LEAVES) ? 1 : 0; }
 
-var PALETTE = [GRASS, DIRT, STONE, COBBLE, SAND, SNOW, LOG, PLANKS, LEAVES, GLASS, BRICK, COAL, IRON];
+var PALETTE = [GRASS, DIRT, STONE, COBBLE, SAND, SNOW, LOG, PLANKS, LEAVES, GLASS, BRICK, COAL, IRON, WOOLB, OBSIDIAN, ENDSTONE, DIAMOND];
 
 /* ======================================================================
  *  아이템 · 인벤토리 · 제작
@@ -321,12 +372,19 @@ var I_LOG = defItem('log', '통나무', { block: LOG }),
     I_ISWORD = defItem('isword', '철 검', { kind: 'weapon', dmg: 9, cd: 0.38 }),
     I_AXE = defItem('axe', '철 도끼', { kind: 'weapon', dmg: 12, cd: 0.85 }),
     I_BOW = defItem('bow', '활', { kind: 'bow', dmg: 7, cd: 0.65 }),
-    I_BOMB = defItem('bomb', '폭탄', { kind: 'bomb', cd: 0.8 });
+    I_BOMB = defItem('bomb', '폭탄', { kind: 'bomb', cd: 0.8 }),
+    I_PEARL = defItem('pearl', '엔더 진주'),
+    I_EYE = defItem('eye', '엔더의 눈'),
+    I_FRAME = defItem('frame', '엔드 포털 프레임', { kind: 'place', block: FRAME, place: FRAME }),
+    I_DIAMOND = defItem('diamond', '다이아몬드'),
+    I_IARMOR = defItem('iarmor', '철 갑옷', { kind: 'armor', reduce: 0.35 }),
+    I_DARMOR = defItem('darmor', '다이아 갑옷', { kind: 'armor', reduce: 0.55 }),
+    I_DSWORD = defItem('dsword', '다이아 검', { kind: 'weapon', dmg: 13, cd: 0.38 });
 
 var inv = {};
 inv[I_WSWORD] = 1;
 function invCount(id) { return inv[id] || 0; }
-function giveItem(id, n) { inv[id] = invCount(id) + n; dirtySave = true; refreshHotbarCounts(); }
+function giveItem(id, n) { inv[id] = invCount(id) + n; if (id === I_PEARL) pearlTotal += n; dirtySave = true; refreshHotbarCounts(); }
 function takeItem(id, n) { inv[id] = Math.max(0, invCount(id) - n); dirtySave = true; refreshHotbarCounts(); }
 function nameOf(v) { return v >= ITEM_BASE ? IT[v].name : B[v].name; }
 
@@ -344,14 +402,21 @@ var RECIPES = [
   { out: I_CPORK, n: 1, need: [[I_PORK, 1], [I_STICK, 1]] },
   { out: I_STEAK, n: 1, need: [[I_BEEF, 1], [I_STICK, 1]] },
   { out: I_CMUTTON, n: 1, need: [[I_MUTTON, 1], [I_STICK, 1]] },
-  { out: I_CCHICKEN, n: 1, need: [[I_CHICKEN, 1], [I_STICK, 1]] }
+  { out: I_CCHICKEN, n: 1, need: [[I_CHICKEN, 1], [I_STICK, 1]] },
+  { out: I_EYE, n: 1, need: [[I_PEARL, 1], [I_GUNPOWDER, 1]] },
+  { out: I_FRAME, n: 2, need: [[I_EYE, 1], [I_COBBLE, 2]] },
+  { out: I_IARMOR, n: 1, need: [[I_IRON, 6]] },
+  { out: I_DSWORD, n: 1, need: [[I_DIAMOND, 2], [I_STICK, 1]] },
+  { out: I_DARMOR, n: 1, need: [[I_DIAMOND, 5]] }
 ];
+function armorReduce() { return invCount(I_DARMOR) > 0 ? 0.55 : invCount(I_IARMOR) > 0 ? 0.35 : 0; }
 function canCraft(r) { return r.need.every(function (p) { return invCount(p[0]) >= p[1]; }); }
 function craft(i) {
   var r = RECIPES[i];
   if (!r || !canCraft(r)) return false;
   r.need.forEach(function (p) { inv[p[0]] -= p[1]; });
   giveItem(r.out, r.n);
+  if (r.out === I_EYE) eyeMade += r.n;
   var it = IT[r.out];
   // 무기류는 만들면 선택된 핫바 칸에 바로 들려 준다
   if ((it.kind === 'weapon' || it.kind === 'bow' || it.kind === 'bomb') && hotbar.indexOf(r.out) < 0) { hotbar[sel] = r.out; refreshHotbar(); }
@@ -587,6 +652,60 @@ function buildAtlas() {
   rect(TI.bandage, 4, 5, 12, 11, [240, 240, 236]); rect(TI.bandage, 4, 5, 12, 5, [208, 208, 204]); rect(TI.bandage, 4, 11, 12, 11, [198, 198, 194]);
   rect(TI.bandage, 7, 6, 8, 10, [206, 40, 52]); rect(TI.bandage, 5, 7, 10, 8, [206, 40, 52]);
 
+  // ---- 엔드: 블록 ----
+  ore(T_DIAMOND, [96, 236, 232]);
+  each(T_OBSIDIAN, function (x, y) { var k = n(7), v = hash2(x >> 1, y >> 1, 61) > 0.82 ? 38 : 0; return [20 + k + v, 11 + k * 0.5, 34 + k + v * 1.4]; });
+  each(T_ENDSTONE, function (x, y) { var k = n(9), b = (hash2(x >> 1, y >> 1, 71) - 0.5) * 22; return [228 + k + b, 224 + k + b, 156 + k + b]; });
+  fillTile(T_FRAME_SIDE, [206, 202, 146], 8);
+  rect(T_FRAME_SIDE, 0, 0, 15, 3, [56, 108, 90]); rect(T_FRAME_SIDE, 0, 4, 15, 4, [36, 76, 62]);
+  fillTile(T_FRAME_TOP, [56, 108, 90], 7);
+  rect(T_FRAME_TOP, 3, 3, 12, 12, [22, 44, 40]);
+  ball(T_FRAME_TOP, 7.5, 7.5, 3.4, 3.4, [64, 214, 140], 6); ball(T_FRAME_TOP, 7.5, 7.5, 1.3, 1.3, [20, 60, 40], 0);
+  each(T_PORTAL, function (x, y) {
+    var w = Math.sin((x + y) * 0.85) + Math.sin((x - y) * 0.62 + 1.3), k = n(10);
+    if (hash2(x, y, 53) > 0.93) return [214, 170, 255];   // 별
+    return [74 + w * 14 + k, 20 + w * 6 + k * 0.5, 126 + w * 22 + k];
+  });
+  fillTile(T_ENDERMAN, [14, 14, 18], 4);
+  fillTile(T_ENDER_FACE, [14, 14, 18], 4);
+  rect(T_ENDER_FACE, 2, 7, 5, 8, [244, 120, 255]); rect(T_ENDER_FACE, 10, 7, 13, 8, [244, 120, 255]);
+  rect(T_ENDER_FACE, 3, 7, 4, 7, [255, 220, 255]); rect(T_ENDER_FACE, 11, 7, 12, 7, [255, 220, 255]);
+  each(T_DRAGON, function (x, y) { var k = n(5), sc = ((x + (y >> 2) * 2) % 4 === 0) ? 10 : 0; return [58 + k + sc * 1.6, 48 + k + sc * 1.6, 78 + k + sc * 1.6]; });
+  fillTile(T_DRAGON_HEAD, [66, 54, 86], 5);
+  rect(T_DRAGON_HEAD, 2, 5, 4, 6, [236, 70, 210]); rect(T_DRAGON_HEAD, 11, 5, 13, 6, [236, 70, 210]);
+  rect(T_DRAGON_HEAD, 5, 11, 6, 12, [12, 10, 16]); rect(T_DRAGON_HEAD, 9, 11, 10, 12, [12, 10, 16]);
+  each(T_DRAGON_WING, function (x, y) { var k = n(5), line = (x % 5 === 0) ? 18 : 0; return [104 + k + line * 1.5, 76 + k + line * 1.5, 146 + k + line * 2]; });
+  each(T_CRYSTAL, function (x, y) {
+    var edge = x === 0 || y === 0 || x === 15 || y === 15, d = Math.abs(x - y), k = n(8);
+    if (edge) return [150, 40, 170];
+    if (d < 2) return [255, 210, 255];
+    return [214 + k, 84 + k, 226 + k];
+  });
+  each(T_FIREBALL, function (x, y) { var d = Math.hypot(x - 7.5, y - 7.5), k = n(10); return d < 3 ? [255, 240, 255] : d < 6 ? [214 + k, 130 + k, 255] : [120 + k, 40 + k, 200]; });
+
+  // ---- 엔드: 아이템 아이콘 ----
+  clearTile(TI.pearl); ball(TI.pearl, 8, 8, 5, 5, [26, 150, 130], 6);
+  [[6, 6], [7, 5], [6, 5]].forEach(function (d2) { dot(TI.pearl, d2[0], d2[1], [150, 240, 220]); });
+  clearTile(TI.eye); ball(TI.eye, 8, 8, 5, 5, [26, 150, 130], 6);
+  ball(TI.eye, 8, 8, 2.4, 2.4, [214, 60, 30], 0); ball(TI.eye, 8, 8, 1.1, 1.1, [20, 10, 10], 0);
+  [[6, 5], [5, 6]].forEach(function (d2) { dot(TI.eye, d2[0], d2[1], [150, 240, 220]); });
+  clearTile(TI.diamond);
+  [[4, 7, 8], [5, 6, 9], [6, 5, 10], [7, 4, 11], [8, 4, 11], [9, 5, 10], [10, 6, 9], [11, 7, 8]].forEach(function (r) {
+    for (var xx = r[1]; xx <= r[2]; xx++) dot(TI.diamond, xx, r[0], r[0] < 8 ? [96, 236, 236] : [38, 160, 180]);
+  });
+  [[6, 6], [7, 5], [5, 7], [6, 7]].forEach(function (d2) { dot(TI.diamond, d2[0], d2[1], [214, 255, 255]); });
+  function armor(t, c, dk, lt) {
+    clearTile(t);
+    rect(t, 4, 5, 11, 13, c); rect(t, 2, 5, 4, 8, c); rect(t, 11, 5, 13, 8, c);
+    for (var ny = 4; ny <= 5; ny++) for (var nx = 6; nx <= 9; nx++) put(t, nx, ny, 0, 0, 0, 0);   // 목 구멍 (투명)
+    ln(t, 4, 13, 11, 13, dk, 1); ln(t, 2, 8, 4, 8, dk, 1); ln(t, 11, 8, 13, 8, dk, 1);
+    ln(t, 5, 6, 5, 11, lt, 1); dot(t, 3, 6, lt); dot(t, 12, 6, lt);
+    ln(t, 8, 7, 8, 12, dk, 1);
+  }
+  armor(TI.iarmor, [190, 192, 200], [120, 122, 132], [236, 238, 246]);
+  armor(TI.darmor, [86, 222, 226], [36, 144, 164], [212, 255, 255]);
+  sword(TI.dsword, [96, 232, 236], [210, 255, 255]);
+
   // 균열 (파괴 진행 10단계): 중앙에서 뻗어 나가는 무작위 선
   var path = [], seen = {};
   for (var w = 0; w < 4; w++) {
@@ -648,10 +767,19 @@ function isCave(x, y, z) {
 function treeAt(wx, wz, h, surf) { return surf === 0 && h > SEA + 1 && h < 40 && hash2(wx, wz, SEED + 99) < 0.012; }
 
 var world = { chunks: new Map(), edits: new Map() };
+// 차원: 0 = 오버월드, 1 = 엔드. 블록 편집 기록은 차원마다 따로 가진다.
+var dim = 0, overEdits = world.edits, endEdits = new Map();
+var END_TOP = 36, END_R = 40;
+// 진행 상태 (모두 저장됨)
+var pearlTotal = 0, eyeMade = 0;
+var portalActive = false, visitedEnd = false, crystalsCleared = false, dragonDefeated = false, questIdx = 0, retPos = null;
+var dragonHp = 120, crystalMask = 255;
+var fireballs = [];
 function ckey(cx, cz) { return (cx + 32768) * 65536 + (cz + 32768); }
 function cidx(x, y, z) { return (y * CS + z) * CS + x; }
 
 function genChunk(cx, cz) {
+  if (dim === 1) return genChunkEnd(cx, cz);
   var data = new Uint8Array(CS * CH * CS), x0 = cx * CS, z0 = cz * CS, M = 3, W = CS + 2 * M;
   var hm = new Int16Array(W * W), tm = new Float32Array(W * W), maxY = 0;
   for (var j = 0; j < W; j++) for (var i = 0; i < W; i++) {
@@ -668,7 +796,7 @@ function genChunk(cx, cz) {
       else {
         b = STONE;
         var r = hash3(wx, y, wz, SEED + 5);
-        if (r < 0.011 && y < 46) b = COAL; else if (r > 0.996 && y < 30) b = IRON;
+        if (r > 0.9985 && y < 16) b = DIAMOND; else if (r < 0.011 && y < 46) b = COAL; else if (r > 0.996 && y < 30) b = IRON;
       }
       if (y > 2 && y < h - 4 && isCave(wx, y, wz)) b = AIR;
       data[cidx(x, y, z)] = b;
@@ -706,8 +834,41 @@ function genChunk(cx, cz) {
   return ch;
 }
 
+// ---- 엔드: 공허 위에 떠 있는 섬 + 흑요석 기둥 8개 ----
+var PILLARS = [];
+(function () {
+  for (var k = 0; k < 8; k++) { var a = k * Math.PI / 4; PILLARS.push({ x: Math.round(Math.cos(a) * 24), z: Math.round(Math.sin(a) * 24), h: 10 + (k * 7) % 15 }); }
+})();
+function endTopAt(x, z) { return Math.hypot(x, z) > END_R ? -1 : END_TOP + Math.round((noise2(x * 0.09, z * 0.09, 900) - 0.5) * 3); }
+function genChunkEnd(cx, cz) {
+  var data = new Uint8Array(CS * CH * CS), x0 = cx * CS, z0 = cz * CS, maxY = 0;
+  for (var z = 0; z < CS; z++) for (var x = 0; x < CS; x++) {
+    var wx = x0 + x, wz = z0 + z, top = endTopAt(wx, wz);
+    if (top < 0) continue;
+    var rr = Math.hypot(wx, wz) / END_R, bot = Math.max(1, Math.round(END_TOP - 2 - 16 * (1 - rr * rr)));
+    for (var y = bot; y <= top; y++) data[cidx(x, y, z)] = ENDSTONE;
+    if (top > maxY) maxY = top;
+  }
+  PILLARS.forEach(function (pl) {
+    for (var dz = -3; dz <= 3; dz++) for (var dx = -3; dx <= 3; dx++) {
+      if (dx * dx + dz * dz > 6) continue;
+      var lx = pl.x + dx - x0, lz = pl.z + dz - z0;
+      if (lx < 0 || lx >= CS || lz < 0 || lz >= CS) continue;
+      var ytop = END_TOP + pl.h;
+      for (var yy = END_TOP - 1; yy <= ytop; yy++) data[cidx(lx, yy, lz)] = OBSIDIAN;
+      if (!dx && !dz) { data[cidx(lx, ytop + 1, lz)] = BEDROCK; maxY = Math.max(maxY, ytop + 1); }
+      maxY = Math.max(maxY, ytop);
+    }
+  });
+  var ed = world.edits.get(ckey(cx, cz));
+  if (ed) ed.m.forEach(function (b, k) { data[k] = b; var yy2 = (k / (CS * CS)) | 0; if (yy2 > maxY) maxY = yy2; });
+  var ch = { cx: cx, cz: cz, data: data, maxY: Math.min(CH - 1, maxY + 1), needMesh: true, opaque: [], water: [] };
+  world.chunks.set(ckey(cx, cz), ch);
+  return ch;
+}
+
 function getBlock(x, y, z) {
-  if (y < 0) return BEDROCK;
+  if (y < 0) return dim === 1 ? AIR : BEDROCK;   // 엔드는 바닥이 없다 (허공)
   if (y >= CH) return AIR;
   var ch = world.chunks.get(ckey(x >> 4, z >> 4));
   return ch ? ch.data[cidx(x & 15, y, z & 15)] : AIR;
@@ -799,10 +960,10 @@ function buildMesh(ch) {
   for (var y = 0; y <= ch.maxY; y++) for (var z = 0; z < CS; z++) for (var x = 0; x < CS; x++) {
     var id = pad[pidx(x, y, z)];
     if (id === AIR) continue;
-    var d = B[id], isW = !!d.liquid, buf = isW ? WB : OB;
+    var d = B[id], isW = !!(d.liquid || d.portal), buf = isW ? WB : OB;
     for (var f = 0; f < 6; f++) {
       var F = FACES[f], nbid = pad[pidx(x + F.n[0], y + F.n[1], z + F.n[2])];
-      if (isW) { if (nbid === WATER || OPQ[nbid]) continue; }
+      if (isW) { if (nbid === id || OPQ[nbid]) continue; }
       else { if (OPQ[nbid]) continue; if (d.selfcull && nbid === id) continue; }
       if (buf.q >= QMAX) flushBuf(buf);
       var tile = d.tiles[f], u0 = TU[tile], v0 = TV[tile];
@@ -811,7 +972,7 @@ function buildMesh(ch) {
       if (isW) { ao[0] = ao[1] = ao[2] = ao[3] = 3; }
       else for (var k = 0; k < 4; k++) ao[k] = aoAt(x, y, z, F, F.c[k]);
       var flip = (ao[0] + ao[2] > ao[1] + ao[3]) ? 1 : 0, a = buf.a, n = buf.n;
-      var lowerTop = isW && pad[pidx(x, y + 1, z)] !== WATER;
+      var lowerTop = d.liquid && pad[pidx(x, y + 1, z)] !== WATER;
       for (var kk = 0; kk < 4; kk++) {
         var vi = flip ? (kk + 1) & 3 : kk, c = F.c[vi];
         a[n++] = x + c[0];
@@ -986,7 +1147,7 @@ function updatePlayer(dt) {
   }
   var by = moveAxis(1, P.vy * dt);
   if (by) { P.onGround = P.vy < 0; P.vy = 0; } else if (!P.fly) P.onGround = false;
-  if (P.y < -25) respawn();
+  if (P.y < -25) { if (dim === 1) { if (!dead) { hp = 0; hurtBy = '공허'; refreshHearts(); die(); } } else respawn(); }
 }
 function respawn() { P.x = spawn.x; P.y = spawn.y; P.z = spawn.z; P.vx = P.vy = P.vz = 0; }
 
@@ -1053,15 +1214,76 @@ function breakBlock(t) {
   rollDrops(BLOCK_DROP[id], t.x + 0.5, t.y + 0.5, t.z + 0.5);
   playSound('break');
 }
-function placeBlock() {
-  if (!target || hotbar[sel] >= ITEM_BASE) return;
+function placeBlock(idOverride) {   // idOverride: 아이템에서 놓는 블록 (예: 포털 프레임). 성공하면 true
+  if (!target || (idOverride === undefined && hotbar[sel] >= ITEM_BASE)) return false;
   var x = target.x + target.nx, y = target.y + target.ny, z = target.z + target.nz, cur = getBlock(x, y, z);
-  if (cur !== AIR && cur !== WATER) return;
-  if (y < 0 || y >= CH) return;
-  var id = hotbar[sel];
+  if (cur !== AIR && cur !== WATER) return false;
+  if (y < 0 || y >= CH) return false;
+  var id = idOverride !== undefined ? idOverride : hotbar[sel];
   // 내 몸과 겹치면 놓을 수 없음
-  if (x + 1 > P.x - HW && x < P.x + HW && z + 1 > P.z - HW && z < P.z + HW && y + 1 > P.y && y < P.y + HH) return;
-  if (setBlock(x, y, z, id)) playSound('place');
+  if (x + 1 > P.x - HW && x < P.x + HW && z + 1 > P.z - HW && z < P.z + HW && y + 1 > P.y && y < P.y + HH) return false;
+  if (!setBlock(x, y, z, id)) return false;
+  playSound('place');
+  if (id === FRAME) checkPortal(x, y, z);
+  return true;
+}
+// 포털 프레임 8개가 3x3 고리를 이루고 가운데가 비어 있으면 포털이 열린다
+function checkPortal(x, y, z) {
+  for (var cz = z - 1; cz <= z + 1; cz++) for (var cx = x - 1; cx <= x + 1; cx++) {
+    if (getBlock(cx, y, cz) !== AIR) continue;
+    var ring = true;
+    for (var dz = -1; dz <= 1 && ring; dz++) for (var dx = -1; dx <= 1; dx++) {
+      if (!dx && !dz) continue;
+      if (getBlock(cx + dx, y, cz + dz) !== FRAME) { ring = false; break; }
+    }
+    if (ring) { activatePortal(cx, y, cz); return true; }
+  }
+  return false;
+}
+function activatePortal(cx, y, cz) {
+  setBlock(cx, y, cz, PORTAL); setBlock(cx, y + 1, cz, PORTAL);
+  portalActive = true; dirtySave = true;
+  spawnParticles(cx + 0.5, y + 0.8, cz + 0.5, STONE, T_PORTAL); spawnParticles(cx + 0.5, y + 1.4, cz + 0.5, STONE, T_PORTAL);
+  playSound('boom'); toast('엔드 포털이 열렸어요!');
+}
+function placeItem(it) {
+  if (!target) return false;   // 조준한 곳이 없으면 다른 동작(공격 등)으로
+  if (placeBlock(it.place)) takeItem(it.id, 1);
+  return true;
+}
+// 포털 안에 서 있으면 잠시 뒤 차원 이동 (이동 직후엔 포털에서 벗어나기 전까지 다시 작동하지 않는다)
+var portalT = 0, portalArmed = false, ptintOp = 0;
+function updatePortal(dt) {
+  var fx = Math.floor(P.x), fz = Math.floor(P.z);
+  var inP = getBlock(fx, Math.floor(P.y + 0.3), fz) === PORTAL || getBlock(fx, Math.floor(P.y + 1.0), fz) === PORTAL;
+  if (!inP) { portalArmed = true; portalT = Math.max(0, portalT - dt * 2); }
+  else if (portalArmed) {
+    portalT += dt;
+    if (Math.random() < dt * 14) spawnParticles(P.x, P.y + 1, P.z, STONE, T_PORTAL);
+    if (portalT >= 1.4) { portalT = 0; portalArmed = false; if (dim === 0) enterEnd(); else exitEnd(); }
+  }
+  var op = Math.round(Math.min(0.85, portalT / 1.4 * 0.85) * 20) / 20;
+  if (op !== ptintOp) { ptintOp = op; $('ptint').style.opacity = op; }
+}
+function switchDim(nd, x, y, z, yawv) {
+  world.chunks.forEach(function (c) { freeMesh(c); }); world.chunks.clear();
+  particles = []; mobs = []; arrows = []; drops = []; bombs = []; fireballs.length = 0;
+  dim = nd; world.edits = nd === 1 ? endEdits : overEdits;
+  P.x = x; P.y = y; P.z = z; P.vx = P.vy = P.vz = 0; P.fly = false; setFlyQuiet(false);
+  if (yawv !== undefined) { P.yaw = yawv; P.pitch = -0.05; }
+  loading = true; $('loading').className = ''; $('loadText').textContent = nd === 1 ? '엔드로 이동 중…' : '오버월드로 돌아가는 중…'; $('loadBar').style.width = '0%';
+  onLoaded = function () { if (dim === 1) setupEnd(); };
+  portalT = 0; portalArmed = false; dirtySave = true;
+}
+function enterEnd() {
+  retPos = { x: P.x, y: P.y, z: P.z };
+  visitedEnd = true;
+  if (!settings.monsters) { settings.monsters = true; refreshHearts(); refreshMenu(); }
+  switchDim(1, 13.5, endTopAt(13, 33) + 1.01, 33.5, 0.3927);   // 섬 가장자리 (기둥 사이로 중앙이 보이는 방향)
+}
+function exitEnd() {
+  var r = retPos || spawn;
+  switchDim(0, r.x, r.y, r.z);
 }
 function pickBlock() {
   if (!target) return;
@@ -1177,9 +1399,35 @@ MODELS.chicken = [
   mkPart([-2, 10, -7, 2, 16, -3], [0, 10, -5], [T_CHICK, T_CHICK, T_CHICK, T_CHICK, T_CHICK, T_CHICKFACE]),
   mkPart([-1, 11, -9, 1, 13, -7], [0, 11, -8], all6(T_BEAK))
 ];
+MOB.enderman = { name: '엔더맨', hw: 0.3, hh: 2.9, hp: 40, speed: 2.0, sight: 30, burns: false, tile: T_ENDERMAN, drops: [[I_PEARL, 1, 1], [I_PEARL, 0, 1, 0.5]] };
+MOB.crystal = { name: '엔드 크리스탈', hw: 0.6, hh: 1.2, hp: 1, speed: 0, sight: 0, burns: false, tile: T_CRYSTAL, drops: [], fixed: true, scale: 1.25, yoff: 0.6 };
+MOB.dragon = { name: '엔더 드래곤', hw: 2.2, hh: 2.6, hp: 120, speed: 0, sight: 0, burns: false, tile: T_DRAGON, drops: [], boss: true, scale: 2.4, yoff: 1.3 };
+MODELS.enderman = [
+  mkPart([-3, 0, -1, -1, 30, 1], [-2, 30, 0], all6(T_ENDERMAN), 1, 0, 0.7),
+  mkPart([1, 0, -1, 3, 30, 1], [2, 30, 0], all6(T_ENDERMAN), -1, 0, 0.7),
+  mkPart([-4, 30, -2, 4, 42, 2], [0, 30, 0], all6(T_ENDERMAN)),
+  mkPart([-6, 18, -1, -4, 42, 1], [-5, 42, 0], all6(T_ENDERMAN), 1, 0.08, 0.5),
+  mkPart([4, 18, -1, 6, 42, 1], [5, 42, 0], all6(T_ENDERMAN), -1, 0.08, 0.5),
+  mkPart([-4, 42, -4, 4, 50, 4], [0, 42, 0], [T_ENDERMAN, T_ENDERMAN, T_ENDERMAN, T_ENDERMAN, T_ENDERMAN, T_ENDER_FACE])
+];
+MODELS.crystal = [mkPart([-6, -6, -6, 6, 6, 6], [0, 0, 0], all6(T_CRYSTAL))];
+MODELS.dragon = (function () {   // 머리가 -z, 날개는 몸 양옆. 날개 flap 은 Z축 회전
+  var D = all6(T_DRAGON), parts = [
+    mkPart([-8, -6, -14, 8, 6, 14], [0, 0, 0], D),
+    mkPart([-4, -2, -26, 4, 6, -14], [0, 0, -14], D),
+    mkPart([-5, -3, -38, 5, 5, -26], [0, 0, -26], [T_DRAGON, T_DRAGON, T_DRAGON, T_DRAGON, T_DRAGON, T_DRAGON_HEAD]),
+    mkPart([-3, -3, 14, 3, 3, 28], [0, 0, 14], D),
+    mkPart([-2, -2, 28, 2, 2, 42], [0, 0, 28], D),
+    mkPart([-40, 1, -8, -8, 3, 12], [-8, 2, 0], all6(T_DRAGON_WING)),
+    mkPart([8, 1, -8, 40, 3, 12], [8, 2, 0], all6(T_DRAGON_WING))
+  ];
+  parts[5].flap = -1; parts[6].flap = 1;
+  return parts;
+})();
+var FIREBALL_PART = mkPart([-3, -3, -3, 3, 3, 3], [0, 0, 0], all6(T_FIREBALL));
 var ARROW_PART = mkPart([-0.7, -0.7, -6, 0.7, 0.7, 6], [0, 0, 0], all6(T_ARROW));
 
-function daylight() { return smooth(-0.14, 0.26, Math.sin(timeOfDay * 6.28318)); }
+function daylight() { if (dim === 1) return 0; return smooth(-0.14, 0.26, Math.sin(timeOfDay * 6.28318)); }
 function openSky(x, y, z) {
   for (var yy = y; yy < CH; yy++) if (BLOCKING[getBlock(x, yy, z)]) return false;
   return true;
@@ -1195,11 +1443,12 @@ function makeMob(type, x, y, z) {
     id: mobSeq++, type: type, x: x, y: y, z: z, vx: 0, vy: 0, vz: 0, yaw: Math.random() * 6.28318, hw: d.hw, hh: d.hh, hp: d.hp,
     onGround: false, inWater: false, walk: Math.random() * 6, mv: 0, age: 0, hurtT: 0, kbT: 0, atkCd: 0.8, fuse: 0,
     shootCd: 1.5 + Math.random(), wanderT: 0, wanderOn: false, wanderYaw: 0, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: 2,
-    burnT: 0, burning: false, sky: 1, skyT: 0, avoidT: 0, avoidDir: 1, panicT: 0, fleeX: 0, fleeZ: 0
+    burnT: 0, burning: false, sky: 1, skyT: 0, avoidT: 0, avoidDir: 1, panicT: 0, fleeX: 0, fleeZ: 0,
+    provoked: false, tpT: 3, pitch: 0, phase: 'circle', phaseT: 8, ang: 0, dir: 1, healAcc: 0, idx: 0
   };
 }
 function purgeHostiles() {   // 평화 모드: 몬스터와 몬스터의 화살만 없앤다 (동물과 내 화살은 그대로)
-  for (var q = mobs.length - 1; q >= 0; q--) if (!MOB[mobs[q].type].animal) mobs.splice(q, 1);
+  for (var q = mobs.length - 1; q >= 0; q--) { var pd = MOB[mobs[q].type]; if (!pd.animal && !pd.boss && !pd.fixed) mobs.splice(q, 1); }
   for (var w = arrows.length - 1; w >= 0; w--) if (arrows[w].owner !== 'p') arrows.splice(w, 1);
 }
 function removeMob(m) { var i = mobs.indexOf(m); if (i >= 0) mobs.splice(i, 1); }
@@ -1223,6 +1472,7 @@ function flashHurt() {
 }
 function hurtPlayer(amount, fx, fz, kb, by) {
   if (!settings.monsters || dead || hurtInv > 0) return;
+  amount = Math.max(1, Math.round(amount * (1 - armorReduce())));   // 갑옷
   hp = Math.max(0, hp - amount); hurtInv = 0.6; sinceHurt = 0; hurtBy = by || '';
   var dx = P.x - fx, dz = P.z - fz, l = Math.hypot(dx, dz) || 1;
   P.vx += dx / l * kb; P.vz += dz / l * kb;
@@ -1232,13 +1482,14 @@ function hurtPlayer(amount, fx, fz, kb, by) {
 }
 function die() {
   dead = true; arrows.length = 0;   // 업데이트 루프가 돌고 있는 중일 수 있어서 배열을 교체하지 않고 제자리에서 비운다
-  $('deathMsg').textContent = hurtBy ? hurtBy + '에게 당했어요. 만든 월드는 그대로예요.' : '쓰러졌어요. 만든 월드는 그대로예요.';
+  $('deathMsg').textContent = hurtBy === '공허' ? '공허로 떨어졌어요. 오버월드에서 다시 시작해요.' : hurtBy ? hurtBy + '에게 당했어요. 만든 월드는 그대로예요.' : '쓰러졌어요. 만든 월드는 그대로예요.';
   openPanel('death');
 }
 function respawnPlayer() {
   dead = false; hp = MAXHP; hurtInv = 1.5; sinceHurt = 99; arrows.length = 0;
   for (var q = mobs.length - 1; q >= 0; q--) if (!MOB[mobs[q].type].animal) mobs.splice(q, 1);   // 동물은 그대로
-  P.fly = false; setFlyQuiet(false); respawn();
+  P.fly = false; setFlyQuiet(false);
+  if (dim === 1) switchDim(0, spawn.x, spawn.y, spawn.z); else respawn();   // 엔드에서 쓰러지면 오버월드 스폰에서 다시
   refreshHearts(); closePanels();
 }
 function updateVitals(dt) {
@@ -1277,8 +1528,10 @@ function attackMob(m) {
 function damageMob(m, dmg, fx, fz, kb, byPlayer) {
   if (m.hp <= 0) return;
   m.hp -= dmg; m.hurtT = 0.35;
+  if (m.type === 'dragon') dragonHp = Math.max(0, m.hp);   // 맞는 즉시 저장 대상에 반영
+  if (m.type === 'enderman') { m.provoked = true; if (m.hp > 0 && Math.random() < 0.45) teleportMob(m, P.x, P.z, 7); }   // 맞으면 화가 나고, 가끔 순간이동
   if (MOB[m.type].animal) { m.panicT = 5; m.fleeX = fx; m.fleeZ = fz; }   // 동물은 맞으면 도망친다
-  if (kb > 0) {
+  if (kb > 0 && !MOB[m.type].boss && !MOB[m.type].fixed) {
     var dx = m.x - fx, dz = m.z - fz, l = Math.hypot(dx, dz) || 1;
     m.vx = dx / l * kb; m.vz = dz / l * kb; m.vy = 4.2; m.onGround = false; m.kbT = 0.35;
   }
@@ -1287,6 +1540,8 @@ function damageMob(m, dmg, fx, fz, kb, byPlayer) {
 }
 function killMob(m, byPlayer) {   // 햇빛에 타 죽은 건 처치로 세지 않는다
   removeMob(m);
+  if (m.type === 'crystal') { crystalBreak(m); return; }
+  if (m.type === 'dragon') { dragonDeath(m); return; }
   rollDrops(MOB[m.type].drops, m.x, m.y + 0.5, m.z);
   spawnParticles(m.x, m.y + 0.9, m.z, STONE, MOB[m.type].tile);
   spawnParticles(m.x, m.y + 0.5, m.z, STONE, MOB[m.type].tile);
@@ -1297,6 +1552,7 @@ function useItem(it) {
   if (it.kind === 'food') return eat(it);
   if (it.kind === 'bow') return shootBow(it);
   if (it.kind === 'bomb') return throwBomb(it);
+  if (it.kind === 'place') return placeItem(it);
   return false;
 }
 function tapAction() {
@@ -1367,7 +1623,7 @@ function rollDrops(list, x, y, z) {   // [아이템, 최소, 최대, 확률?]
 }
 var BLOCK_DROP = {};
 BLOCK_DROP[LOG] = [[I_LOG, 1, 1]]; BLOCK_DROP[STONE] = [[I_COBBLE, 1, 1]]; BLOCK_DROP[COBBLE] = [[I_COBBLE, 1, 1]];
-BLOCK_DROP[COAL] = [[I_COAL, 1, 2]]; BLOCK_DROP[IRON] = [[I_IRON, 1, 1]]; BLOCK_DROP[LEAVES] = [[I_STICK, 1, 1, 0.25]];
+BLOCK_DROP[DIAMOND] = [[I_DIAMOND, 1, 1]]; BLOCK_DROP[COAL] = [[I_COAL, 1, 2]]; BLOCK_DROP[IRON] = [[I_IRON, 1, 1]]; BLOCK_DROP[LEAVES] = [[I_STICK, 1, 1, 0.25]];
 function updateDrops(dt) {
   for (var i = drops.length - 1; i >= 0; i--) {
     var d = drops[i];
@@ -1455,13 +1711,141 @@ function updateArrows(dt) {
   }
 }
 
+/* ---- 엔드: 크리스탈 · 엔더 드래곤 · 불덩이 · 엔더맨 ---- */
+function teleportMob(m, cx, cz, rad) {
+  for (var t = 0; t < 8; t++) {
+    var x = Math.floor(cx + (Math.random() * 2 - 1) * rad), z = Math.floor(cz + (Math.random() * 2 - 1) * rad);
+    if (!world.chunks.get(ckey(x >> 4, z >> 4))) continue;
+    var y = Math.min(CH - 4, Math.floor(P.y) + 8);
+    while (y > 1 && !B[getBlock(x, y, z)].solid) y--;
+    if (y <= 1 || B[getBlock(x, y + 1, z)].solid || B[getBlock(x, y + 2, z)].solid || B[getBlock(x, y + 3, z)].solid || getBlock(x, y + 1, z) === WATER) continue;
+    spawnParticles(m.x, m.y + 1.5, m.z, STONE, T_PORTAL);
+    m.x = x + 0.5; m.y = y + 1.001; m.z = z + 0.5; m.vx = m.vz = m.vy = 0;
+    spawnParticles(m.x, m.y + 1.5, m.z, STONE, T_PORTAL);
+    return true;
+  }
+  return false;
+}
+function crystalBreak(m) {
+  crystalMask &= ~(1 << m.idx); dirtySave = true;
+  spawnParticles(m.x, m.y + 0.6, m.z, STONE, T_CRYSTAL); spawnParticles(m.x, m.y + 0.6, m.z, STONE, T_CRYSTAL); spawnParticles(m.x, m.y + 0.6, m.z, STONE, T_FIREBALL);
+  playSound('boom');
+  if (Math.hypot(P.x - m.x, P.y + 0.9 - m.y - 0.6, P.z - m.z) < 4.5) hurtPlayer(6, m.x, m.z, 9, '엔드 크리스탈');
+  var left = 0;
+  for (var i = 0; i < mobs.length; i++) if (mobs[i].type === 'crystal') left++;
+  if (left === 0) { crystalsCleared = true; toast('엔드 크리스탈을 모두 부쉈어요! 이제 드래곤이 치유되지 않아요'); }
+  else toast('엔드 크리스탈 파괴! (남은 ' + left + '개)');
+  updateQuest();
+}
+function dragonDeath(m) {
+  dragonDefeated = true; dragonHp = 0; crystalsCleared = true; crystalMask = 0; dirtySave = true; kills++;
+  for (var ci = mobs.length - 1; ci >= 0; ci--) if (mobs[ci].type === 'crystal') {   // 남은 크리스탈도 함께 사라진다 (피해 없음)
+    spawnParticles(mobs[ci].x, mobs[ci].y + 0.6, mobs[ci].z, STONE, T_CRYSTAL); mobs.splice(ci, 1);
+  }
+  for (var i = 0; i < 6; i++) spawnParticles(m.x + (Math.random() - 0.5) * 6, m.y + 1 + Math.random() * 2, m.z + (Math.random() - 0.5) * 6, STONE, i % 2 ? T_DRAGON_HEAD : T_FIREBALL);
+  playSound('boom');
+  var top = endTopAt(0, 0);   // 섬 한가운데에 귀환 포털
+  setBlock(0, top + 1, 0, PORTAL); setBlock(0, top + 2, 0, PORTAL);
+  [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (o) { setBlock(o[0], top + 1, o[1], BEDROCK); });
+  dropItem(I_DIAMOND, 3, 0.5, top + 4, 0.5); dropItem(I_PEARL, 2, 0.5, top + 4, 0.5);
+  toast('엔더 드래곤 처치!!');
+  updateQuest();
+  setTimeout(function () { if (!dead && dim === 1) openPanel('win'); }, 1800);
+}
+function shootFireball(m) {
+  var cy = m.y + 1.3, dx = P.x - m.x, dy = P.y + 1.0 - cy, dz = P.z - m.z, l = Math.hypot(dx, dy, dz) || 1, sp = 13;
+  fireballs.push({ x: m.x, y: cy, z: m.z, vx: dx / l * sp, vy: dy / l * sp, vz: dz / l * sp, life: 7, age: 0 });
+  playSound('shoot');
+}
+function fireExplode(x, y, z) {
+  spawnParticles(x, y, z, STONE, T_FIREBALL); spawnParticles(x, y, z, STONE, T_PORTAL);
+  playSound('hit');
+  var pd = Math.hypot(P.x - x, P.y + 0.9 - y, P.z - z);
+  if (pd < 3.4) hurtPlayer(Math.round((1 - pd / 3.4) * 8) + 3, x, z, 8, '엔더 드래곤');
+}
+function updateFireballs(dt) {
+  for (var i = fireballs.length - 1; i >= 0; i--) {
+    var f = fireballs[i];
+    f.life -= dt; f.age += dt;
+    var steps = Math.max(1, Math.ceil(Math.hypot(f.vx, f.vy, f.vz) * dt / 0.3)), sdt = dt / steps, hit = false;
+    for (var k = 0; k < steps && !hit; k++) {
+      f.x += f.vx * sdt; f.y += f.vy * sdt; f.z += f.vz * sdt;
+      if (solidAt(Math.floor(f.x), Math.floor(f.y), Math.floor(f.z)) || (!dead && Math.hypot(P.x - f.x, P.y + 0.9 - f.y, P.z - f.z) < 1.3)) hit = true;
+    }
+    if (hit) { fireballs.splice(i, 1); fireExplode(f.x, f.y, f.z); }
+    else if (f.life <= 0 || f.y < -20) fireballs.splice(i, 1);
+  }
+}
+function updateDragon(m, dt) {
+  m.age += dt; m.hurtT = Math.max(0, m.hurtT - dt); m.atkCd -= dt; m.shootCd -= dt; m.phaseT -= dt;
+  var cr = 0;
+  for (var i = 0; i < mobs.length; i++) if (mobs[i].type === 'crystal') cr++;
+  if (cr > 0) {   // 크리스탈이 살아 있으면 드래곤이 치유된다
+    m.healAcc += cr * 1.2 * dt;
+    if (m.healAcc >= 1) { var hh = Math.floor(m.healAcc); m.healAcc -= hh; m.hp = Math.min(MOB.dragon.hp, m.hp + hh); }
+  }
+  var cy = m.y + 1.3, tx, ty, tz, spd = 15, near = Math.hypot(P.x, P.z) < 55;
+  if (m.phase === 'circle') {   // 섬 둘레를 선회
+    m.ang += dt * 0.4 * m.dir;
+    var R = 27 + 4 * Math.sin(m.age * 0.3);
+    tx = Math.cos(m.ang) * R; tz = Math.sin(m.ang) * R; ty = 50 + 6 * Math.sin(m.age * 0.5);
+    if (!dead && near && m.phaseT <= 0) { m.phase = 'dive'; m.phaseT = 5; }
+    if (!dead && m.shootCd <= 0 && Math.hypot(P.x - m.x, P.z - m.z) < 55) { shootFireball(m); m.shootCd = 3.2 + Math.random() * 1.5; }
+  } else if (m.phase === 'dive') {   // 플레이어를 향해 급강하
+    tx = P.x; ty = P.y + 0.9; tz = P.z; spd = 20;
+    if (dead || m.phaseT <= 0) { m.phase = 'rise'; m.phaseT = 6; }
+  } else {   // 다시 위로
+    tx = Math.cos(m.ang) * 30; tz = Math.sin(m.ang) * 30; ty = 52; spd = 16;
+    if (m.y > 46 || m.phaseT <= 0) { m.phase = 'circle'; m.phaseT = 9 + Math.random() * 6; m.ang = Math.atan2(m.z, m.x); m.dir = Math.random() < 0.5 ? 1 : -1; }
+  }
+  var dx = tx - m.x, dy = ty - cy, dz = tz - m.z, l = Math.hypot(dx, dy, dz) || 1, k = Math.min(1, 2.0 * dt);
+  m.vx += (dx / l * spd - m.vx) * k; m.vy += (dy / l * spd - m.vy) * k; m.vz += (dz / l * spd - m.vz) * k;
+  m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
+  var vh = Math.hypot(m.vx, m.vz);
+  if (vh > 0.5) m.yaw = turnToward(m.yaw, Math.atan2(-m.vx, -m.vz), 3 * dt);
+  m.pitch += (clamp(Math.atan2(m.vy, vh || 1), -0.6, 0.6) - m.pitch) * Math.min(1, 3 * dt);
+  if (!dead && m.atkCd <= 0 && Math.hypot(P.x - m.x, P.y + 0.9 - cy, P.z - m.z) < 3.6) {   // 몸통 박치기
+    m.atkCd = 1.4; hurtPlayer(9, m.x, m.z, 13, '엔더 드래곤');
+    if (m.phase === 'dive') { m.phase = 'rise'; m.phaseT = 6; }
+  }
+  dragonHp = m.hp;
+}
+// 엔드에 들어오면 크리스탈 · 드래곤 · 엔더맨을 배치한다
+function setupEnd() {
+  if (!settings.monsters) { settings.monsters = true; refreshHearts(); refreshMenu(); }
+  for (var k = 0; k < PILLARS.length; k++) {
+    if (!(crystalMask & (1 << k))) continue;
+    var c = makeMob('crystal', PILLARS[k].x + 0.5, END_TOP + PILLARS[k].h + 2.0, PILLARS[k].z + 0.5);
+    c.idx = k; mobs.push(c);
+  }
+  if (!dragonDefeated) {
+    var dr = makeMob('dragon', 27, 52, 0);
+    dr.hp = dragonHp > 0 ? Math.min(dragonHp, MOB.dragon.hp) : MOB.dragon.hp; dr.phaseT = 6; mobs.push(dr);
+    toast('엔더 드래곤이 나타났다!');
+  } else toast('드래곤이 사라진 고요한 엔드예요');
+  trySpawnEnderEnd(); trySpawnEnderEnd();
+  updateQuest();
+}
+function trySpawnEnderEnd() {
+  for (var t = 0; t < 6; t++) {
+    var a = Math.random() * 6.28318, r = 6 + Math.random() * 24, x = Math.floor(Math.cos(a) * r), z = Math.floor(Math.sin(a) * r), top = endTopAt(x, z);
+    if (top < 0 || Math.hypot(P.x - x, P.z - z) < 8) continue;
+    mobs.push(makeMob('enderman', x + 0.5, top + 1.001, z + 0.5));
+    return true;
+  }
+  return false;
+}
+
 /* ---- AI / 물리 ---- */
 function updateMobs(dt) {
   if (!settings.monsters) purgeHostiles();
   var day = daylight();
   for (var i = mobs.length - 1; i >= 0; i--) {
     var m = mobs[i], d = MOB[m.type];
+    if (d.boss) { updateDragon(m, dt); continue; }
+    if (d.fixed) { m.age += dt; m.hurtT = Math.max(0, m.hurtT - dt); m.yaw += dt * 1.2; continue; }   // 엔드 크리스탈
     var dx = P.x - m.x, dz = P.z - m.z, dist = Math.hypot(dx, dz);
+    if (m.y < -30) { mobs.splice(i, 1); continue; }   // 엔드의 허공으로 떨어진 몹
     if (dist > (d.animal ? 70 : 60)) { mobs.splice(i, 1); continue; }
     if (!world.chunks.get(ckey(Math.floor(m.x) >> 4, Math.floor(m.z) >> 4))) continue;   // 청크가 아직 없으면 정지
     m.age += dt; m.hurtT = Math.max(0, m.hurtT - dt); m.kbT = Math.max(0, m.kbT - dt); m.atkCd -= dt; m.shootCd -= dt;
@@ -1491,6 +1875,18 @@ function updateMobs(dt) {
         if (dist < 2.8 && Math.abs(P.y - m.y) < 2.2) m.fuse += dt; else m.fuse = Math.max(0, m.fuse - dt * 1.5);
         if (m.fuse >= 1.4) { explode(m.x, m.y + 0.8, m.z, 3.1); removeMob(m); continue; }
         if (m.fuse === 0 && dist > 2.2) { mvx = dirx; mvz = dirz; }   // 점화되면 멈춰 선다
+      } else if (m.type === 'enderman') {   // 눈이 마주치면 화를 낸다
+        if (!m.provoked) {
+          var fl = forward(), ex = m.x - P.x, ey = m.y + 2.6 - (P.y + EYE), ez = m.z - P.z, el = Math.hypot(ex, ey, ez) || 1;
+          if (el < 28 && (ex * fl[0] + ey * fl[1] + ez * fl[2]) / el > 0.985 && hasLOS(m)) m.provoked = true;
+        }
+        if (m.provoked) {
+          if (dist > 1.4) { mvx = dirx; mvz = dirz; }
+          speed = 5.2;
+          if (dist < 2.0 && Math.abs(P.y - m.y) < 2.4 && m.atkCd <= 0) { m.atkCd = 1.2; hurtPlayer(7, m.x, m.z, 8, '엔더맨'); }
+          m.tpT -= dt;
+          if (m.tpT <= 0) { m.tpT = 4 + Math.random() * 4; if (dist > 9) teleportMob(m, P.x - dirx * 3, P.z - dirz * 3, 2); }
+        } else { fx = null; fz = null; wander = true; }
       } else {   // 스켈레톤: 거리를 유지하며 옆으로 돌고, 시야가 트이면 화살
         var want = dist > 9.5 ? 1 : dist < 5 ? -1 : 0;
         m.strafeT -= dt;
@@ -1551,6 +1947,12 @@ function updateSpawner(dt) {
   mobSpawnT -= dt;
   if (mobSpawnT > 0) return;
   mobSpawnT = 1.1;
+  if (dim === 1) {   // 엔드: 엔더맨만 (최대 3마리)
+    var en = 0;
+    for (var q = 0; q < mobs.length; q++) if (mobs[q].type === 'enderman') en++;
+    if (en < 3 && settings.monsters) trySpawnEnderEnd();
+    return;
+  }
   var day = daylight(), hostile = 0, animals = 0;
   for (var i = 0; i < mobs.length; i++) { if (MOB[mobs[i].type].animal) animals++; else hostile++; }
   if (settings.monsters && hostile < (day > 0.55 ? 2 : 8)) for (var attempt = 0; attempt < 4; attempt++) if (trySpawnMob(day)) break;
@@ -1582,7 +1984,8 @@ function trySpawnMob(day) {
   if (y <= 1) return false;
   if (B[getBlock(ix, y + 1, iz)].solid || B[getBlock(ix, y + 2, iz)].solid || getBlock(ix, y + 1, iz) === WATER) return false;
   if (openSky(ix, y + 1, iz) && day > 0.35) return false;   // 낮에 햇빛 아래에선 안 나온다
-  var roll = Math.random(), type = roll < 0.5 ? 'zombie' : roll < 0.78 ? 'creeper' : 'skeleton';
+  var roll = Math.random(), type = roll < 0.1 ? 'enderman' : roll < 0.52 ? 'zombie' : roll < 0.78 ? 'creeper' : 'skeleton';
+  if (type === 'enderman') { var en2 = 0; for (var q2 = 0; q2 < mobs.length; q2++) if (mobs[q2].type === 'enderman') en2++; if (en2 >= 2) return false; }
   mobs.push(makeMob(type, ix + 0.5, y + 1.001, iz + 0.5));
   return true;
 }
@@ -1595,8 +1998,8 @@ function partAngle(m, p) {
   return a;
 }
 // 파츠 하나(면 6개 · 정점 24개)를 a[n..] 에 쓴다. (ox,oy,oz) = 카메라 기준 개체 위치
-function emitPart(a, n, part, rx, ox, oy, oz, yaw, bodyPitch, sc, light) {
-  var cr = Math.cos(rx), sr = Math.sin(rx), cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(bodyPitch), sp = Math.sin(bodyPitch);
+function emitPart(a, n, part, rx, ox, oy, oz, yaw, bodyPitch, sc, light, rz) {
+  var crz = Math.cos(rz || 0), srz = Math.sin(rz || 0), cr = Math.cos(rx), sr = Math.sin(rx), cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(bodyPitch), sp = Math.sin(bodyPitch);
   var bx = part.box, pv = part.pivot, K = sc / 16;
   for (var f = 0; f < 6; f++) {
     var F = FACES[f], tile = part.tiles[f], u0 = TU[tile], v0 = TV[tile];
@@ -1604,6 +2007,7 @@ function emitPart(a, n, part, rx, ox, oy, oz, yaw, bodyPitch, sc, light) {
       var c = F.c[k];
       var x = (c[0] ? bx[3] : bx[0]) - pv[0], y = (c[1] ? bx[4] : bx[1]) - pv[1], z = (c[2] ? bx[5] : bx[2]) - pv[2];
       var y2 = y * cr - z * sr, z2 = y * sr + z * cr;   // 팔다리 흔들기 (파츠 X축 회전)
+      if (rz) { var xr = x * crz - y2 * srz; y2 = x * srz + y2 * crz; x = xr; }   // 날개 퍼덕임 (Z축 회전)
       x += pv[0]; y2 += pv[1]; z2 += pv[2];
       if (bodyPitch) { var y3 = y2 * cp - z2 * sp; z2 = y2 * sp + z2 * cp; y2 = y3; }
       x *= K; y2 *= K; z2 *= K;
@@ -1621,7 +2025,7 @@ var dropParts = {}, bombPart = mkPart([-3, -3, -3, 3, 3, 3], [0, 0, 0], all6(TI.
 function itemTile(it) { return it.block ? B[it.block].tiles[4] : it.tile; }
 function dropPart(tile) { return dropParts[tile] || (dropParts[tile] = mkPart([-2.5, -2.5, -2.5, 2.5, 2.5, 2.5], [0, 0, 0], all6(tile))); }
 function drawMobs(cam, tint) {
-  if (!mobs.length && !arrows.length && !drops.length && !bombs.length) return;
+  if (!mobs.length && !arrows.length && !drops.length && !bombs.length && !fireballs.length) return;
   gl.uniform3f(U.u_off, 0, 0, 0);
   gl.bindBuffer(gl.ARRAY_BUFFER, dynVBO);
   function flush(buf, n, quads, r, g, b) {
@@ -1631,10 +2035,10 @@ function drawMobs(cam, tint) {
     gl.drawElements(gl.TRIANGLES, quads * 6, gl.UNSIGNED_SHORT, 0);
   }
   for (var i = 0; i < mobs.length; i++) {
-    var m = mobs[i], model = MODELS[m.type], ox = m.x - cam[0], oy = m.y - cam[1], oz = m.z - cam[2];
+    var m = mobs[i], md = MOB[m.type], model = MODELS[m.type], ox = m.x - cam[0], oy = m.y - cam[1] + (md.yoff || 0) + (md.fixed ? Math.sin(m.age * 2) * 0.12 : 0), oz = m.z - cam[2];
     if (ox * ox + oy * oy + oz * oz > 90 * 90) continue;
-    var sc = 1 + (m.fuse > 0 ? m.fuse * 0.2 : 0), n = 0, light = m.sky ? 1 : 0.62;
-    for (var p = 0; p < model.length; p++) n = emitPart(mobBuf, n, model[p], partAngle(m, model[p]), ox, oy, oz, m.yaw, 0, sc, light);
+    var sc = (md.scale || 1) * (1 + (m.fuse > 0 ? m.fuse * 0.2 : 0)), n = 0, light = (m.sky || md.boss || md.fixed) ? 1 : 0.62;
+    for (var p = 0; p < model.length; p++) n = emitPart(mobBuf, n, model[p], partAngle(m, model[p]), ox, oy, oz, m.yaw, m.pitch || 0, sc, light, model[p].flap ? model[p].flap * Math.sin(m.age * 2.6) * 0.6 : 0);
     var r = tint[0], g = tint[1], b = tint[2];
     if (m.hurtT > 0) { r = 1.3; g = 0.4; b = 0.4; }
     else if (m.fuse > 0 && (Math.floor(m.fuse * 10) & 1)) { r = g = b = 2.6; }
@@ -1645,6 +2049,10 @@ function drawMobs(cam, tint) {
     var a = arrows[q], sp = Math.hypot(a.vx, a.vy, a.vz) || 1;
     var an = emitPart(mobBuf, 0, ARROW_PART, 0, a.x - cam[0], a.y - cam[1], a.z - cam[2], Math.atan2(-a.vx, -a.vz), Math.asin(clamp(a.vy / sp, -1, 1)), 1, 1);
     flush(mobBuf, an, 6, tint[0], tint[1], tint[2]);
+  }
+  for (var fi = 0; fi < fireballs.length; fi++) {   // 드래곤의 불덩이
+    var fb = fireballs[fi], fn = emitPart(mobBuf, 0, FIREBALL_PART, 0, fb.x - cam[0], fb.y - cam[1], fb.z - cam[2], fb.age * 6, 0, 1.3, 1);
+    flush(mobBuf, fn, 6, 2.4, 2.4, 2.4);
   }
   if (drops.length) {   // 바닥의 아이템: 빙글빙글 돌며 위아래로 떠 있는 작은 상자
     var dn = 0;
@@ -1717,6 +2125,7 @@ function streamChunks(now) {
  *  하늘 / 낮밤
  * ==================================================================== */
 function skyState() {
+  if (dim === 1) return { r: 0.1, g: 0.06, b: 0.18, day: 0.5, dusk: 0, sun: [0, -1, 0.1] };   // 엔드: 항상 어두운 보랏빛 하늘 + 별
   var a = timeOfDay * 6.28318, sy = Math.sin(a), day = smooth(-0.14, 0.26, sy);
   var dusk = Math.max(0, 1 - Math.abs(sy) / 0.34);
   var r = lerp(0.025, 0.47, day), g = lerp(0.035, 0.67, day), b = lerp(0.09, 1.0, day);
@@ -1774,7 +2183,7 @@ function render(now) {
     gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 12, 0);
     for (var bi2 = 0; bi2 < 2; bi2++) {
       var bd = bodies[bi2], d = bd[0];
-      if (d[1] < -0.12) continue;
+      if (d[1] < -0.12 || (dim === 1 && bi2 === 1)) continue;   // 엔드에는 해도 달도 없다
       var rx = -d[2], rz = d[0], rl = Math.hypot(rx, rz); rx /= rl; rz /= rl;
       var ux = d[1] * rz, uy = d[2] * rx - d[0] * rz, uz = -d[1] * rx, ul = Math.hypot(ux, uy, uz);
       ux /= ul; uy /= ul; uz /= ul;
@@ -2025,6 +2434,7 @@ window.addEventListener('keydown', function (e) {
     e.preventDefault();
   } else if (e.code === 'KeyF') setFly(!P.fly);
   else if (e.code === 'KeyE') openPanel('palette');
+  else if (e.code === 'KeyQ') openPanel('quest');
   else if (e.code.indexOf('Digit') === 0) { var n = +e.code.charAt(5); if (n >= 1 && n <= 9) selectSlot(n - 1); }
 });
 window.addEventListener('keyup', function (e) { keys[e.code] = false; });
@@ -2037,6 +2447,65 @@ function pollKeys() {
   input.mx = kx + jx; input.mz = kz + jz;
   input.jump = !!keys.Space || btn.jump;
   input.down = !!(keys.ShiftLeft || keys.ShiftRight || keys.KeyC) || btn.down;
+}
+
+/* ======================================================================
+ *  목표(퀘스트) · 보스 체력바
+ * ==================================================================== */
+function crystalsLeft() { var n = 0; for (var k = 0; k < 8; k++) if (crystalMask & (1 << k)) n++; return n; }
+var QUESTS = [
+  { t: '철 검 만들기', h: '나무를 캐서 막대를 만들고, 땅속의 철광석에서 철 주괴를 모아요. 가방 → 제작 탭에서 철 검을 만들어요.',
+    done: function () { return invCount(I_ISWORD) > 0 || invCount(I_DSWORD) > 0; } },
+  { t: '철 갑옷 만들기', h: '철 주괴 6개로 철 갑옷을 만들어요. 가방에 있으면 자동으로 입어서 받는 피해가 35% 줄어요. (다이아몬드 5개로 만드는 다이아 갑옷은 55%)',
+    done: function () { return invCount(I_IARMOR) > 0 || invCount(I_DARMOR) > 0; } },
+  { t: '엔더 진주 4개 모으기', h: '엔더맨(키 큰 검은 몬스터, 밤에 가끔 나타나요)을 처치하면 엔더 진주를 줘요. 눈을 마주치면 화를 내니까 조심! 활로 멀리서 잡아도 좋아요.',
+    p: function () { return '(' + Math.min(4, pearlTotal) + '/4)'; }, done: function () { return pearlTotal >= 4; } },
+  { t: '엔더의 눈 4개 만들기', h: '엔더 진주 1개 + 화약 1개 → 엔더의 눈. 화약은 크리퍼가 떨어뜨려요.',
+    p: function () { return '(' + Math.min(4, eyeMade) + '/4)'; }, done: function () { return eyeMade >= 4; } },
+  { t: '엔드 포털 열기', h: '엔더의 눈 1개 + 조약돌 2개 → 포털 프레임 2개. 프레임 8개를 가운데가 빈 3×3 고리 모양으로 평평한 바닥에 놓으면 포털이 열려요.',
+    done: function () { return portalActive; } },
+  { t: '엔드로 들어가기', h: '포털 가운데에 서서 잠시 기다리면 엔드로 이동해요. 체력·무기·화살·음식을 챙기세요! 💎 땅속 깊은 곳의 다이아몬드로 다이아 검(강력!)과 갑옷도 만들 수 있어요.',
+    done: function () { return visitedEnd; } },
+  { t: '엔드 크리스탈 모두 부수기', h: '높은 흑요석 기둥 위의 엔드 크리스탈 8개가 드래곤을 계속 치유해요. 활이나 검으로 부수세요. 터질 때 가까이 있으면 다쳐요!',
+    p: function () { return '(남은 ' + crystalsLeft() + '개)'; }, done: function () { return crystalsCleared; } },
+  { t: '엔더 드래곤 처치하기', h: '드래곤은 하늘을 돌다가 급강하로 돌진하고 불덩이를 쏴요. 아래로 내려왔을 때 공격하세요. 쓰러뜨리면 클리어!',
+    done: function () { return dragonDefeated; } }
+];
+var questT = 0, questShown = '', bossShown = -1;
+function questText() {
+  if (questIdx >= QUESTS.length) return '🏆 모든 목표 완료!';
+  var q = QUESTS[questIdx];
+  return '🎯 목표 ' + (questIdx + 1) + '/' + QUESTS.length + '\n' + q.t + (q.p ? ' ' + q.p() : '');
+}
+function updateQuest() {
+  var floor = dragonDefeated ? 8 : crystalsCleared ? 7 : visitedEnd ? 6 : portalActive ? 5 : 0;   // 앞 단계를 건너뛰었어도 진행도는 따라간다
+  if (questIdx < floor) { questIdx = floor; dirtySave = true; }
+  while (questIdx < QUESTS.length && QUESTS[questIdx].done()) {
+    toast('목표 달성! ' + QUESTS[questIdx].t); questIdx++; dirtySave = true;
+  }
+  var tx = questText();
+  if (tx !== questShown) { questShown = tx; $('qtrack').textContent = tx; }
+}
+function updateBossBar() {
+  var d = null;
+  if (dim === 1) for (var i = 0; i < mobs.length; i++) if (mobs[i].type === 'dragon') { d = mobs[i]; break; }
+  var v = d ? Math.max(0, Math.round(d.hp / MOB.dragon.hp * 100)) : -1;
+  if (v === bossShown) return;
+  bossShown = v;
+  document.body.classList[d ? 'add' : 'remove']('boss');
+  if (d) $('bossFill').style.width = v + '%';
+}
+function renderQuest() {
+  var list = $('qlist'); list.innerHTML = '';
+  QUESTS.forEach(function (q, i) {
+    var row = document.createElement('div'), mark = document.createElement('b'), tx = document.createElement('div'), hint = document.createElement('span');
+    row.className = 'qi' + (i < questIdx ? ' done' : i === questIdx ? ' now' : '');
+    mark.textContent = i < questIdx ? '✔' : i === questIdx ? '▶' : '○';
+    tx.appendChild(document.createTextNode((i + 1) + '. ' + q.t + (i === questIdx && q.p ? ' ' + q.p() : '')));
+    hint.textContent = q.h; tx.appendChild(hint);
+    row.appendChild(mark); row.appendChild(tx); list.appendChild(row);
+  });
+  if (questIdx >= QUESTS.length) { var all = document.createElement('p'); all.textContent = '🏆 모든 목표를 달성했어요! 이제 자유롭게 즐겨요.'; all.style.textAlign = 'center'; list.appendChild(all); }
 }
 
 /* ======================================================================
@@ -2168,7 +2637,9 @@ function refreshMenu() {
   $('mFast').textContent = '즉시 채굴: ' + (settings.fast ? '켜짐' : '꺼짐');
   $('mDist').textContent = '시야 거리: ' + DIST_NAMES[settings.dist];
   $('mSound').textContent = '소리: ' + (settings.sound ? '켜짐' : '꺼짐');
-  $('mMon').textContent = '몬스터: ' + (settings.monsters ? '켜짐' : '꺼짐 (평화)');
+  $('mMon').textContent = dim === 1 ? '몬스터: 켜짐 🔒' : '몬스터: ' + (settings.monsters ? '켜짐' : '꺼짐 (평화)');
+  $('mLeave').style.display = dim === 1 ? 'block' : 'none';
+  $('mQuest').className = dim === 1 ? 'btn' : 'btn wide';
   $('mTime').textContent = timeOfDay < 0.5 ? '밤으로 바꾸기 🌙' : '낮으로 바꾸기 ☀️';
 }
 function openPanel(id) {
@@ -2177,14 +2648,15 @@ function openPanel(id) {
   paused = true; $(id).className = 'panel on';
   if (id === 'menu') { refreshMenu(); saveNow(); }
   if (id === 'palette') renderInv();
+  if (id === 'quest') { updateQuest(); renderQuest(); }
   if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
   input.jump = input.down = btn.jump = btn.down = false; joy.x = joy.y = 0; mouse.left = false; look.id = -1; look.mining = false;
 }
 function closePanels(keepPaused) {
-  ['menu', 'palette', 'help', 'death'].forEach(function (p) { $(p).className = 'panel'; });
+  ['menu', 'palette', 'help', 'death', 'quest', 'win'].forEach(function (p) { $(p).className = 'panel'; });
   if (!keepPaused) paused = false;
 }
-['menu', 'palette'].forEach(function (id) {
+['menu', 'palette', 'quest'].forEach(function (id) {
   $(id).addEventListener('click', function (e) { if (e.target === $(id)) closePanels(); });
 });
 function toggleMenu() {   // Esc 키 / 안드로이드 뒤로가기: 메뉴 열기·닫기
@@ -2198,6 +2670,12 @@ $('mResume').addEventListener('click', function () { closePanels(); });
 $('pClose').addEventListener('click', function () { closePanels(); });
 $('hClose').addEventListener('click', function () { closePanels(); });
 $('mHelp').addEventListener('click', function () { openPanel('help'); });
+$('mQuest').addEventListener('click', function () { openPanel('quest'); });
+$('qtrack').addEventListener('click', function () { openPanel('quest'); });
+$('qClose').addEventListener('click', function () { closePanels(); });
+$('wContinue').addEventListener('click', function () { closePanels(); });
+$('wReturn').addEventListener('click', function () { closePanels(); exitEnd(); });
+$('mLeave').addEventListener('click', function () { if (dim === 1) { closePanels(); exitEnd(); } });
 $('mFly').addEventListener('click', function () { setFly(!P.fly); });
 $('mAuto').addEventListener('click', function () { settings.autoJump = !settings.autoJump; refreshMenu(); dirtySave = true; });
 $('mFast').addEventListener('click', function () { settings.fast = !settings.fast; refreshMenu(); dirtySave = true; });
@@ -2206,6 +2684,7 @@ $('mDist').addEventListener('click', function () {
   var list = [3, 4, 6, 8]; settings.dist = list[(list.indexOf(settings.dist) + 1) % list.length]; refreshMenu(); dirtySave = true;
 });
 $('mMon').addEventListener('click', function () {
+  if (dim === 1) { toast('엔드에서는 몬스터를 끌 수 없어요'); return; }
   settings.monsters = !settings.monsters;
   if (!settings.monsters) { purgeHostiles(); hp = MAXHP; dead = false; }   // 동물은 남는다
   refreshHearts(); refreshMenu(); dirtySave = true;
@@ -2235,10 +2714,11 @@ function post(msg) {
   } catch (e) {}
 }
 function serialize() {
-  var e = [];
-  world.edits.forEach(function (ed) { ed.m.forEach(function (b, k) { e.push(ed.cx, ed.cz, k, b); }); });
+  function flat(map) { var out = []; map.forEach(function (ed) { ed.m.forEach(function (b, k) { out.push(ed.cx, ed.cz, k, b); }); }); return out; }
   return JSON.stringify({
-    v: 1, seed: SEED, e: e, p: [P.x, P.y, P.z, P.yaw, P.pitch, P.fly ? 1 : 0], hb: hotbar, sel: sel, t: timeOfDay,
+    v: 1, seed: SEED, e: flat(overEdits), ee: flat(endEdits), d: dim, ret: retPos ? [retPos.x, retPos.y, retPos.z] : null,
+    qf: [portalActive ? 1 : 0, visitedEnd ? 1 : 0, crystalsCleared ? 1 : 0, dragonDefeated ? 1 : 0], q: questIdx, pt: pearlTotal, em: eyeMade, dh: dragonHp, dc: crystalMask,
+    p: [P.x, P.y, P.z, P.yaw, P.pitch, P.fly ? 1 : 0], hb: hotbar, sel: sel, t: timeOfDay,
     iv: Object.keys(inv).filter(function (k) { return inv[k] > 0; }).map(function (k) { return [+k, inv[k]]; }),
     s: [settings.autoJump ? 1 : 0, settings.fast ? 1 : 0, settings.dist, settings.sound ? 1 : 0, settings.monsters ? 1 : 0]
   });
@@ -2258,12 +2738,20 @@ function readSave() {
 }
 function applySave(o) {
   SEED = o.seed | 0;
-  world.edits = new Map();
-  for (var i = 0; i + 3 < o.e.length; i += 4) {
-    var key = ckey(o.e[i], o.e[i + 1]), ed = world.edits.get(key);
-    if (!ed) { ed = { cx: o.e[i], cz: o.e[i + 1], m: new Map() }; world.edits.set(key, ed); }
-    ed.m.set(o.e[i + 2], o.e[i + 3]);
+  function load(list) {
+    var map = new Map();
+    for (var i = 0; list && i + 3 < list.length; i += 4) {
+      var key = ckey(list[i], list[i + 1]), ed = map.get(key);
+      if (!ed) { ed = { cx: list[i], cz: list[i + 1], m: new Map() }; map.set(key, ed); }
+      ed.m.set(list[i + 2], list[i + 3]);
+    }
+    return map;
   }
+  overEdits = load(o.e); endEdits = load(o.ee);
+  dim = o.d === 1 ? 1 : 0; world.edits = dim === 1 ? endEdits : overEdits;
+  retPos = o.ret ? { x: o.ret[0], y: o.ret[1], z: o.ret[2] } : null;
+  if (o.qf) { portalActive = !!o.qf[0]; visitedEnd = !!o.qf[1]; crystalsCleared = !!o.qf[2]; dragonDefeated = !!o.qf[3]; }
+  questIdx = o.q | 0; pearlTotal = o.pt | 0; eyeMade = o.em | 0; dragonHp = typeof o.dh === 'number' ? o.dh : 120; crystalMask = typeof o.dc === 'number' ? o.dc : 255;
   P.x = o.p[0]; P.y = o.p[1]; P.z = o.p[2]; P.yaw = o.p[3]; P.pitch = o.p[4]; P.fly = !!o.p[5];
   if (o.hb && o.hb.length === 9) hotbar = o.hb.map(function (b) { return (b >= ITEM_BASE ? IT[b] : (B[b] && b !== AIR)) ? b : STONE; });
   inv = {};
@@ -2279,14 +2767,15 @@ function resetKit() {   // 새 월드의 시작 장비: 나무 검
 function freshWorld() {
   resetKit();
   SEED = (Math.random() * 2147483000) | 0 || 1;
-  world.edits = new Map();
+  overEdits = new Map(); endEdits = new Map(); world.edits = overEdits; dim = 0;
+  portalActive = visitedEnd = crystalsCleared = dragonDefeated = false; questIdx = 0; pearlTotal = eyeMade = 0; retPos = null; dragonHp = 120; crystalMask = 255;
   spawn = findSpawn();
   P.x = spawn.x; P.y = spawn.y; P.z = spawn.z; P.vx = P.vy = P.vz = 0; P.yaw = 0; P.pitch = -0.1; P.fly = false;
   timeOfDay = 0.18;
 }
 function newWorld() {
   world.chunks.forEach(function (c) { freeMesh(c); }); world.chunks.clear();
-  particles = []; mobs = []; arrows = []; drops = []; bombs = []; hp = MAXHP; dead = false; refreshHearts(); freshWorld(); refreshHotbar();
+  particles = []; mobs = []; arrows = []; drops = []; bombs = []; fireballs.length = 0; hp = MAXHP; dead = false; refreshHearts(); freshWorld(); refreshHotbar();
   document.body.classList.remove('fly'); $('btnFly').classList.remove('on');
   loading = true; $('loading').className = ''; $('loadText').textContent = '새 월드를 만드는 중…'; $('loadBar').style.width = '0%';
   dirtySave = true;
@@ -2297,6 +2786,13 @@ document.addEventListener('visibilitychange', function () { if (document.hidden)
 /* ======================================================================
  *  메인 루프
  * ==================================================================== */
+function infoLine3() {
+  var a = [];
+  if (settings.monsters) a.push('처치 ' + kills);
+  if (armorReduce()) a.push('🛡 ' + Math.round(armorReduce() * 100) + '%');
+  if (dim === 1) a.push('🌌 엔드');
+  return a.length ? '\n' + a.join('  ') : '';
+}
 var last = 0, fpsN = 0, fpsT = 0, fps = 0, infoT = 0, saveT = 0, posT = 0, crossMob = false;
 function frame(now) {
   requestAnimationFrame(frame);
@@ -2306,9 +2802,10 @@ function frame(now) {
   if (fpsT >= 0.5) { fps = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; }
   if (!paused && !loading) {
     pollKeys();
-    updatePlayer(dt);
+    updatePlayer(dt); updatePortal(dt);
     timeOfDay = (timeOfDay + dt / DAY_LEN) % 1;
-    updateVitals(dt); updateSpawner(dt); updateMobs(dt); updateArrows(dt); updateDrops(dt); updateBombs(dt);
+    questT += dt; if (questT > 0.5) { questT = 0; updateQuest(); }
+    updateVitals(dt); updateSpawner(dt); updateMobs(dt); updateArrows(dt); updateFireballs(dt); updateDrops(dt); updateBombs(dt);
   }
   if (!loading) {
     // 조준: 블록과 몬스터 중 더 가까운 쪽 (몬스터가 앞이면 블록은 가리키지 않음)
@@ -2319,12 +2816,13 @@ function frame(now) {
     if (!paused) updateMining(dt, now);
   } else { target = null; mobTarget = null; }
   if ((mobTarget !== null) !== crossMob) { crossMob = mobTarget !== null; $('crosshair').className = crossMob ? 'mob' : ''; }
+  updateBossBar();
   updateParticles(dt);
   streamChunks(now);
   render(now);
   if (now - infoT > 250) {
     infoT = now;
-    $('info').textContent = fps + ' FPS\nX ' + P.x.toFixed(1) + '  Y ' + P.y.toFixed(1) + '  Z ' + P.z.toFixed(1) + (settings.monsters ? '\n처치 ' + kills : '');
+    $('info').textContent = fps + ' FPS\nX ' + P.x.toFixed(1) + '  Y ' + P.y.toFixed(1) + '  Z ' + P.z.toFixed(1) + infoLine3();
   }
   // 돌아다니기만 해도(블록을 안 고쳐도) 앱이 강제 종료될 때 위치를 잃지 않도록
   if (now - posT > 8000) { posT = now; if (!loading && Math.hypot(P.x - savedAt.x, P.z - savedAt.z) > 3) dirtySave = true; }
@@ -2345,10 +2843,10 @@ function start() {
   if (window.__BLOCKCRAFT_CAN_EXIT__) $('mExit').style.display = 'block';   // 호스트 앱이 종료를 처리할 수 있을 때만
   setFlyQuiet(P.fly);
   refreshHearts();
-  refreshMenu();
+  refreshMenu(); updateQuest();
   requestAnimationFrame(function (t) { last = t; requestAnimationFrame(frame); });
   if (!sv) { loadingThen(function () { openPanel('help'); }); }
-  else loadingThen(function () { paused = false; });
+  else loadingThen(function () { if (dim === 1) setupEnd(); paused = false; });
 }
 function setFlyQuiet(on) {
   document.body.classList[on ? 'add' : 'remove']('fly'); $('btnFly').classList[on ? 'add' : 'remove']('on');
@@ -2365,7 +2863,7 @@ window.blockcraft = {
   serialize: serialize, info: function () { return { fps: fps, drawn: frameInfo.drawn, chunks: world.chunks.size, seed: SEED }; },
   openPanel: openPanel, closePanels: closePanels, selectSlot: selectSlot, setFly: setFly, spawn: function () { return spawn; },
   genChunk: genChunk, buildMesh: buildMesh,
-  mobs: function () { return mobs.map(function (m) { return { id: m.id, type: m.type, x: m.x, y: m.y, z: m.z, hp: m.hp, fuse: m.fuse, burning: m.burning, onGround: m.onGround }; }); },
+  mobs: function () { return mobs.map(function (m) { return { id: m.id, type: m.type, x: m.x, y: m.y, z: m.z, hp: m.hp, fuse: m.fuse, burning: m.burning, onGround: m.onGround, phase: m.phase, idx: m.idx, provoked: m.provoked }; }); },
   spawnMob: function (type, x, y, z) { var m = makeMob(type, x, y, z); mobs.push(m); return m.id; },
   clearMobs: function () { mobs = []; arrows = []; },
   inv: function () { var o = {}; ITEM_IDS.forEach(function (id) { if (inv[id] > 0) o[IT[id].key] = inv[id]; }); return o; },
@@ -2377,6 +2875,11 @@ window.blockcraft = {
   arrowCount: function () { return arrows.length; }, addArrow: function (a) { arrows.push(a); },
   hp: function () { return hp; }, setHp: function (v) { hp = v; refreshHearts(); }, kills: function () { return kills; },
   isDead: function () { return dead; }, hurtPlayer: hurtPlayer, daylight: daylight, mobTarget: function () { return mobTarget ? mobTarget.id : null; },
+  dim: function () { return dim; }, enterEnd: enterEnd, exitEnd: exitEnd, setupEnd: setupEnd, endTopAt: endTopAt, armorReduce: armorReduce,
+  checkPortal: checkPortal, updateQuest: updateQuest, questIdx: function () { return questIdx; }, questText: questText, QUESTS: QUESTS.length,
+  flags: function () { return { portalActive: portalActive, visitedEnd: visitedEnd, crystalsCleared: crystalsCleared, dragonDefeated: dragonDefeated, crystalMask: crystalMask, dragonHp: dragonHp, pearlTotal: pearlTotal, eyeMade: eyeMade, questIdx: questIdx }; },
+  fireballCount: function () { return fireballs.length; }, damageMobById: function (id, dmg) { for (var i = 0; i < mobs.length; i++) if (mobs[i].id === id) { damageMob(mobs[i], dmg, P.x, P.z, 0, true); return true; } return false; },
+  retPos: function () { return retPos; }, onPortal: function () { return portalT; }, END_TOP: END_TOP, PILLARS: PILLARS,
   withSeed: function (s, fn) { var old = SEED; SEED = s; try { return fn(); } finally { SEED = old; } }
 };
 })();
