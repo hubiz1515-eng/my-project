@@ -10,10 +10,21 @@ execFileSync('npx', ['tsc', '--ignoreConfig', 'src/game/engine.ts', '--outDir', 
 const engine = readFileSync(join(out, 'engine.js'), 'utf8').replace(/^export /gm, '');
 // 전체 순위 서버 주소: TANGTANG_API=https://tangtang-leaderboard.<계정>.workers.dev node scripts/build-game-web.mjs
 const api = (process.env.TANGTANG_API || '').replace(/\/+$/, '');
+// Firebase(Firestore) 순위: TANGTANG_FB_KEY=<웹 API 키> TANGTANG_FB_PROJECT=<프로젝트 ID> (테스트용: TANGTANG_FB_BASE=http://127.0.0.1:포트)
+const fbBase = process.env.TANGTANG_FB_BASE;
+const fb = process.env.TANGTANG_FB_KEY && process.env.TANGTANG_FB_PROJECT
+  ? {
+      key: process.env.TANGTANG_FB_KEY,
+      project: process.env.TANGTANG_FB_PROJECT,
+      signup: fbBase ? `${fbBase}/signUp` : 'https://identitytoolkit.googleapis.com/v1/accounts:signUp',
+      token: fbBase ? `${fbBase}/token` : 'https://securetoken.googleapis.com/v1/token',
+      fs: fbBase ? `${fbBase}/v1` : 'https://firestore.googleapis.com/v1',
+    }
+  : null;
 const outDir = process.env.TANGTANG_OUT || 'game-web';
-const html = readFileSync('scripts/game-web.html', 'utf8').replace('/*__ENGINE__*/', () => engine).replace("/*__API__*/''", () => JSON.stringify(api));
+const html = readFileSync('scripts/game-web.html', 'utf8').replace('/*__ENGINE__*/', () => engine).replace("/*__API__*/''", () => JSON.stringify(api)).replace('/*__FB__*/null', () => JSON.stringify(fb));
 writeFileSync(`${outDir}/tangtang.html`, html);
 // 광고(트레일러) 버전: 같은 코드에 AD 플래그만 켠다. 마지막 버튼이 같은 페이지에서 게임을 시작한다.
 const ad = html.replace('/*__AD__*/false', 'true').replace('<title>탕탕 특공대 - 귀신 천마리</title>', '<title>탕탕 특공대 - 귀신 천마리 (광고)</title>');
 writeFileSync(`${outDir}/ad.html`, ad);
-console.log(`wrote ${outDir}/tangtang.html + ad.html`, (html.length / 1024).toFixed(1) + 'KB', api ? `(순위 서버: ${api})` : '(순위 서버 미설정)');
+console.log(`wrote ${outDir}/tangtang.html + ad.html`, (html.length / 1024).toFixed(1) + 'KB', fb ? `(순위: Firebase ${fb.project})` : api ? `(순위 서버: ${api})` : '(순위 서버 미설정)');

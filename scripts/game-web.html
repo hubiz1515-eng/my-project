@@ -70,6 +70,9 @@ let diff=2;try{const d=localStorage.getItem('tangtang:diff');if(d!==null&&DIFFIC
 const DC=['#7ddc6a','#ffd84a','#ff7a3a','#ff3b3b'];
 /* 전체 순위 서버: 빌드할 때 TANGTANG_API=https://... 로 주입 (game-server/README.md). 비어 있으면 내 기록만 쓴다 */
 const API=/*__API__*/'';
+/* Firebase(Firestore REST) 순위: 빌드할 때 TANGTANG_FB_KEY / TANGTANG_FB_PROJECT 로 주입 (game-server/README.md). 둘 다 있으면 API(Worker)보다 우선 */
+const FB=/*__FB__*/null;
+const BACKEND=FB?'fb':API?'api':'';
 const lget=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lset=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 const rid=n=>{const a=new Uint8Array(n);crypto.getRandomValues(a);return Array.from(a,x=>(x%36).toString(36)).join('');};
 function ident(){let pid=lget('tangtang:pid'),sec=lget('tangtang:sec');if(!pid||!sec){pid=rid(24);sec=rid(32);lset('tangtang:pid',pid);lset('tangtang:sec',sec);}return{pid,sec};}
@@ -78,10 +81,57 @@ function setNick(v){v=(v||'').replace(/[\u0000-\u001f<>]/g,'').replace(/\s+/g,' 
 const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(path,opt){const r=await fetch(API+path,opt);const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||r.status),{status:r.status});return j;}
 function submitScore(rec){
-  if(!API||rec.t<10)return Promise.resolve(null);
+  if(!BACKEND||rec.t<10)return Promise.resolve(null);
+  if(FB)return fbSubmit(rec);
   const id=ident();
   return api('/score',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({diff:rec.df,pid:id.pid,secret:id.sec,name:getNick(),t:Math.round(rec.t*10)/10,kills:rec.k,lvl:rec.l,combo:rec.c})});
 }
+const FSB=()=>FB.fs+'/projects/'+FB.project+'/databases/(default)/documents';
+const fval=f=>f==null?undefined:f.integerValue!==undefined?Number(f.integerValue):f.doubleValue!==undefined?f.doubleValue:f.stringValue;
+const fdec=f=>({name:fval(f.name),t:fval(f.t),kills:fval(f.kills),lvl:fval(f.lvl),combo:fval(f.combo)});
+async function fbJson(url,init){const r=await fetch(url,init);const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error('fb '+r.status),{status:r.status,body:j});return j;}
+/** 익명 로그인(uid 가 곧 내 신원). 토큰은 localStorage 에 보관하고 만료 전에 갱신한다 */
+async function fbAuth(){
+  let a=null;try{a=JSON.parse(lget('tangtang:fbauth'))}catch(e){}
+  if(a&&a.exp>Date.now()+60000)return a;
+  let j=null;
+  if(a&&a.refresh){try{j=await fbJson(FB.token+'?key='+FB.key,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(a.refresh)});a={uid:j.user_id,id:j.id_token,refresh:j.refresh_token,exp:Date.now()+Number(j.expires_in)*1000};}catch(e){j=null;}}
+  if(!j){j=await fbJson(FB.signup+'?key='+FB.key,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({returnSecureToken:true})});a={uid:j.localId,id:j.idToken,refresh:j.refreshToken,exp:Date.now()+Number(j.expiresIn)*1000};}
+  lset('tangtang:fbauth',JSON.stringify(a));return a;
+}
+const fbCount=async(coll,t)=>{
+  const sq={from:[{collectionId:coll}]};if(t!==undefined)sq.where={fieldFilter:{field:{fieldPath:'t'},op:'GREATER_THAN',value:{doubleValue:t}}};
+  const j=await fbJson(FSB()+':runAggregationQuery?key='+FB.key,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({structuredAggregationQuery:{aggregations:[{alias:'n',count:{}}],structuredQuery:sq}})});
+  return Number(fval(j[0].result.aggregateFields.n));
+};
+async function fbBoard(d){
+  const coll='scores_d'+d;let uid='';try{uid=JSON.parse(lget('tangtang:fbauth')).uid||''}catch(e){}
+  const q=await fbJson(FSB()+':runQuery?key='+FB.key,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({structuredQuery:{from:[{collectionId:coll}],orderBy:[{field:{fieldPath:'t'},direction:'DESCENDING'}],limit:50}})});
+  const rows=q.filter(x=>x.document).map(x=>({id:x.document.name.split('/').pop(),...fdec(x.document.fields)}));
+  rows.sort((a,b)=>b.t-a.t||b.kills-a.kills);
+  const out=rows.map((r,i)=>({rank:i+1,name:r.name,t:r.t,kills:r.kills,lvl:r.lvl,combo:r.combo,me:r.id===uid}));
+  const total=await fbCount(coll);
+  let mine=null;
+  if(uid&&!out.some(r=>r.me)){
+    const r=await fetch(FSB()+'/'+coll+'/'+uid+'?key='+FB.key);
+    if(r.ok){const m=fdec((await r.json()).fields);mine={rank:(await fbCount(coll,m.t))+1,...m,me:true};}
+  }
+  return{diff:d,total,rows:out,mine};
+}
+async function fbSubmit(rec){
+  const a=await fbAuth(),coll='scores_d'+rec.df,t=Math.round(rec.t*10)/10,nick=getNick();
+  const cur=await fetch(FSB()+'/'+coll+'/'+a.uid+'?key='+FB.key);
+  let old=null;if(cur.ok)old=fdec((await cur.json()).fields);else if(cur.status!==404)throw new Error('fb '+cur.status);
+  const better=!old||t>old.t||(t===old.t&&rec.k>old.kills);
+  let best=better?{t,kills:rec.k,lvl:rec.l,combo:rec.c}:old;
+  if(better||old.name!==nick){
+    await fbJson(FSB()+':commit?key='+FB.key,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+a.id},body:JSON.stringify({writes:[{
+      update:{name:'projects/'+FB.project+'/databases/(default)/documents/'+coll+'/'+a.uid,fields:{name:{stringValue:nick},t:{doubleValue:best.t},kills:{integerValue:String(best.kills)},lvl:{integerValue:String(best.lvl)},combo:{integerValue:String(best.combo)}}},
+      updateTransforms:[{fieldPath:'updated',setToServerValue:'REQUEST_TIME'}]}]})});
+  }
+  return{ok:true,rank:(await fbCount(coll,best.t))+1,total:await fbCount(coll),best,newBest:better};
+}
+const fetchBoard=d=>FB?fbBoard(d):api('/leaderboard?diff='+d+'&limit=50&pid='+encodeURIComponent(ident().pid));
 const REC='tangtang:records2',BST='tangtang:bests';
 const jget=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
 const jset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -462,9 +512,9 @@ async function boards(d,back){
   ov.querySelectorAll('.dif').forEach(el=>el.onclick=()=>boards(+el.dataset.d,back));
   document.getElementById('bk').onclick=()=>back==='over'?gameOver(true):menu();
   const box=document.getElementById('lb');
-  if(!API){box.innerHTML='<p>전체 순위 서버가 아직 설정되지 않았어요.\n(game-server/README.md 참고)</p>';return;}
+  if(!BACKEND){box.innerHTML='<p>전체 순위 서버가 아직 설정되지 않았어요.\n(game-server/README.md 참고)</p>';return;}
   try{
-    const j=await api('/leaderboard?diff='+d+'&limit=50&pid='+encodeURIComponent(ident().pid));
+    const j=await fetchBoard(d);
     if(tok!==lbTok)return;
     if(!j.rows.length){box.innerHTML='<p>아직 기록이 없어요.\n첫 번째 주인공이 되어 보세요!</p>';return;}
     const row=r=>'<tr'+(r.me?' class="me"':'')+'><td>'+(r.rank===1?'🥇':r.rank===2?'🥈':r.rank===3?'🥉':r.rank)+'</td><td class="nm">'+esc(r.name)+'</td><td>'+fmt(r.t)+'</td><td>'+r.kills+'</td><td>'+r.lvl+'</td><td>'+r.combo+'</td></tr>';
@@ -482,13 +532,13 @@ let lastResult=null,lastWorld='';
 function gameOver(again){
   phase='over';syncBtns();
   if(again!==true){lastResult=addRecord(g);Au.stop();Au.sfx('over');if(lastResult.newTime){setTimeout(()=>Au.sfx('level'),900);}
-    lastWorld=API?'🌍 전체 순위 등록 중…':'';
-    if(API)submitScore(lastResult.me).then(j=>{if(!j)return;lastWorld=(j.newBest?'🌍 전체 ':'🌍 내 최고 기록 기준 전체 ')+j.rank+'위 / '+j.total+'명 ('+DIFFICULTIES[g.diff].name+')';const el=document.getElementById('wl');if(el)el.textContent=lastWorld;})
+    lastWorld=BACKEND?'🌍 전체 순위 등록 중…':'';
+    if(BACKEND)submitScore(lastResult.me).then(j=>{if(!j)return;lastWorld=(j.newBest?'🌍 전체 ':'🌍 내 최고 기록 기준 전체 ')+j.rank+'위 / '+j.total+'명 ('+DIFFICULTIES[g.diff].name+')';const el=document.getElementById('wl');if(el)el.textContent=lastWorld;})
       .catch(()=>{lastWorld='🌍 순위 서버에 연결하지 못했어요';const el=document.getElementById('wl');if(el)el.textContent=lastWorld;});}
   const r=lastResult,tags=[];
   if(r.newTime)tags.push('🏆 신기록!');else if(r.rank>=0)tags.push('TOP 10 '+(r.rank+1)+'위');
   if(r.newKills)tags.push('최다 처치 갱신');if(r.newCombo)tags.push('최대 콤보 갱신');
-  show('<h2>GAME OVER</h2>'+(tags.length?'<div class="new">'+tags.join(' · ')+'</div>':'')+'<p style="color:'+DC[g.diff]+'">난이도  '+DIFFICULTIES[g.diff].name+'</p><p>생존 시간  '+fmt(g.time)+'\n처치  '+g.kills+'   최대 콤보  '+g.bestCombo+'\n레벨  '+g.player.level+'   엽전  '+g.coins+'</p>'+(API?'<div class="best" id="wl">'+esc(lastWorld)+'</div>':'')+recTable(r.me)+'<button class="btn" id="go">다시 도전</button><div><button class="small" id="wr">🌍 전체 순위</button> <button class="small" id="mn">메인 화면</button></div>');
+  show('<h2>GAME OVER</h2>'+(tags.length?'<div class="new">'+tags.join(' · ')+'</div>':'')+'<p style="color:'+DC[g.diff]+'">난이도  '+DIFFICULTIES[g.diff].name+'</p><p>생존 시간  '+fmt(g.time)+'\n처치  '+g.kills+'   최대 콤보  '+g.bestCombo+'\n레벨  '+g.player.level+'   엽전  '+g.coins+'</p>'+(BACKEND?'<div class="best" id="wl">'+esc(lastWorld)+'</div>':'')+recTable(r.me)+'<button class="btn" id="go">다시 도전</button><div><button class="small" id="wr">🌍 전체 순위</button> <button class="small" id="mn">메인 화면</button></div>');
   document.getElementById('wr').onclick=()=>boards(g.diff,'over');
   document.getElementById('go').onclick=start;
   document.getElementById('mn').onclick=()=>{g=createGame();menu();};

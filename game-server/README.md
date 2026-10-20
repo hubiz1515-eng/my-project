@@ -1,5 +1,34 @@
 # 귀신 천마리 — 전체 순위 서버
 
+전체 순위 저장소는 두 가지 중 하나를 고를 수 있습니다. 게임은 빌드할 때 주입한 값으로 자동 선택합니다.
+
+| | 방법 | 설정 |
+|---|---|---|
+| A | **Firebase(Firestore)** — 서버 코드 없이 규칙만 | 아래 "Firebase로 하기" |
+| B | Cloudflare Worker + D1 | 그 아래 "Cloudflare로 하기" |
+
+## Firebase로 하기 (콘솔 클릭만, 명령어 불필요)
+
+> ⚠️ **귀신 천마리 전용 새 Firebase 프로젝트**를 만드세요. 픽업딜 앱 프로젝트에 넣지 마세요.
+
+1. https://console.firebase.google.com → **프로젝트 추가** (예: `tangtang-game`, 애널리틱스는 꺼도 됩니다).
+2. **빌드 → Authentication → 시작하기 → Sign-in method → 익명(Anonymous) → 사용 설정**.
+3. **빌드 → Firestore Database → 데이터베이스 만들기** (위치 `asia-northeast3`(서울), **프로덕션 모드**로 시작).
+4. Firestore의 **규칙** 탭에 `game-server/firebase/firestore.rules` 내용을 전부 붙여넣고 **게시**.
+5. **프로젝트 설정(톱니) → 일반 → 내 앱 → 웹 앱(`</>`) 추가** → 화면에 나오는 `apiKey`와 `projectId`를 복사.
+6. 게임 빌드:
+   ```bash
+   TANGTANG_FB_KEY=<apiKey> TANGTANG_FB_PROJECT=<projectId> node scripts/build-game-web.mjs
+   ```
+
+- 플레이어 신원은 **익명 로그인 uid**입니다. 브라우저 데이터를 지우면 새 플레이어가 됩니다.
+- 난이도마다 컬렉션이 나뉩니다 (`scores_d0`~`scores_d3`), 문서 ID = uid. 규칙이 "본인 문서만, 기록은 같거나 좋아지게만, 5초에 한 번, 범위 검증"을 강제합니다.
+- 웹 API 키는 공개되어도 되는 값입니다(보안은 규칙이 담당).
+- ⚠️ 규칙 파일은 에뮬레이터로 테스트하지 못했습니다. 게시한 뒤 콘솔의 **규칙 플레이그라운드**나 실제 플레이로 확인하세요.
+- ⚠️ HTML 파일을 `file://`(더블클릭)로 열면 브라우저에 따라 Google API 호출이 CORS로 막힐 수 있습니다. 그럴 땐 `pages.dev` 등 웹에 올려서 여세요.
+
+## Cloudflare로 하기
+
 픽업딜 앱과 **완전히 별개**의 서비스입니다 (Firebase 프로젝트·규칙·함수에 손대지 않습니다).
 Cloudflare Worker + D1(SQLite)로 동작하고, 무료 요금제로 시작할 수 있습니다.
 

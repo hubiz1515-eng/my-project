@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// 귀신 천마리 전체 순위 전용 Firebase 프로젝트의 Firestore 규칙 (픽업딜 프로젝트에는 쓰지 마세요).
+//
+// 컬렉션: scores_d0 ~ scores_d3 (난이도별), 문서 ID = 익명 로그인 uid  → 플레이어 1명당 난이도마다 1문서.
+//  - 읽기: 누구나 (순위표)
+//  - 쓰기: 로그인(익명) 한 본인 문서만, 형식·범위 검증 통과 시, 기록은 같거나 좋아지는 방향으로만,
+//          같은 문서는 5초에 한 번만. 삭제는 불가.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function validScore(d) {
+      return d.keys().hasOnly(['name', 't', 'kills', 'lvl', 'combo', 'updated'])
+        && d.keys().hasAll(['name', 't', 'kills', 'lvl', 'combo', 'updated'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 12
+        && d.t is number && d.t >= 10 && d.t <= 7200
+        && d.kills is int && d.kills >= 0 && d.kills <= 100000
+        && d.lvl is int && d.lvl >= 1 && d.lvl <= 100 && d.lvl <= d.kills + 1
+        && d.combo is int && d.combo >= 0 && d.combo <= d.kills
+        && d.kills <= d.t * 45 + 30            // 필살기까지 감안해도 초당 45킬 초과는 불가능
+        && d.updated == request.time;          // 서버 시각(클라이언트가 조작 불가)
+    }
+
+    match /{coll}/{uid} {
+      allow read: if coll in ['scores_d0', 'scores_d1', 'scores_d2', 'scores_d3'];
+
+      allow create: if coll in ['scores_d0', 'scores_d1', 'scores_d2', 'scores_d3']
+        && request.auth != null && request.auth.uid == uid
+        && validScore(request.resource.data);
+
+      allow update: if coll in ['scores_d0', 'scores_d1', 'scores_d2', 'scores_d3']
+        && request.auth != null && request.auth.uid == uid
+        && validScore(request.resource.data)
+        && request.time > resource.data.updated + duration.value(5, 's')
+        && (request.resource.data.t > resource.data.t
+            || (request.resource.data.t == resource.data.t && request.resource.data.kills >= resource.data.kills));
+
+      allow delete: if false;
+    }
+  }
+}
