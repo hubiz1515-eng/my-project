@@ -1,3 +1,4 @@
+import './setup.mjs';
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -25,6 +26,7 @@ const login = async (pw = PW) => (await call('/api/admin/login', { method: 'POST
 before(async () => {
   process.env.ADMIN_PASSWORD = PW;
   delete process.env.MAX_PLAYERS;
+  process.env.CREATE_LIMIT = '100000';   // 테스트가 닉네임을 많이 만들어도 막히지 않게 (제한 자체는 아래 별도 테스트에서 확인)
   dir = mkdtempSync(join(tmpdir(), 'bc-test-'));
   srv = await startDevServer({ blobsDir: dir, quiet: true });
   base = srv.url;
@@ -38,6 +40,10 @@ describe('닉네임 정규화', () => {
   });
   test('NFC/NFD 한글도 같은 닉네임', () => {
     assert.equal(normalizeNick('재유'.normalize('NFD')).key, normalizeNick('재유'.normalize('NFC')).key);
+  });
+  test('전각/반각·한글 호환 자모도 같은 닉네임 (NFKC)', () => {
+    assert.equal(normalizeNick('ＡＢＣ１２３').key, normalizeNick('abc123').key);
+    assert.equal(normalizeNick('ㄱㅏㅁ').key, normalizeNick('ㄱㅏㅁ'.normalize('NFKC')).key);
   });
   test('잘못된 닉네임 거부', () => {
     for (const bad of ['', '   ', 'a'.repeat(17), '<script>', 'a/b', '😀', null, 5, undefined]) assert.equal(normalizeNick(bad), null, String(bad));
@@ -212,6 +218,7 @@ describe('관리자', () => {
   });
   test('로그인 5번 실패하면 잠금 (맞는 비밀번호도 거부), 429 + retry-after', async () => {
     const d2 = mkdtempSync(join(tmpdir(), 'bc-test-lock-'));
+    const ctx0 = process.env.NETLIFY_BLOBS_CONTEXT;
     const s2 = await startDevServer({ blobsDir: d2, quiet: true });
     const b0 = base; base = s2.url;
     try {
@@ -219,10 +226,11 @@ describe('관리자', () => {
       const locked = await login(PW);
       assert.equal(locked.status, 429); assert.equal(locked.j.error, 'locked'); assert.ok(locked.j.retryAfter > 800);
       assert.ok(Number(locked.headers.get('retry-after')) > 800);
-    } finally { base = b0; await s2.close(); rmSync(d2, { recursive: true, force: true }); }
+    } finally { base = b0; process.env.NETLIFY_BLOBS_CONTEXT = ctx0; await s2.close(); rmSync(d2, { recursive: true, force: true }); }
   });
   test('성공하면 실패 횟수 초기화', async () => {
     const d2 = mkdtempSync(join(tmpdir(), 'bc-test-reset-'));
+    const ctx0 = process.env.NETLIFY_BLOBS_CONTEXT;
     const s2 = await startDevServer({ blobsDir: d2, quiet: true });
     const b0 = base; base = s2.url;
     try {
@@ -230,7 +238,7 @@ describe('관리자', () => {
       assert.equal((await login()).status, 200);
       for (let i = 0; i < 4; i++) assert.equal((await login('nope')).status, 401);
       assert.equal((await login()).status, 200);
-    } finally { base = b0; await s2.close(); rmSync(d2, { recursive: true, force: true }); }
+    } finally { base = b0; process.env.NETLIFY_BLOBS_CONTEXT = ctx0; await s2.close(); rmSync(d2, { recursive: true, force: true }); }
   });
 });
 
@@ -250,6 +258,7 @@ describe('설정', () => {
   });
   test('MAX_PLAYERS 상한: 새 닉네임만 막고 기존 닉네임은 계속 저장', async () => {
     const d2 = mkdtempSync(join(tmpdir(), 'bc-test-cap-'));
+    const ctx0 = process.env.NETLIFY_BLOBS_CONTEXT;
     const s2 = await startDevServer({ blobsDir: d2, quiet: true });
     const b0 = base; base = s2.url; process.env.MAX_PLAYERS = '2';
     try {
@@ -258,6 +267,121 @@ describe('설정', () => {
       const full = await put('a3', save(), { baseRev: 0 });
       assert.equal(full.status, 507); assert.equal(full.j.error, 'full');
       assert.equal((await put('a1', save({ t: 0.7 }), { baseRev: 1 })).status, 200);
-    } finally { delete process.env.MAX_PLAYERS; base = b0; await s2.close(); rmSync(d2, { recursive: true, force: true }); }
+    } finally { delete process.env.MAX_PLAYERS; base = b0; process.env.NETLIFY_BLOBS_CONTEXT = ctx0; await s2.close(); rmSync(d2, { recursive: true, force: true }); }
+  });
+});
+
+/* ---- 검토에서 나온 문제들에 대한 회귀 테스트 ---- */
+const withServer = async (opts, fn) => {
+  const d2 = mkdtempSync(join(tmpdir(), 'bc-test-x-'));
+  const ctx0 = process.env.NETLIFY_BLOBS_CONTEXT;   // 저장소 연결 정보는 프로세스 전역이라, 끝나면 원래 서버 것으로 되돌려야 한다
+  const s2 = await startDevServer({ blobsDir: d2, quiet: true, ...opts });
+  const b0 = base; base = s2.url;
+  try { return await fn(); } finally { base = b0; process.env.NETLIFY_BLOBS_CONTEXT = ctx0; await s2.close(); rmSync(d2, { recursive: true, force: true }); }
+};
+const CID1 = 'aaaaaaaa-session1', CID2 = 'bbbbbbbb-session2';
+
+describe('저장소 오류를 성공으로 착각하지 않는다', () => {
+  for (const status of [401, 403, 409, 413, 503]) {
+    test(`조건부 쓰기가 ${status} 로 실패하면 200 을 주지 않는다 (새 닉네임/기존 닉네임/관리자 올리기)`, async () => {
+      let broken = false;
+      await withServer({ fault: (r) => (broken && r.method === 'PUT' && r.conditional && r.path.includes('blockcraft-saves') ? status : 0) }, async () => {
+        assert.equal((await put('fault-a', save(), { baseRev: 0 })).status, 200);
+        broken = true;
+        const n1 = await put('fault-new', save(), { baseRev: 0 });
+        assert.equal(n1.status, 500, '새 닉네임: ' + n1.status);
+        const n2 = await put('fault-a', save({ t: 0.9 }), { baseRev: 1 });
+        assert.equal(n2.status, 500, '기존 닉네임: ' + n2.status);
+        const tk = (await login()).j.token;
+        const n3 = await call('/api/admin/player', { method: 'PUT', token: tk, body: { nick: 'fault-admin', data: save() } });
+        assert.equal(n3.status, 500, '관리자 올리기: ' + n3.status);
+        broken = false;
+        assert.equal((await call('/api/save?nick=fault-new')).j.data, null, '새 닉네임은 저장되지 않았어야 함');
+        assert.equal(JSON.parse((await call('/api/save?nick=fault-a')).j.data).t, 0.2, '기존 저장은 그대로');
+        assert.equal((await put('fault-new', save(), { baseRev: 0 })).status, 200, '오류가 사라지면 다시 저장됨');
+      });
+    });
+  }
+});
+
+describe('같은 접속(cid)의 재시도 · 순서 뒤바뀜', () => {
+  test('응답이 유실돼 baseRev 가 낡은 재시도는 자기 자신과 충돌하지 않는다', async () => {
+    const a = await put('cid-a', save({ t: 0.1 }), { baseRev: 0, cid: CID1, seq: 1 });
+    assert.equal(a.j.rev, 1);
+    // 클라이언트는 응답을 못 받아 baseRev 0 그대로 다음 저장을 보낸다
+    const b = await put('cid-a', save({ t: 0.2 }), { baseRev: 0, cid: CID1, seq: 2 });
+    assert.equal(b.status, 200); assert.equal(b.j.rev, 2);
+    assert.equal(JSON.parse((await call('/api/save?nick=cid-a')).j.data).t, 0.2);
+  });
+  test('다른 접속이 끼어든 뒤의 낡은 baseRev 는 여전히 409', async () => {
+    await put('cid-b', save({ t: 0.1 }), { baseRev: 0, cid: CID1, seq: 1 });
+    await put('cid-b', save({ t: 0.5 }), { baseRev: 1, cid: CID2, seq: 1 });
+    const r = await put('cid-b', save({ t: 0.9 }), { baseRev: 1, cid: CID1, seq: 2 });
+    assert.equal(r.status, 409);
+    assert.equal(JSON.parse((await call('/api/save?nick=cid-b')).j.data).t, 0.5);
+  });
+  test('같은 접속의 옛 요청(seq 가 작음)이 늦게 도착하면 무시한다', async () => {
+    await put('cid-c', save({ t: 0.1 }), { baseRev: 0, cid: CID1, seq: 1 });
+    await put('cid-c', save({ t: 0.3 }), { baseRev: 1, cid: CID1, seq: 3 });
+    const late = await put('cid-c', save({ t: 0.2 }), { baseRev: 1, cid: CID1, seq: 2 });
+    assert.equal(late.status, 200); assert.equal(late.j.ignored, true); assert.equal(late.j.rev, 2);
+    assert.equal(JSON.parse((await call('/api/save?nick=cid-c')).j.data).t, 0.3, '더 새로운 저장이 유지됨');
+  });
+  test('GET 은 마지막으로 쓴 접속(cid)을 돌려준다', async () => {
+    await put('cid-d', save(), { baseRev: 0, cid: CID1, seq: 1 });
+    assert.equal((await call('/api/save?nick=cid-d')).j.cid, CID1);
+    assert.equal((await call('/api/save?nick=cid-nobody')).j.cid, '');
+  });
+  test('잘못된 cid 는 접속 구분 없이 일반 규칙으로', async () => {
+    await put('cid-e', save(), { baseRev: 0, cid: 'x', seq: 1 });
+    assert.equal((await put('cid-e', save(), { baseRev: 0, cid: 'x', seq: 2 })).status, 409);
+  });
+});
+
+describe('삭제 뒤에도 버전이 되돌아가지 않는다', () => {
+  test('관리자가 지운 닉네임을 낡은 화면이 저장하면 409, 새로 접속하면 이어서 저장', async () => {
+    const tk = (await login()).j.token;
+    for (let i = 0; i < 3; i++) assert.equal((await put('aba', save({ t: i / 10 }), { baseRev: i })).status, 200);
+    assert.equal((await call('/api/admin/player?nick=aba', { method: 'DELETE', token: tk })).status, 200);
+    const g = await call('/api/save?nick=aba');
+    assert.equal(g.j.data, null); assert.equal(g.j.rev, 4, '삭제된 닉네임의 rev 는 이어진다');
+    assert.equal((await put('aba', save({ t: 0.9 }), { baseRev: 3 })).status, 409, '낡은 화면(rev 3)은 새 월드를 덮어쓰지 못함');
+    assert.equal((await call('/api/save?nick=aba')).j.data, null, '여전히 비어 있음');
+    const fresh = await put('aba', save({ t: 0.5 }), { baseRev: g.j.rev });
+    assert.equal(fresh.status, 200); assert.equal(fresh.j.rev, 5);
+  });
+});
+
+describe('요청 횟수 제한', () => {
+  test('동시에 20번 틀려도 비밀번호 비교는 5번까지만', async () => {
+    await withServer({}, async () => {
+      const rs = await Promise.all(Array.from({ length: 20 }, (_, i) => login('wrong' + i)));
+      const s401 = rs.filter((r) => r.status === 401).length, s429 = rs.filter((r) => r.status === 429).length;
+      assert.equal(s401, 5, '401 ' + s401 + ' / 429 ' + s429);
+      assert.equal(s401 + s429, 20);
+      assert.equal((await login(PW)).status, 429, '잠긴 동안은 맞는 비밀번호도 거부');
+    });
+  });
+  test('한 IP 가 한 시간에 새 닉네임을 11개 이상 만들 수 없다 (기존 닉네임 저장은 계속 됨)', async () => {
+    await withServer({}, async () => {
+      process.env.CREATE_LIMIT = '10';
+      try {
+      for (let i = 0; i < 10; i++) assert.equal((await put('spam' + i, save(), { baseRev: 0 })).status, 200, 'spam' + i);
+      const r = await put('spam10', save(), { baseRev: 0 });
+      assert.equal(r.status, 429); assert.equal(r.j.error, 'rate_limited'); assert.ok(r.j.retryAfter > 3000);
+      assert.equal((await put('spam0', save({ t: 0.7 }), { baseRev: 1 })).status, 200, '기존 닉네임은 영향 없음');
+      const tk = (await login()).j.token;
+      assert.equal((await call('/api/admin/player', { method: 'PUT', token: tk, body: { nick: 'by-admin', data: save() } })).status, 200, '관리자 올리기는 제한 제외');
+      } finally { process.env.CREATE_LIMIT = '100000'; }
+    });
+  });
+  test('저장 공간이 가득 차면 507 (제한 소모 없이)', async () => {
+    await withServer({}, async () => {
+      process.env.MAX_PLAYERS = '1';
+      try {
+        assert.equal((await put('only', save(), { baseRev: 0 })).status, 200);
+        assert.equal((await put('second', save(), { baseRev: 0 })).status, 507);
+      } finally { delete process.env.MAX_PLAYERS; }
+    });
   });
 });

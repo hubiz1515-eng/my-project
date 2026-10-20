@@ -5,6 +5,8 @@
   command = "node build.mjs"        # ../game/index.html 을 public/index.html 로 복사
   publish = "public"
   functions = "netlify/functions"
+  # 이 폴더나 게임 파일(../game)이 바뀐 커밋에서만 다시 빌드 (저장소에는 다른 앱도 있어서, 그쪽 커밋마다 배포되지 않게)
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ../game"
 
 [build.environment]
   NODE_VERSION = "22"               # @netlify/blobs 가 Node 22.12 이상을 요구

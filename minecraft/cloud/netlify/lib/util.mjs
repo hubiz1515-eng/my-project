@@ -24,12 +24,12 @@ export function json(status, body, extra) {
 }
 
 /**
- * 닉네임 정규화. 같은 닉네임(대소문자·공백 차이 무시)이면 같은 키가 된다.
+ * 닉네임 정규화. 같은 닉네임(대소문자·공백·전각/반각 차이 무시)이면 같은 키가 된다.
  * 허용: 한글/영문/숫자/_ - . 공백, 1~16자. 키는 소문자 UTF-8 의 hex 라서 URL 인코딩 문제가 없다.
  */
 export function normalizeNick(raw) {
   if (typeof raw !== 'string') return null;
-  const nick = raw.normalize('NFC').replace(/\s+/g, ' ').trim();
+  const nick = raw.normalize('NFKC').replace(/\s+/g, ' ').trim();   // NFKC: 전각/반각, 한글 호환 자모 등도 같은 닉네임으로 (클라이언트 normNick 과 같은 규칙)
   const len = [...nick].length;
   if (len < 1 || len > NICK_MAX) return null;
   if (!/^[\p{L}\p{N}_\-. ]+$/u.test(nick)) return null;

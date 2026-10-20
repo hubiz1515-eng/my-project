@@ -4,6 +4,7 @@
 import { createServer } from 'node:http';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { Buffer } from 'node:buffer';
+import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { BlobsServer } from '@netlify/blobs/server';
@@ -14,7 +15,7 @@ const MAX_BODY = 8 * 1024 * 1024;
 // 로컬 Blobs 서버는 조건부 쓰기(onlyIfMatch/onlyIfNew)가 원자적이지 않고 etag 도 파일 수정 시각(ms) 기반이라 약하다.
 // 그래서 쓰기·삭제를 한 줄로 세우고, etag 를 "버전 번호"로 바꿔 끼우며, 조건 검사를 이 프록시가 직접 해서
 // 실제 Netlify Blobs(서버에서 원자적으로 조건부 쓰기 처리)와 같은 동작을 흉내 낸다.
-async function startSerialProxy(targetPort) {
+async function startSerialProxy(targetPort, fault) {
   let chain = Promise.resolve();
   const versions = new Map();   // 경로 → 쓰기 횟수(= etag)
   const etagOf = (path) => `"v${versions.get(path) || 0}"`;
@@ -32,6 +33,8 @@ async function startSerialProxy(targetPort) {
       };
       const run = async () => {
         try {
+          const injected = fault && fault({ method: req.method, path, conditional: !!(headers['if-match'] || headers['if-none-match']) });   // 테스트용: 저장소 오류 흉내
+          if (injected) { res.writeHead(injected).end(); return; }
           const isWrite = req.method === 'PUT' || req.method === 'DELETE';
           if (req.method === 'PUT') {
             const ifMatch = headers['if-match'], ifNone = headers['if-none-match'];
@@ -54,12 +57,12 @@ async function startSerialProxy(targetPort) {
   return { port: server.address().port, close: () => new Promise((r) => server.close(r)) };
 }
 
-export async function startDevServer({ port = 0, blobsDir = join(here, '.blobs'), gameFile = join(here, '..', 'game', 'index.html'), quiet = false } = {}) {
+export async function startDevServer({ port = 0, blobsDir = join(here, '.blobs'), gameFile = join(here, '..', 'game', 'index.html'), quiet = false, fault } = {}) {
   mkdirSync(blobsDir, { recursive: true });
-  const token = 'dev-token';
+  const token = randomUUID();   // 로컬 Blobs 서버 보호용 (실행할 때마다 새로)
   const blobs = new BlobsServer({ directory: blobsDir, token, port: 0 });
   const { port: blobsPort } = await blobs.start();
-  const proxy = await startSerialProxy(blobsPort);
+  const proxy = await startSerialProxy(blobsPort, fault);
   const edge = `http://127.0.0.1:${proxy.port}`;
   // 배포 환경에서 Netlify 가 넣어 주는 값과 같은 형태로 주입 → 함수 코드는 배포와 100% 동일하게 동작
   process.env.NETLIFY_BLOBS_CONTEXT = Buffer.from(JSON.stringify({ edgeURL: edge, uncachedEdgeURL: edge, token, siteID: 'local-dev' })).toString('base64');
