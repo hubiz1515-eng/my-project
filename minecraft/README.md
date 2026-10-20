@@ -52,6 +52,10 @@ npx expo start          # 터미널에서 w = 웹, a = 안드로이드, i = iOS,
 - 시야 거리 4단계, 즉시 채굴, 소리, 낮/밤 전환, 새 월드 (메뉴)
 - 세로/가로 화면 모두 지원. 앱은 가로 화면으로 고정합니다(`src/app/index.tsx`, 세로로 쓰려면 그 effect 를 삭제).
 
+## 온라인 저장 (Netlify) · 숨겨진 관리자
+
+`cloud/` 폴더를 Netlify 에 배포하면 게임이 **닉네임으로 접속**하고, 같은 닉네임이면 서버에 저장된 월드가 **다른 기기에서도 이어집니다**. 화면 왼쪽 아래의 흐린 **"관리자"** 버튼은 비밀번호(Netlify 환경 변수 `ADMIN_PASSWORD`)를 입력해 저장된 플레이어를 보고·내려받고·삭제·복원하는 화면으로 들어갑니다. 서버가 없는 곳(파일로 열기·앱)에서는 기존처럼 이 기기에만 저장돼요. 배포 순서와 동작 방식은 [`cloud/README.md`](cloud/README.md).
+
 ## 구조
 
 ```
@@ -62,6 +66,7 @@ src/game/                buildHtml(저장 데이터 주입) · messages(게임�
 src/components/GameView.tsx       네이티브: react-native-webview
 src/components/GameView.web.tsx   웹: iframe(srcDoc) + postMessage
 src/app/                 Expo Router 화면 (index = 게임)
+cloud/                   Netlify 배포용: 닉네임 저장 API(Functions + Blobs) · 관리자 · 로컬 개발 서버 · 테스트
 ```
 
 앱과 게임은 `postMessage` 로 통신합니다. 게임은 `{type:'save', data}` 를 보내고, 앱이 저장소에 기록합니다. 시작할 때는 앱이 저장된 월드를 HTML 에 `window.__BLOCKCRAFT_SAVE__` 로 심어 줍니다(저장이 없으면 `null`).

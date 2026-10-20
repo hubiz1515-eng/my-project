@@ -1,0 +1,19 @@
+# 블록크래프트 Netlify 설정
+# Netlify 사이트 만들 때 "Base directory" 를 minecraft/cloud 로 지정하세요. (자세한 순서: README.md)
+
+[build]
+  command = "node build.mjs"        # ../game/index.html 을 public/index.html 로 복사
+  publish = "public"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "22"               # @netlify/blobs 가 Node 22.12 이상을 요구
+
+# 정적 파일(게임 HTML) 보안 헤더. API 응답 헤더는 함수 코드에서 직접 붙입니다.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "same-origin"
+    X-Frame-Options = "SAMEORIGIN"
+    Cache-Control = "no-cache"

@@ -110,6 +110,23 @@ body.boss #boss{display:block}
   .pal canvas{width:36px;height:36px}
 }
 #help .btn.main{position:sticky;bottom:-2px;box-shadow:0 -10px 10px -4px rgba(28,30,36,.97)}
+#adminBtn{position:fixed;left:8px;bottom:8px;padding:3px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.4);background:rgba(0,0,0,.35);color:#fff;font-size:11px;opacity:.26;z-index:4;display:none;touch-action:manipulation}
+#adminBtn:hover,#adminBtn:focus-visible,#adminBtn:active{opacity:.9}
+body.cloud #adminBtn{display:block}
+@media (max-width:760px){#adminBtn{bottom:calc(var(--s) + 36px)}}   /* 좁은 화면에선 핫바 위로 */
+#nickp{z-index:40;background:#1b1d23}
+#admin{z-index:22}
+#conflict{z-index:25}
+.field{display:block;width:100%;box-sizing:border-box;margin:8px 0;padding:11px 12px;border-radius:9px;border:2px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);color:#fff;font:inherit;font-size:16px}
+.field:focus{outline:none;border-color:#7be07b}
+.msg{min-height:18px;margin:2px 0 6px;text-align:center;font-size:12.5px;color:#ffb4ac}
+.msg.ok{color:#9be59b}
+.prow{display:flex;align-items:center;gap:8px;padding:8px 9px;margin:6px 0;border-radius:9px;border:2px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05)}
+.prow .pi{flex:1;min-width:0;font-size:13px}
+.prow .pi b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .pi span{display:block;font-size:11px;color:#b8bec9;line-height:1.4}
+.sbtn{flex:none;padding:7px 10px;border-radius:8px;border:2px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);font-size:12px;font-weight:700;touch-action:manipulation}
+.sbtn.danger{border-color:#ff8a80;color:#ffb4ac}
 </style>
 <!--BLOCKCRAFT_SAVE-->
 </head>
@@ -130,6 +147,7 @@ body.boss #boss{display:block}
 <button id="qtrack" aria-label="목표"></button>
 <div id="boss"><div id="bossName">엔더 드래곤</div><div class="bar"><i id="bossFill"></i></div></div>
 <div id="hearts"></div>
+<button id="adminBtn" aria-label="관리자">관리자</button>
 <div id="hotbar"></div>
 <div id="joy"><div id="knob"></div></div>
 <div id="jumpwrap">
@@ -154,6 +172,7 @@ body.boss #boss{display:block}
     <button class="btn" id="mHelp">조작법 보기</button>
     <button class="btn danger wide" id="mNew">새 월드 만들기</button>
   </div>
+  <button class="btn" id="mAdmin" style="display:none;opacity:.4;font-size:12px;padding:6px">관리자</button>
   <button class="btn" id="mExit" style="display:none">게임 나가기</button>
 </div></div>
 
@@ -219,6 +238,45 @@ body.boss #boss{display:block}
   <p>섬 한가운데에 오버월드로 돌아가는 포털이 생겼어요.<br>엔드를 더 둘러봐도 좋고, 돌아가서 계속 만들어도 좋아요.</p>
   <button class="btn main" id="wContinue">계속하기</button>
   <button class="btn" id="wReturn">🌍 오버월드로 돌아가기</button>
+</div></div>
+
+<div id="nickp" class="panel"><div class="card" style="text-align:center">
+  <h2>블록크래프트에 오신 것을 환영합니다!</h2>
+  <p class="sub" id="nickSub">닉네임을 입력하세요.<br>같은 닉네임으로 접속하면 저장된 게임 데이터가 이어집니다.</p>
+  <form id="nickForm" autocomplete="off">
+    <input id="nickIn" class="field" type="text" maxlength="16" placeholder="닉네임 (한글·영문·숫자 1~16자)" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" aria-label="닉네임">
+    <div class="msg" id="nickMsg"></div>
+    <button class="btn main" id="nickGo" type="submit">시작하기</button>
+  </form>
+  <p class="msg" id="nickOff" style="display:none">서버에 연결할 수 없어요. 인터넷을 확인하고 다시 시도하거나, 이 기기에서만 플레이할 수 있어요.</p>
+  <button class="btn main" id="nickRetry" style="display:none">다시 시도</button>
+  <button class="btn" id="nickLocal" style="font-size:13px">이 기기에서만 플레이 (서버에 저장 안 함)</button>
+</div></div>
+
+<div id="conflict" class="panel"><div class="card" style="text-align:center">
+  <h2>⚠ 저장이 겹쳤어요</h2>
+  <p class="sub">다른 기기나 다른 창에서 같은 닉네임으로 더 최근에 저장했어요.<br>어느 쪽을 쓸까요?</p>
+  <button class="btn main" id="cfReload">서버에 저장된 최신 데이터 불러오기</button>
+  <button class="btn danger" id="cfForce">지금 이 화면의 월드로 덮어쓰기</button>
+</div></div>
+
+<div id="admin" class="panel"><div class="card">
+  <h2>🔒 관리자</h2>
+  <p class="sub" id="admSub">관리자 비밀번호를 입력하세요</p>
+  <form id="admLogin" autocomplete="off">
+    <input id="admPw" class="field" type="password" placeholder="비밀번호" autocomplete="current-password" aria-label="관리자 비밀번호">
+    <button class="btn main" type="submit">로그인</button>
+  </form>
+  <div id="admMain" style="display:none">
+    <div class="grid2"><button class="btn" id="admRefresh">새로고침</button><button class="btn" id="admLogout">로그아웃</button></div>
+    <div id="admList"></div>
+    <p class="sub" style="margin-top:12px">저장 데이터 올리기 (JSON 파일 → 닉네임)</p>
+    <input id="admNick" class="field" type="text" maxlength="16" placeholder="올릴 닉네임" autocomplete="off">
+    <input id="admFile" class="field" type="file" accept=".json,application/json">
+    <button class="btn" id="admUpload">올리기</button>
+  </div>
+  <div class="msg" id="admMsg"></div>
+  <button class="btn" id="admClose">닫기</button>
 </div></div>
 
 <div id="death" class="panel"><div class="card" style="text-align:center">
@@ -2639,6 +2697,7 @@ function refreshMenu() {
   $('mSound').textContent = '소리: ' + (settings.sound ? '켜짐' : '꺼짐');
   $('mMon').textContent = dim === 1 ? '몬스터: 켜짐 🔒' : '몬스터: ' + (settings.monsters ? '켜짐' : '꺼짐 (평화)');
   $('mLeave').style.display = dim === 1 ? 'block' : 'none';
+  $('mAdmin').style.display = cloud.avail ? 'block' : 'none';
   $('mQuest').className = dim === 1 ? 'btn' : 'btn wide';
   $('mTime').textContent = timeOfDay < 0.5 ? '밤으로 바꾸기 🌙' : '낮으로 바꾸기 ☀️';
 }
@@ -2649,18 +2708,19 @@ function openPanel(id) {
   if (id === 'menu') { refreshMenu(); saveNow(); }
   if (id === 'palette') renderInv();
   if (id === 'quest') { updateQuest(); renderQuest(); }
+  if (id === 'admin') admShow();
   if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
   input.jump = input.down = btn.jump = btn.down = false; joy.x = joy.y = 0; mouse.left = false; look.id = -1; look.mining = false;
 }
 function closePanels(keepPaused) {
-  ['menu', 'palette', 'help', 'death', 'quest', 'win'].forEach(function (p) { $(p).className = 'panel'; });
-  if (!keepPaused) paused = false;
+  ['menu', 'palette', 'help', 'death', 'quest', 'win', 'admin'].forEach(function (p) { $(p).className = 'panel'; });
+  if (!keepPaused && !cloud.conflict) paused = false;   // 저장 충돌 선택창이 떠 있는 동안은 계속 멈춰 둔다
 }
 ['menu', 'palette', 'quest'].forEach(function (id) {
   $(id).addEventListener('click', function (e) { if (e.target === $(id)) closePanels(); });
 });
 function toggleMenu() {   // Esc 키 / 안드로이드 뒤로가기: 메뉴 열기·닫기
-  if (loading || dead) return;
+  if (loading || dead || cloud.conflict) return;
   if (paused) closePanels(); else openPanel('menu');
 }
 $('btnMenu').addEventListener('click', function () { openPanel('menu'); });
@@ -2724,17 +2784,18 @@ function serialize() {
   });
 }
 var savedAt = { x: 0, z: 0 };
-function saveNow() {
+function saveNow(urgent) {   // urgent: 페이지를 떠나는 중 (서버 저장은 keepalive 로 보낸다)
   if (loading) return;
   var data = serialize(); dirtySave = false; savedAt.x = P.x; savedAt.z = P.z;
+  if (cloud.on) { cloudPush(data, urgent === true); return; }
   if (MANAGED || inHost()) post({ type: 'save', data: data });
   else { try { localStorage.setItem('blockcraft.save', data); } catch (e) {} }
 }
+function parseSave(raw) { if (!raw) return null; try { var o = JSON.parse(raw); return o && o.v === 1 ? o : null; } catch (e) { return null; } }
 function readSave() {
   var raw = window.__BLOCKCRAFT_SAVE__;
   if (raw === undefined) { try { raw = localStorage.getItem('blockcraft.save'); } catch (e) { raw = null; } }   // 단독 실행(브라우저)
-  if (!raw) return null;
-  try { var o = JSON.parse(raw); return o && o.v === 1 ? o : null; } catch (e) { return null; }
+  return parseSave(raw);
 }
 function applySave(o) {
   SEED = o.seed | 0;
@@ -2780,8 +2841,212 @@ function newWorld() {
   loading = true; $('loading').className = ''; $('loadText').textContent = '새 월드를 만드는 중…'; $('loadBar').style.width = '0%';
   dirtySave = true;
 }
-window.addEventListener('pagehide', saveNow);
-document.addEventListener('visibilitychange', function () { if (document.hidden) saveNow(); });
+window.addEventListener('pagehide', function () { saveNow(true); });
+document.addEventListener('visibilitychange', function () { if (document.hidden) saveNow(true); });
+
+/* ======================================================================
+ *  클라우드 저장 (서버가 /api 를 제공할 때: Netlify 등) · 숨겨진 관리자 화면
+ *   - 닉네임으로 접속 → 같은 닉네임이면 서버에 저장된 월드가 이어진다 (서버는 cloud/ 폴더, README 참고)
+ *   - 서버가 없거나(파일로 열기 등) 앱 안이면 지금까지처럼 이 기기/앱에 저장한다
+ *   - 저장마다 서버의 '버전(rev)'을 확인해서, 다른 기기가 먼저 저장했으면 덮어쓰지 않고 선택창을 띄운다
+ * ==================================================================== */
+var cloud = { avail: false, admin: false, on: false, nick: '', rev: 0, busy: false, again: false, dirty: false, latest: '', conflict: false, force: false, state: 'ok', rejected: false };
+var adm = { token: '', exp: 0 };
+function cloudEligible() { return !MANAGED && !window.ReactNativeWebView && window.parent === window && /^https?:$/.test(location.protocol); }
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+function apiCall(path, o) {
+  o = o || {};
+  var h = { Accept: 'application/json' }, init = { method: o.method || 'GET', headers: h, cache: 'no-store' };
+  if (o.body !== undefined) { h['Content-Type'] = 'application/json'; init.body = JSON.stringify(o.body); }
+  if (o.auth && adm.token) h.Authorization = 'Bearer ' + adm.token;
+  if (o.keepalive) init.keepalive = true;
+  if (o.signal) init.signal = o.signal;
+  return fetch(path, init).then(function (r) {
+    return r.json().then(function (j) { j = j && typeof j === 'object' ? j : {}; j.status = r.status; return j; }, function () { return { status: r.status }; });
+  });
+}
+function normNick(s) {   // 서버(normalizeNick)와 같은 규칙: 한글·영문·숫자·_ - . 공백, 1~16자
+  s = String(s || '').normalize('NFC').replace(/\s+/g, ' ').trim();
+  var n = Array.from(s).length;
+  if (n < 1 || n > 16) return '';
+  var ok;
+  try { ok = new RegExp('^[\\p{L}\\p{N}_\\-. ]+$', 'u').test(s); } catch (e) { ok = !/[<>\/\\"'`&]/.test(s); }
+  return ok ? s : '';
+}
+function mirrorKey() { return 'blockcraft.cloudmirror.' + cloud.nick.toLowerCase(); }
+
+/* ---- 닉네임 화면 ---- */
+var nickDone = null;
+function nickBusy(b) { $('nickGo').disabled = b; $('nickIn').disabled = b; }
+function nickMsg(t, ok) { var m = $('nickMsg'); m.textContent = t || ''; m.className = 'msg' + (ok ? ' ok' : ''); }
+function showNick(offline) {
+  $('nickp').className = 'panel on';
+  $('nickForm').style.display = offline ? 'none' : 'block';
+  $('nickOff').style.display = offline ? 'block' : 'none';
+  $('nickRetry').style.display = offline ? 'block' : 'none';
+  nickBusy(false); nickMsg('');
+  if (!offline) { $('nickIn').value = lsGet('blockcraft.nick') || ''; setTimeout(function () { try { $('nickIn').focus(); $('nickIn').select(); } catch (e) {} }, 60); }
+}
+function cloudStart(done) {   // done(저장 데이터 | null) — 서버를 쓸 수 없으면 예전처럼 이 기기의 저장을 쓴다
+  nickDone = done;
+  if (!cloudEligible()) { done(readSave()); return; }
+  var ctl = typeof AbortController === 'function' ? new AbortController() : null, tm = setTimeout(function () { if (ctl) ctl.abort(); }, 5000);
+  apiCall('/api/ping', { signal: ctl ? ctl.signal : undefined }).then(function (j) {
+    clearTimeout(tm);
+    if (j.status === 200 && j.ok && j.cloud) { cloud.avail = true; cloud.admin = !!j.admin; document.body.classList.add('cloud'); showNick(false); }
+    else if (j.status >= 500) showNick(true);   // 서버는 있는데 고장
+    else done(readSave());                      // /api 가 없는 일반 호스팅
+  }, function () { clearTimeout(tm); showNick(true); });
+}
+function cloudLogin(nick) {
+  nickBusy(true); nickMsg('서버에서 불러오는 중…', true);
+  apiCall('/api/save?nick=' + encodeURIComponent(nick)).then(function (j) {
+    if (j.status !== 200 || !j.ok) { nickBusy(false); nickMsg(j.message || '서버 오류 (' + j.status + ') — 잠시 뒤 다시 해 보세요.'); return; }
+    cloud.on = true; cloud.nick = j.nick; cloud.rev = j.rev | 0; cloud.state = 'ok'; cloud.dirty = false; cloud.conflict = false; cloud.latest = '';
+    lsSet('blockcraft.nick', cloud.nick);
+    var raw = j.data, mir = lsGet(mirrorKey());
+    if (mir) {   // 전에 서버에 못 보낸 저장이 있고, 그 사이 서버가 바뀌지 않았다면 그쪽이 최신이다
+      try { var m = JSON.parse(mir); if (m && m.rev === cloud.rev && typeof m.data === 'string' && parseSave(m.data)) { raw = m.data; cloud.latest = raw; cloud.dirty = true; dirtySave = true; } else lsDel(mirrorKey()); } catch (e) { lsDel(mirrorKey()); }
+    }
+    $('nickp').className = 'panel';
+    var d = nickDone; nickDone = null;
+    if (d) d(parseSave(raw));
+  }, function () { nickBusy(false); nickMsg('서버에 연결할 수 없어요. 다시 시도해 주세요.'); });
+}
+$('nickForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var n = normNick($('nickIn').value);
+  if (!n) { nickMsg('닉네임은 한글·영문·숫자·_ - . 공백으로 1~16자예요.'); return; }
+  cloudLogin(n);
+});
+$('nickRetry').addEventListener('click', function () { cloudStart(nickDone); });
+$('nickLocal').addEventListener('click', function () { $('nickp').className = 'panel'; var d = nickDone; nickDone = null; if (d) d(readSave()); });
+
+/* ---- 저장 보내기 ---- */
+function cloudPush(data, urgent) {
+  cloud.latest = data; cloud.dirty = true;
+  if (urgent) lsSet(mirrorKey(), JSON.stringify({ rev: cloud.rev, data: data }));   // 페이지를 떠나는 중이라 전송이 끝나기 전에 닫힐 수 있다 → 기기에도 백업
+  cloudFlush(urgent);
+}
+function cloudFlush(urgent) {
+  if (!cloud.on || cloud.conflict || !cloud.dirty) return;
+  if (cloud.busy) { cloud.again = true; return; }
+  var sent = cloud.latest;
+  cloud.busy = true; cloud.state = 'saving';
+  apiCall('/api/save', { method: 'PUT', body: { nick: cloud.nick, baseRev: cloud.rev, data: sent, force: cloud.force || undefined }, keepalive: !!urgent && sent.length < 60000 }).then(function (j) {
+    cloud.busy = false;
+    if (j.status === 200 && j.ok) {
+      cloud.rev = j.rev | 0; cloud.force = false; cloud.state = 'ok'; cloud.rejected = false;
+      if (cloud.latest === sent) { cloud.dirty = false; lsDel(mirrorKey()); }
+    } else if (j.status === 409) {
+      cloud.conflict = true; cloud.state = 'conflict'; cloud.again = false; showConflict(); return;
+    } else if (j.status >= 400 && j.status < 500 && j.status !== 429) {   // 서버가 이 저장 데이터를 거부함 (너무 큼 등) — 계속 재시도해도 소용없다
+      cloud.state = 'error'; cloud.again = false;
+      if (!cloud.rejected) { cloud.rejected = true; toast('서버가 저장을 거부했어요' + (j.error === 'too_large' ? ' (월드가 너무 커요)' : j.error === 'full' ? ' (서버 저장 공간이 가득 찼어요)' : '')); }
+    } else { cloud.state = 'offline'; dirtySave = true; lsSet(mirrorKey(), JSON.stringify({ rev: cloud.rev, data: cloud.latest })); }   // 다음 자동 저장 때 다시 시도
+    if (cloud.again) { cloud.again = false; cloudFlush(false); }
+  }, function () {
+    cloud.busy = false; cloud.state = 'offline'; dirtySave = true; lsSet(mirrorKey(), JSON.stringify({ rev: cloud.rev, data: cloud.latest }));
+  });
+}
+function showConflict() {   // 로딩 중이어도 확실히 띄운다
+  closePanels(true); paused = true; $('conflict').className = 'panel on';
+  input.jump = input.down = btn.jump = btn.down = false; joy.x = joy.y = 0; mouse.left = false; look.id = -1; look.mining = false;
+  if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+}
+window.addEventListener('online', function () { if (cloud.on && cloud.dirty) dirtySave = true; });
+$('cfReload').addEventListener('click', function () { location.reload(); });
+$('cfForce').addEventListener('click', function () {
+  cloud.conflict = false; cloud.force = true; cloud.state = 'saving';
+  $('conflict').className = 'panel'; paused = false;
+  saveNow();
+});
+
+/* ---- 숨겨진 관리자 화면 ---- */
+function admMsg(t, ok) { var m = $('admMsg'); m.textContent = t || ''; m.className = 'msg' + (ok ? ' ok' : ''); }
+function admAuthed() { return !!adm.token && Date.now() < adm.exp - 5000; }
+function admShow() {
+  var on = admAuthed();
+  $('admLogin').style.display = on ? 'none' : 'block'; $('admMain').style.display = on ? 'block' : 'none';
+  $('admSub').textContent = on ? '저장된 플레이어를 관리해요' : '관리자 비밀번호를 입력하세요';
+  admMsg('');
+  if (on) admLoad(); else { adm.token = ''; setTimeout(function () { try { $('admPw').focus(); } catch (e) {} }, 60); }
+}
+function admExpired() { adm.token = ''; admShow(); admMsg('로그인이 만료됐어요. 다시 로그인해 주세요.'); }
+function admLoad() {
+  apiCall('/api/admin/players', { auth: true }).then(function (j) {
+    if (j.status === 401) return admExpired();
+    if (j.status !== 200 || !j.ok) return admMsg(j.message || '목록을 불러오지 못했어요 (' + j.status + ')');
+    admRender(j);
+  }, function () { admMsg('서버에 연결할 수 없어요.'); });
+}
+function admSummary(p) {
+  var t = '목표 ' + p.q + '/8';
+  if (p.dd) t += ' · 🏆 드래곤 처치'; else if (p.ve) t += ' · 엔드 방문'; else if (p.pa) t += ' · 포털 열림';
+  return t + ' · 수정한 블록 ' + p.ec + '개 · ' + (p.size / 1024).toFixed(1) + 'KB';
+}
+function admRender(res) {
+  var list = $('admList'); list.innerHTML = '';
+  var head = document.createElement('p'); head.className = 'sub'; head.textContent = '저장된 플레이어 ' + res.count + '명 (최대 ' + res.max + '명)'; list.appendChild(head);
+  res.players.forEach(function (p) {
+    var row = document.createElement('div'), pi = document.createElement('div'), nm = document.createElement('b'), s1 = document.createElement('span'), s2 = document.createElement('span');
+    row.className = 'prow'; pi.className = 'pi';
+    nm.textContent = p.nick; s1.textContent = admSummary(p); s2.textContent = new Date(p.savedAt).toLocaleString('ko-KR') + ' · 저장 ' + p.rev + '회';
+    pi.appendChild(nm); pi.appendChild(s1); pi.appendChild(s2);
+    var dl = document.createElement('button'), del = document.createElement('button'), armed = 0;
+    dl.className = 'sbtn'; dl.textContent = 'JSON'; dl.addEventListener('click', function () { admDownload(p.nick); });
+    del.className = 'sbtn danger'; del.textContent = '삭제';
+    del.addEventListener('click', function () {
+      if (!armed) { armed = 1; del.textContent = '정말?'; setTimeout(function () { armed = 0; del.textContent = '삭제'; }, 3000); return; }
+      apiCall('/api/admin/player?nick=' + encodeURIComponent(p.nick), { method: 'DELETE', auth: true }).then(function (j) {
+        if (j.status === 401) return admExpired();
+        admMsg(j.ok ? p.nick + ' 삭제했어요' : '삭제하지 못했어요 (' + (j.error || j.status) + ')', !!j.ok); admLoad();
+      });
+    });
+    row.appendChild(pi); row.appendChild(dl); row.appendChild(del); list.appendChild(row);
+  });
+}
+function admDownload(nick) {
+  apiCall('/api/admin/player?nick=' + encodeURIComponent(nick), { auth: true }).then(function (j) {
+    if (j.status === 401) return admExpired();
+    if (!j.ok) return admMsg('내려받지 못했어요 (' + (j.error || j.status) + ')');
+    var a = document.createElement('a'), url = URL.createObjectURL(new Blob([j.data], { type: 'application/json' }));
+    a.href = url; a.download = 'blockcraft-' + nick.replace(/[^\p{L}\p{N}_\-.]+/gu, '_') + '.json';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    admMsg(nick + ' 저장 데이터를 내려받았어요', true);
+  });
+}
+$('adminBtn').addEventListener('click', function () { openPanel('admin'); });
+$('mAdmin').addEventListener('click', function () { openPanel('admin'); });
+$('admClose').addEventListener('click', function () { closePanels(); });
+$('admRefresh').addEventListener('click', admLoad);
+$('admLogout').addEventListener('click', function () { adm.token = ''; admShow(); });
+$('admLogin').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var pw = $('admPw').value; if (!pw) return;
+  admMsg('확인 중…', true);
+  apiCall('/api/admin/login', { method: 'POST', body: { password: pw } }).then(function (j) {
+    if (j.status === 200 && j.ok) { adm.token = j.token; adm.exp = j.expiresAt; $('admPw').value = ''; admShow(); }
+    else { admMsg(j.message || '로그인하지 못했어요 (' + j.status + ')'); $('admPw').select(); }
+  }, function () { admMsg('서버에 연결할 수 없어요.'); });
+});
+$('admUpload').addEventListener('click', function () {
+  var nick = normNick($('admNick').value), f = $('admFile').files && $('admFile').files[0];
+  if (!nick) return admMsg('올릴 닉네임을 규칙에 맞게 입력해 주세요 (한글·영문·숫자 1~16자)');
+  if (!f) return admMsg('JSON 파일을 골라 주세요');
+  var rd = new FileReader();
+  rd.onload = function () {
+    apiCall('/api/admin/player', { method: 'PUT', auth: true, body: { nick: nick, data: String(rd.result) } }).then(function (j) {
+      if (j.status === 401) return admExpired();
+      admMsg(j.ok ? nick + ' 에 올렸어요 (저장 ' + j.rev + '회)' : '올리지 못했어요 (' + (j.error || j.status) + (j.reason ? ': ' + j.reason : '') + ')', !!j.ok);
+      if (j.ok) { $('admFile').value = ''; admLoad(); }
+    });
+  };
+  rd.onerror = function () { admMsg('파일을 읽지 못했어요'); };
+  rd.readAsText(f);
+});
 
 /* ======================================================================
  *  메인 루프
@@ -2791,6 +3056,7 @@ function infoLine3() {
   if (settings.monsters) a.push('처치 ' + kills);
   if (armorReduce()) a.push('🛡 ' + Math.round(armorReduce() * 100) + '%');
   if (dim === 1) a.push('🌌 엔드');
+  if (cloud.on) a.push('☁ ' + cloud.nick + ({ ok: '', saving: ' …', offline: ' ⚠오프라인', conflict: ' ⚠충돌', error: ' ⚠저장 실패' }[cloud.state] || ''));
   return a.length ? '\n' + a.join('  ') : '';
 }
 var last = 0, fpsN = 0, fpsT = 0, fps = 0, infoT = 0, saveT = 0, posT = 0, crossMob = false;
@@ -2826,7 +3092,7 @@ function frame(now) {
   }
   // 돌아다니기만 해도(블록을 안 고쳐도) 앱이 강제 종료될 때 위치를 잃지 않도록
   if (now - posT > 8000) { posT = now; if (!loading && Math.hypot(P.x - savedAt.x, P.z - savedAt.z) > 3) dirtySave = true; }
-  if (dirtySave && now - saveT > 6000) { saveT = now; saveNow(); }
+  if (dirtySave && now - saveT > (cloud.on ? 15000 : 6000)) { saveT = now; saveNow(); }   // 서버 저장은 호출 횟수를 아끼려고 간격을 늘린다
 }
 
 function start() {
@@ -2837,7 +3103,9 @@ function start() {
   canvas.addEventListener('webglcontextlost', function (e) { e.preventDefault(); $('loading').className = ''; $('loadText').textContent = '화면을 다시 불러오는 중…'; });
   canvas.addEventListener('webglcontextrestored', function () { location.reload(); });
   buildHotbar(); buildHearts();
-  var sv = readSave();
+  cloudStart(begin);   // 서버가 있으면 닉네임을 물어 서버 저장을 불러오고, 아니면 바로 이 기기의 저장으로 시작
+}
+function begin(sv) {
   if (sv) applySave(sv); else freshWorld();
   refreshHotbar();   // 저장된/기본 핫바를 아이콘에 반영
   if (window.__BLOCKCRAFT_CAN_EXIT__) $('mExit').style.display = 'block';   // 호스트 앱이 종료를 처리할 수 있을 때만
@@ -2875,6 +3143,7 @@ window.blockcraft = {
   arrowCount: function () { return arrows.length; }, addArrow: function (a) { arrows.push(a); },
   hp: function () { return hp; }, setHp: function (v) { hp = v; refreshHearts(); }, kills: function () { return kills; },
   isDead: function () { return dead; }, hurtPlayer: hurtPlayer, daylight: daylight, mobTarget: function () { return mobTarget ? mobTarget.id : null; },
+  cloud: function () { return { avail: cloud.avail, on: cloud.on, nick: cloud.nick, rev: cloud.rev, state: cloud.state, conflict: cloud.conflict, dirty: cloud.dirty }; }, saveNow: saveNow,
   dim: function () { return dim; }, enterEnd: enterEnd, exitEnd: exitEnd, setupEnd: setupEnd, endTopAt: endTopAt, armorReduce: armorReduce,
   checkPortal: checkPortal, updateQuest: updateQuest, questIdx: function () { return questIdx; }, questText: questText, QUESTS: QUESTS.length,
   flags: function () { return { portalActive: portalActive, visitedEnd: visitedEnd, crystalsCleared: crystalsCleared, dragonDefeated: dragonDefeated, crystalMask: crystalMask, dragonHp: dragonHp, pearlTotal: pearlTotal, eyeMade: eyeMade, questIdx: questIdx }; },

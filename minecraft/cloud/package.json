@@ -1,0 +1,19 @@
+{
+  "name": "blockcraft-cloud",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "블록크래프트 Netlify 배포용: 닉네임 클라우드 저장 + 숨겨진 관리자 API",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node dev-server.mjs",
+    "test": "node --test --test-concurrency=1 test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.4"
+  },
+  "devDependencies": {}
+}
