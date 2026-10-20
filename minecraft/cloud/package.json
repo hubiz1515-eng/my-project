@@ -7,7 +7,8 @@
   "scripts": {
     "build": "node build.mjs",
     "dev": "node dev-server.mjs",
-    "test": "node --test --test-concurrency=1 test/*.test.mjs"
+    "test": "node --test --test-concurrency=1 test/*.test.mjs",
+    "bundle": "node bundle.mjs"
   },
   "engines": {
     "node": ">=22.12.0"
@@ -15,5 +16,7 @@
   "dependencies": {
     "@netlify/blobs": "^11.1.4"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
 }

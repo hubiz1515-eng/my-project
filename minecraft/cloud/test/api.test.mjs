@@ -66,6 +66,11 @@ describe('저장/불러오기', () => {
     assert.equal(r.status, 200); assert.deepEqual([r.j.cloud, r.j.admin], [true, true]);
     assert.equal(r.headers.get('cache-control'), 'no-store');
   });
+  test('리다이렉트 경로(/.netlify/functions/api/*)로 들어와도 같은 API', async () => {
+    const r = await call('/.netlify/functions/api/ping');
+    assert.equal(r.status, 200); assert.equal(r.j.cloud, true);
+    assert.equal((await call('/.netlify/functions/api/save?nick=' + encodeURIComponent('새닉네임'))).j.rev, 0);
+  });
   test('없는 닉네임은 data:null, rev 0', async () => {
     const r = await call('/api/save?nick=' + encodeURIComponent('새닉네임'));
     assert.equal(r.status, 200); assert.equal(r.j.data, null); assert.equal(r.j.rev, 0);

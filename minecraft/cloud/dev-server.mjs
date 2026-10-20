@@ -63,12 +63,14 @@ export async function startDevServer({ port = 0, blobsDir = join(here, '.blobs')
   const edge = `http://127.0.0.1:${proxy.port}`;
   // 배포 환경에서 Netlify 가 넣어 주는 값과 같은 형태로 주입 → 함수 코드는 배포와 100% 동일하게 동작
   process.env.NETLIFY_BLOBS_CONTEXT = Buffer.from(JSON.stringify({ edgeURL: edge, uncachedEdgeURL: edge, token, siteID: 'local-dev' })).toString('base64');
-  const api = (await import(pathToFileURL(join(here, 'netlify', 'functions', 'api.mjs')).href)).default;
+  // BLOCKCRAFT_API_MODULE: 번들(drop/netlify/functions/api.mjs)이 소스와 똑같이 동작하는지 같은 테스트로 확인할 때 쓴다
+  const apiFile = process.env.BLOCKCRAFT_API_MODULE ? join(here, process.env.BLOCKCRAFT_API_MODULE) : join(here, 'netlify', 'functions', 'api.mjs');
+  const api = (await import(pathToFileURL(apiFile).href)).default;
 
   const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-      if (url.pathname.startsWith('/api/')) {
+      if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/.netlify/functions/api/')) {
         const chunks = []; let size = 0;
         for await (const c of req) { size += c.length; if (size > MAX_BODY) { res.writeHead(413).end(); return; } chunks.push(c); }
         const hasBody = req.method !== 'GET' && req.method !== 'HEAD';

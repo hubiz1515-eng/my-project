@@ -42,7 +42,8 @@ async function writeSave({ nick, key, data, baseRev, force }) {
 
 export async function route(req, ctx) {
   const url = new URL(req.url);
-  const path = url.pathname.replace(/\/+$/, '') || '/';
+  // /api/* 로 들어오든, 리다이렉트로 /.netlify/functions/api/* 로 들어오든 같은 경로로 본다
+  const path = url.pathname.replace(/^\/\.netlify\/functions\/api(?=\/|$)/, '/api').replace(/\/+$/, '') || '/';
   const m = req.method;
   const write = m !== 'GET' && m !== 'HEAD';
 

@@ -30,7 +30,17 @@ npx netlify-cli env:set ADMIN_PASSWORD '원하는비밀번호'
 npx netlify-cli deploy --build --prod
 ```
 
-> ⚠ Netlify Drop(HTML 파일 드래그&드롭)으로 `index.html` 만 올리면 **서버 함수가 없어서** 닉네임 저장과 관리자 화면이 동작하지 않습니다 (게임은 이 기기에만 저장하는 모드로 열려요). 위의 A 또는 B 로 배포하세요.
+## 배포 방법 C — 폴더 끌어다 놓기 (Git 없이)
+
+```bash
+cd minecraft/cloud && npm install && npm run bundle     # → cloud/drop/ 폴더가 생김
+```
+
+`drop/` 폴더(= `index.html` + 서버 함수 `netlify/functions/api.mjs` + `_redirects`)를 Netlify 사이트의 **Deploys** 화면에 통째로 끌어다 놓으면 됩니다. 함수는 라이브러리까지 한 파일로 묶어 두어서 설치/빌드가 필요 없어요. **환경 변수 `ADMIN_PASSWORD` 를 먼저 넣고** 올리세요 (환경 변수를 바꾸면 다시 올려야 적용됩니다). 게임을 고칠 때마다 `npm run bundle` 후 다시 올리면 됩니다.
+
+> 이 방법에서 Netlify 가 함수를 인식하는지는 제가 Netlify 쪽에서 직접 확인하지 못했습니다. 올린 뒤 `사이트주소/api/ping` 을 열어 `{"ok":true,"cloud":true,...}` 가 보이면 성공이고, 안 보이면 방법 A(GitHub 연결)로 배포하세요.
+
+> ⚠ `index.html` 파일 하나만 드래그&드롭하면 **서버 함수가 없어서** 닉네임 저장과 관리자 화면이 동작하지 않습니다 (게임은 이 기기에만 저장하는 모드로 열려요). 위의 A 또는 B 로 배포하세요.
 
 ## 내 컴퓨터에서 먼저 해 보기
 
