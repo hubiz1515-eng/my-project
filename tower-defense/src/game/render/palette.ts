@@ -1,4 +1,4 @@
-import { Skia, type SkColor } from '@shopify/react-native-skia';
+import type { SkColor } from '@shopify/react-native-skia';
 
 type RGB = [number, number, number];
 

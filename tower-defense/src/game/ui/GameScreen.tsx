@@ -1,6 +1,6 @@
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppState, BackHandler, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RouletteId } from '../engine/game';
@@ -17,17 +17,13 @@ type SheetKind = 'recipes' | 'upgrades' | null;
 
 export function GameScreen({ seed }: { seed?: number }) {
   const insets = useSafeAreaInsets();
-  const [run, setRun] = useState(0);
-  const prevBest = useRef(getSave().bestWave);
-  const session = useMemo(() => {
-    prevBest.current = getSave().bestWave;
-    return new GameSession(seed !== undefined ? seed + run : undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [run, seed]);
+  // 한 판 = 세션 하나. '다시 도전'은 새 세션(+ 판 시작 시점의 최고 기록)으로 교체한다.
+  const [round, setRound] = useState(() => ({ n: 0, prevBest: getSave().bestWave }));
+  const session = useMemo(() => new GameSession(seed !== undefined ? seed + round.n : undefined), [round, seed]);
   const hud = useHud(session);
   const [sheet, setSheet] = useState<SheetKind>(null);
-  const [roulette, setRoulette] = useState<{ index: number; id: RouletteId } | null>(null);
-  const [showResult, setShowResult] = useState(false);
+  const [roulette, setRoulette] = useState<{ index: number; id: RouletteId; n: number } | null>(null);
+  const [resultReady, setResultReady] = useState(false);
 
   useEffect(() => {
     activateKeepAwakeAsync('game').catch(() => {});
@@ -58,10 +54,10 @@ export function GameScreen({ seed }: { seed?: number }) {
 
   const retry = useCallback(() => {
     session.leave();
-    setShowResult(false);
+    setResultReady(false);
     setSheet(null);
     setRoulette(null);
-    setRun((r) => r + 1);
+    setRound((r) => ({ n: r.n + 1, prevBest: getSave().bestWave }));
   }, [session]);
 
   useEffect(() => {
@@ -78,14 +74,16 @@ export function GameScreen({ seed }: { seed?: number }) {
     return () => sub.remove();
   }, [session, sheet, roulette]);
 
+  // 게임이 끝나면 잠깐 여운을 두고 결과창을 연다 (무한 모드로 이어가면 다시 닫힌다)
+  const over = hud.status !== 'playing';
   useEffect(() => {
-    if (hud.status === 'playing') {
-      setShowResult(false);
-      return;
-    }
-    const t = setTimeout(() => setShowResult(true), 1400);
-    return () => clearTimeout(t);
-  }, [hud.status, hud.endless]);
+    if (!over) return;
+    const t = setTimeout(() => setResultReady(true), 1400);
+    return () => {
+      clearTimeout(t);
+      setResultReady(false);
+    };
+  }, [over, hud.endless]);
 
   const openRoulette = () => {
     const r = session.startRoulette();
@@ -94,17 +92,18 @@ export function GameScreen({ seed }: { seed?: number }) {
       return;
     }
     setSheet(null);
-    setRoulette({ index: r.index, id: r.id });
+    setRoulette({ index: r.index, id: r.id, n: Date.now() });
   };
 
   return (
+    <View style={styles.outer}>
     <View style={styles.root}>
       <View style={{ paddingTop: insets.top + 4 }}>
         <TopBar session={session} hud={hud} onPause={() => session.setPaused(true)} />
         <BossBar hud={hud} />
       </View>
       <View style={styles.board}>
-        <BoardCanvas session={session} />
+        <BoardCanvas key={round.n} session={session} />
         <WaveBanner session={session} />
         <Toasts session={session} />
       </View>
@@ -118,20 +117,16 @@ export function GameScreen({ seed }: { seed?: number }) {
       />
       <RecipeSheet session={session} hud={hud} visible={sheet === 'recipes'} onClose={() => setSheet(null)} bottomInset={insets.bottom} />
       <UpgradeSheet session={session} hud={hud} visible={sheet === 'upgrades'} onClose={() => setSheet(null)} bottomInset={insets.bottom} />
-      <RouletteModal
-        session={session}
-        start={roulette}
-        onClose={() => {
-          setRoulette(null);
-        }}
-      />
+      {roulette ? <RouletteModal key={roulette.n} session={session} start={roulette} onClose={() => setRoulette(null)} /> : null}
       {hud.paused && hud.status === 'playing' ? <PauseModal onResume={() => session.setPaused(false)} onRetry={retry} onHome={home} /> : null}
-      {showResult && hud.status !== 'playing' ? <ResultModal session={session} hud={hud} prevBest={prevBest.current} onRetry={retry} onHome={home} /> : null}
+      {resultReady && over ? <ResultModal session={session} hud={hud} prevBest={round.prevBest} onRetry={retry} onHome={home} /> : null}
+    </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  outer: { flex: 1, backgroundColor: '#05081a', alignItems: 'center' },
+  root: { flex: 1, width: '100%', maxWidth: 560, backgroundColor: C.bg, overflow: 'hidden' },
   board: { flex: 1, overflow: 'hidden' },
 });

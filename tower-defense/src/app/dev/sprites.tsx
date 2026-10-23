@@ -7,11 +7,12 @@ import { monsterSprite } from '@/game/render/monsters';
 import { drawUnitStatic } from '@/game/render/units';
 import { col } from '@/game/render/palette';
 
+const kinds = Object.keys(ENEMIES) as EnemyKind[];
+
 export default function SpriteSheet() {
   const { width } = useWindowDimensions();
   const cols = 4;
   const cell = width / cols;
-  const kinds = Object.keys(ENEMIES) as EnemyKind[];
   const rows = Math.ceil(UNIT_IDS.length / cols) + Math.ceil(kinds.length / cols);
   const height = rows * cell;
   const picture = useMemo(() => {

@@ -1,4 +1,4 @@
-import { BlendMode, PaintStyle, Skia, StrokeCap, StrokeJoin, TileMode, type SkCanvas, type SkFont, type SkPaint, type SkPicture, type SkShader } from '@shopify/react-native-skia';
+import { BlendMode, PaintStyle, Skia, StrokeCap, StrokeJoin, TileMode, type SkCanvas, type SkFont, type SkPicture, type SkShader } from '@shopify/react-native-skia';
 import { BOARD_H, BOARD_W, COLS, ENEMY_LIMIT, ENEMY_WARN, MAX_STACK, ROWS, SLOT_COUNT } from '../engine/config';
 import { ENEMIES, type EnemyKind } from '../engine/enemies';
 import type { Game } from '../engine/game';
@@ -7,7 +7,8 @@ import { pointAt } from '../engine/path';
 import type { Enemy, Unit } from '../engine/types';
 import { GRADES, UNITS } from '../engine/units';
 import { bakeBackdrop, bakeBoard } from './board';
-import { Fx, fmtNum } from './fx';
+import { fmtNum } from '../engine/format';
+import { Fx } from './fx';
 import { col } from './palette';
 import { drawProjectile, SHOT_COLOR } from './projectiles';
 import { monsterSprite } from './monsters';
@@ -61,7 +62,6 @@ export interface RenderView {
 
 // ───────────────────────────── 렌더러 ─────────────────────────────
 
-const RAD = 180 / Math.PI;
 /** 몬스터 그림 크기 보정 */
 const ENEMY_SCALE = 1.32;
 
@@ -114,6 +114,8 @@ export class Renderer {
   private slotFlash: { t0: number; color: string }[] = Array.from({ length: SLOT_COUNT }, () => ({ t0: -10, color: '#ffffff' }));
   private warn = false;
   private emit = 0;
+  /** 프레임 기록 시간의 이동 평균(ms) — 느린 기기에서 이펙트를 자동으로 줄이는 데 쓴다 */
+  private frameMs = 6;
 
   constructor(
     readonly game: Game,
@@ -135,8 +137,8 @@ export class Renderer {
   // ───────────────────────────── 프레임 ─────────────────────────────
 
   frame(dt: number, view: RenderView): SkPicture {
-    const g = this.game;
     const L = view.layout;
+    const started = performance.now();
     this.t += dt;
     this.consume(view);
     this.fx.update(dt);
@@ -167,7 +169,11 @@ export class Renderer {
     c.restore();
 
     this.drawOverlays(c, L);
-    return rec.finishRecordingAsPicture();
+    const pic = rec.finishRecordingAsPicture();
+    // 이동 평균이 9ms 를 넘으면 입자를 줄이고, 여유가 생기면 되돌린다
+    this.frameMs += (performance.now() - started - this.frameMs) * 0.05;
+    this.fx.cap = this.frameMs > 9 ? 160 : this.frameMs > 7 ? 260 : 420;
+    return pic;
   }
 
   private backdropFor(w: number, h: number): SkPicture {
@@ -261,7 +267,7 @@ export class Renderer {
             const last = this.lastText.get(ev.uid) ?? -1;
             if (ev.crit || this.t - last > 0.24) {
               this.lastText.set(ev.uid, this.t);
-              fx.text(ev.x + (Math.random() - 0.5) * 0.25, ev.y - 0.3, fmtNum(ev.dmg), ev.crit ? '#ffd24d' : '#ffffff', ev.crit ? 0.2 : 0.15, ev.crit, 0.7);
+              fx.text(ev.x + (Math.random() - 0.5) * 0.25, ev.y - 0.3, fmtNum(ev.dmg), ev.crit ? '#ffd24d' : '#ffffff', ev.crit ? 0.24 : 0.19, ev.crit, 0.7);
             }
           }
           break;

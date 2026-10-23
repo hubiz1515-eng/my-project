@@ -8,10 +8,9 @@ import { enemyIcon, unitIcon } from '@/game/render/icons';
 import { MONSTER_DESC, unitSpecLines } from '@/game/ui/unitInfo';
 import { useSave } from '@/storage/save';
 import { Bar, GradeChip, GText } from '@/ui/bits';
-import { Icon } from '@/ui/Icon';
 import { Popup } from '@/ui/Modal';
 import { RoundButton } from '@/game/ui/hud';
-import { C, FONT } from '@/ui/theme';
+import { C } from '@/ui/theme';
 
 type Tab = 'units' | 'monsters';
 
@@ -25,6 +24,7 @@ export default function Almanac() {
   const kinds = Object.keys(ENEMIES) as EnemyKind[];
 
   return (
+    <View style={styles.outer}>
     <View style={[styles.root, { paddingTop: insets.top + 6 }]}>
       <View style={styles.header}>
         <RoundButton icon="back" label="뒤로" onPress={() => router.back()} />
@@ -108,6 +108,7 @@ export default function Almanac() {
         ) : null}
       </Popup>
     </View>
+    </View>
   );
 }
 
@@ -175,7 +176,8 @@ function UnitDetail({ id, known, onPick }: { id: UnitId; known: boolean; onPick:
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  outer: { flex: 1, backgroundColor: '#05081a', alignItems: 'center' },
+  root: { flex: 1, width: '100%', maxWidth: 560, backgroundColor: C.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 10 },
   tabs: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingTop: 10 },
   tab: { flex: 1, height: 40, borderRadius: 14, backgroundColor: C.panel, borderWidth: 2, borderColor: C.edge, alignItems: 'center', justifyContent: 'center' },
@@ -188,4 +190,3 @@ const styles = StyleSheet.create({
   mat: { width: 54, height: 54, borderRadius: 14, borderWidth: 2.5, backgroundColor: C.panelHi, alignItems: 'center', justifyContent: 'center' },
 });
 
-void FONT;

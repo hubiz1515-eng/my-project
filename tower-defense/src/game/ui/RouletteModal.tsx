@@ -1,5 +1,5 @@
 import { BlendMode, PaintStyle, Skia, SkiaPictureView, StrokeCap, type SkPicture } from '@shopify/react-native-skia';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { ROULETTE_SLICES, type RouletteId } from '../engine/game';
 import { skiaFont } from '../render/fonts';
@@ -171,26 +171,19 @@ const EMPTY: SkPicture = (() => {
 
 interface Props {
   session: GameSession;
-  /** 티켓을 쓰고 이미 결정된 결과 (null 이면 닫힘) */
-  start: { index: number; id: RouletteId } | null;
+  /** 티켓을 쓰고 이미 결정된 결과 (열 때마다 새로 마운트된다) */
+  start: { index: number; id: RouletteId };
   onClose: () => void;
 }
 
 /** 행운 룰렛: 티켓 1장으로 돌린다. 결과는 휠이 멈춘 뒤 받는다. */
 export function RouletteModal({ session, start, onClose }: Props) {
   const [pic, setPic] = useState<SkPicture>(EMPTY);
-  const [phase, setPhase] = useState<'idle' | 'spin' | 'done' | 'none'>('idle');
+  const [phase, setPhase] = useState<'spin' | 'done'>('spin');
   const [result, setResult] = useState<RouletteId | null>(null);
-  const state = useRef({ raf: 0, rot: 0, tickets: 0 });
-
-  const visible = start !== null;
-
   useEffect(() => {
-    if (!start) return;
     session.hold(true);
-    const st = state.current;
-    setPhase('spin');
-    setResult(null);
+    let raf = 0;
     highlightIndex = -1;
     const target = start.index;
     // 칸 i 의 가운데가 포인터(위)에 오도록: rot ≡ -(i+0.5)*STEP
@@ -205,7 +198,6 @@ export function RouletteModal({ session, start, onClose }: Props) {
       const k = Math.min(1, (now - t0) / dur);
       const e = 1 - Math.pow(1 - k, 3.4);
       const rot = finalRot * e;
-      st.rot = rot;
       const slice = Math.floor((((-rot % 360) + 360) % 360) / STEP);
       let kick = 0;
       if (slice !== lastSlice && k < 1) {
@@ -235,16 +227,16 @@ export function RouletteModal({ session, start, onClose }: Props) {
       confetti.length = 0;
       confetti.push(...alive);
       setPic(drawWheel(rot, now / 1000, doneAt ? 1 : 0, confetti, kick));
-      st.raf = requestAnimationFrame(loop);
+      raf = requestAnimationFrame(loop);
     };
-    st.raf = requestAnimationFrame(loop);
+    raf = requestAnimationFrame(loop);
     return () => {
-      cancelAnimationFrame(st.raf);
+      cancelAnimationFrame(raf);
       session.hold(false);
+      // 어떤 경로로 닫혀도 이미 뽑은 보상은 잃지 않는다
+      if (session.game.pendingRoulette) session.claimRoulette();
     };
   }, [start, session]);
-
-  if (!visible) return null;
 
   const close = () => {
     if (phase === 'done') session.claimRoulette();
@@ -269,13 +261,9 @@ export function RouletteModal({ session, start, onClose }: Props) {
             <GText size={22} color={result === 'jackpot' || result === 'legend' ? C.gold : '#fff'}>
               {REWARD_TEXT[result]}
             </GText>
-          ) : phase === 'none' ? (
-            <GText size={16} color={C.sub}>
-              룰렛 티켓이 없어요 (5웨이브마다·보스 처치 시 획득)
-            </GText>
           ) : null}
         </View>
-        <GButton label={phase === 'done' ? '받기' : phase === 'none' ? '닫기' : '돌리는 중'} variant={phase === 'done' ? 'gold' : 'dark'} height={50} style={{ width: 180 }} disabled={phase === 'spin'} glow={phase === 'done'} onPress={close} />
+        <GButton label={phase === 'done' ? '받기' : '돌리는 중'} variant={phase === 'done' ? 'gold' : 'dark'} height={50} style={{ width: 180 }} disabled={phase === 'spin'} glow={phase === 'done'} onPress={close} />
       </View>
     </View>
   );

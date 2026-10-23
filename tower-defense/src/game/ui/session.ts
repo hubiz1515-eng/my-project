@@ -347,7 +347,7 @@ export class GameSession {
       luck: g.luck,
       luckCost: g.luckCost(),
       pity: Math.min(PITY_MAX, g.pity),
-      fieldWeight: g.fieldWeight,
+      fieldWeight: Math.round(g.fieldWeight),
       boss,
       canAffordSummon: g.gold >= g.summonCost(),
       boardFull: g.emptySlot() < 0,

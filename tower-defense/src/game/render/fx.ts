@@ -1,4 +1,5 @@
 import { BlendMode, PaintStyle, Skia, StrokeCap, StrokeJoin, TileMode, type SkCanvas, type SkFont, type SkPaint, type SkShader } from '@shopify/react-native-skia';
+import { fmtNum } from '../engine/format';
 import { col } from './palette';
 
 export type ParticleKind = 'glow' | 'spark' | 'ring' | 'puff' | 'star' | 'coin' | 'confetti' | 'shard' | 'ember';
@@ -70,24 +71,14 @@ function puffShader(color: string): SkShader {
 
 const CONFETTI = ['#ff5a7a', '#ffd24d', '#7be0ff', '#7dff9b', '#c88aff', '#ffffff'];
 
-export function fmtNum(n: number): string {
-  if (n < 1000) return String(Math.max(1, Math.round(n)));
-  const units = ['K', 'M', 'B', 'T'];
-  let v = n;
-  let u = -1;
-  while (v >= 1000 && u < units.length - 1) {
-    v /= 1000;
-    u++;
-  }
-  return (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2)).replace(/\.?0+$/, '') + units[u];
-}
-
 export class Fx {
   particles: Particle[] = [];
   texts: FloatText[] = [];
   bolts: Bolt[] = [];
   /** 화면 흔들림 세기(칸 단위) */
   shake = 0;
+  /** 동시에 그릴 수 있는 입자 수 (프레임이 느려지면 줄인다) */
+  cap = MAX_PARTICLES;
   /** 전체 화면 번쩍임 */
   flashColor = '#ffffff';
   flashAlpha = 0;
@@ -128,7 +119,7 @@ export class Fx {
   }
 
   add(p: Partial<Particle> & { kind: ParticleKind; x: number; y: number; color: string; max: number }) {
-    if (this.particles.length >= MAX_PARTICLES) return;
+    if (this.particles.length >= this.cap) return;
     const o = this.pool.pop() ?? ({} as Particle);
     o.kind = p.kind;
     o.x = p.x;
@@ -150,7 +141,10 @@ export class Fx {
   }
 
   text(x: number, y: number, text: string, color: string, size = 0.2, crit = false, max = 0.8) {
-    if (this.texts.length > 60) this.texts.shift();
+    // 전투가 치열할 때는 숫자를 솎아 낸다 (치명타는 항상 표시)
+    const busy = this.texts.length;
+    if (!crit && (busy > 30 || (busy > 14 && Math.random() < 0.55))) return;
+    if (busy > 60) this.texts.shift();
     this.texts.push({ x, y, vy: -0.55, text, color, size, life: 0, max, crit });
   }
 
@@ -483,3 +477,4 @@ const DIAMOND = (() => {
 })();
 
 export const FX_TEXT_REF = TEXT_REF;
+export { fmtNum };

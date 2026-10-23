@@ -1,24 +1,43 @@
 {
   "expo": {
-    "name": "크리스탈 바스천",
-    "slug": "crystal-bastion",
+    "name": "럭키 가디언즈",
+    "slug": "lucky-guardians",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "crystalbastion",
+    "scheme": "luckyguardians",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#0a1020",
+    "backgroundColor": "#0d1224",
+    "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#3a2aa0"
+      },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "bundler": "metro",
-      "output": "single"
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "럭키 가디언즈",
+      "shortName": "럭키 가디언즈",
+      "backgroundColor": "#0d1224",
+      "themeColor": "#0d1224"
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#0d1224"
+        }
+      ],
       ["expo-audio", { "microphonePermission": false }]
     ]
   }

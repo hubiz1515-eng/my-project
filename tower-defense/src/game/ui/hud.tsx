@@ -9,6 +9,7 @@ import { Bar, GradeChip, GText, Pill } from '@/ui/bits';
 import { GButton } from '@/ui/GButton';
 import { Icon } from '@/ui/Icon';
 import { C, FONT } from '@/ui/theme';
+import { useAnimatedValue } from '@/ui/useAnimatedValue';
 import type { GameSession, Hud, ToastKind } from './session';
 
 export function useHud(session: GameSession): Hud {
@@ -27,7 +28,7 @@ export const ROLE_LABEL: Record<WaveRole, string> = {
 // ───────────────────────────── 상단 ─────────────────────────────
 
 function SmoothBar({ value, color, height = 10 }: { value: number; color: string; height?: number }) {
-  const v = useRef(new Animated.Value(value)).current;
+  const v = useAnimatedValue(value);
   useEffect(() => {
     Animated.timing(v, { toValue: value, duration: value < 0.02 ? 0 : 950, easing: Easing.linear, useNativeDriver: false }).start();
   }, [value, v]);
@@ -51,7 +52,7 @@ export function TopBar({ session, hud, onPause }: { session: GameSession; hud: H
   const left = hud.waveDuration > 0 ? 1 - hud.waveClock / hud.waveDuration : 0;
   const danger = hud.fieldWeight >= ENEMY_WARN;
   const meter = Math.min(1, hud.fieldWeight / ENEMY_LIMIT);
-  const wobble = useRef(new Animated.Value(0)).current;
+  const wobble = useAnimatedValue(0);
   useEffect(() => {
     if (!danger) {
       wobble.setValue(0);
@@ -134,14 +135,13 @@ export function BossBar({ hud }: { hud: Hud }) {
 // ───────────────────────────── 배너 / 토스트 ─────────────────────────────
 
 export function WaveBanner({ session }: { session: GameSession }) {
-  const [data, setData] = useState<{ wave: number; boss: boolean; elite: boolean; key: number } | null>(null);
-  const a = useRef(new Animated.Value(0)).current;
+  const [data, setData] = useState<{ wave: number; boss: boolean; elite: boolean } | null>(null);
+  const a = useAnimatedValue(0);
   useEffect(
     () =>
       session.onUi((e) => {
-        if (e.type !== 'banner' && e.type !== 'jackpot') return;
-        if (e.type === 'jackpot') return;
-        setData({ wave: e.wave, boss: e.boss, elite: e.elite, key: Date.now() });
+        if (e.type !== 'banner') return;
+        setData({ wave: e.wave, boss: e.boss, elite: e.elite });
         a.setValue(0);
         Animated.sequence([Animated.timing(a, { toValue: 1, duration: 320, easing: Easing.out(Easing.back(1.8)), useNativeDriver: false }), Animated.delay(e.boss ? 1100 : 600), Animated.timing(a, { toValue: 2, duration: 320, useNativeDriver: false })]).start();
       }),

@@ -1,8 +1,9 @@
-import { ReactNode, useEffect, useRef } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 import { GText } from './bits';
 import { Icon } from './Icon';
 import { C } from './theme';
+import { useAnimatedValue } from './useAnimatedValue';
 
 interface Props {
   visible: boolean;
@@ -18,7 +19,7 @@ interface Props {
 
 /** 아래에서 올라오는 시트 (RN Modal 대신 절대 위치 — 웹/네이티브 동작이 같다) */
 export function Sheet({ visible, title, onClose, children, heightPct = 0.6, dim = 0.35, bottomInset = 0 }: Props) {
-  const a = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const a = useAnimatedValue(visible ? 1 : 0);
   useEffect(() => {
     Animated.timing(a, { toValue: visible ? 1 : 0, duration: visible ? 260 : 180, easing: visible ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic), useNativeDriver: false }).start();
   }, [visible, a]);

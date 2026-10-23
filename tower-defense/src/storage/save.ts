@@ -20,6 +20,8 @@ export interface SaveData {
   kills: number;
   bestHit: number;
   discovered: UnitId[];
+  /** '게임 방법' 안내를 이미 봤는지 */
+  seenHowTo: boolean;
   settings: Settings;
 }
 
@@ -32,6 +34,7 @@ const DEFAULTS: SaveData = {
   kills: 0,
   bestHit: 0,
   discovered: ['squire', 'hunter', 'apprentice', 'peddler'],
+  seenHowTo: false,
   settings: { sound: true, music: true, haptics: true, numbers: true, shake: true },
 };
 
@@ -112,5 +115,5 @@ export function discover(ids: Iterable<UnitId>) {
 
 /** 기록 초기화 (설정은 유지) */
 export function resetProgress() {
-  updateSave((d) => ({ ...DEFAULTS, settings: d.settings }));
+  updateSave((d) => ({ ...DEFAULTS, seenHowTo: true, settings: d.settings }));
 }

@@ -1,6 +1,7 @@
 import { BlendMode, Skia, SkiaPictureView, TileMode, type SkCanvas, type SkPicture } from '@shopify/react-native-skia';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Rng } from '../engine/rng';
 import type { UnitId } from '../engine/units';
 import { col } from '../render/palette';
 import { unitSprite } from '../render/units';
@@ -25,6 +26,16 @@ interface Mote {
   ph: number;
   c: string;
 }
+
+const STARS: Star[] = (() => {
+  const r = new Rng(11);
+  return Array.from({ length: 70 }, () => ({ x: r.next(), y: r.next() * 0.5, r: 0.6 + r.next() * 1.3, ph: r.next() * 6 }));
+})();
+
+const MOTES: Mote[] = (() => {
+  const r = new Rng(23);
+  return Array.from({ length: 26 }, (_, i) => ({ x: r.next(), y: r.next(), vy: 0.015 + r.next() * 0.03, ph: r.next() * 6, c: i % 3 === 0 ? '#ffe27a' : i % 3 === 1 ? '#9affd8' : '#ffb0e0' }));
+})();
 
 /** dx: 무대 위 가로 위치(칸 폭 단위), dy: 앞뒤(클수록 앞), s: 크기 */
 const HEROES: { id: UnitId; dx: number; dy: number; s: number }[] = [
@@ -183,14 +194,12 @@ function drawScene(w: number, h: number, t: number, stars: Star[], motes: Mote[]
 export function TitleScene() {
   const [pic, setPic] = useState<SkPicture>(EMPTY);
   const size = useRef({ w: 0, h: 0 });
-  const stars = useMemo<Star[]>(() => Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random() * 0.5, r: 0.6 + Math.random() * 1.3, ph: Math.random() * 6 })), []);
-  const motes = useMemo<Mote[]>(() => Array.from({ length: 26 }, (_, i) => ({ x: Math.random(), y: Math.random(), vy: 0.015 + Math.random() * 0.03, ph: Math.random() * 6, c: i % 3 === 0 ? '#ffe27a' : i % 3 === 1 ? '#9affd8' : '#ffb0e0' })), []);
   const raf = useRef(0);
   const manual = typeof window !== 'undefined' && window.location?.search?.includes('manual');
 
   const draw = (t: number) => {
     const { w, h } = size.current;
-    if (w > 0) setPic(drawScene(w, h, t, stars, motes));
+    if (w > 0) setPic(drawScene(w, h, t, STARS, MOTES));
   };
 
   useEffect(() => {
