@@ -49,7 +49,7 @@ const STAGE_KINDS: StageKinds[] = [
 /** 한 스테이지(10웨이브) 안에서의 역할 순서 */
 const ROLE_CYCLE: WaveRole[] = ['standard', 'swarm', 'standard', 'fast', 'elite', 'tank', 'swarm', 'fast', 'tank', 'boss'];
 
-export const HP_GROWTH = 1.158;
+export const HP_GROWTH = 1.153;
 export const BASE_HP = 60;
 /** 일반 몬스터 체력 보정 (엘리트/보스는 baseHp 그대로) */
 export const MOB_HP_SCALE = 1.55;

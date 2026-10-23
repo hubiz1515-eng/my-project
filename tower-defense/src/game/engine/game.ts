@@ -422,12 +422,13 @@ export class Game {
     const willEmpty = mats.filter((i) => this.slots[i].units.length === 1);
     let dest = willEmpty.length > 0 ? willEmpty[0] : this.emptySlot();
     if (dest < 0) return this.fail('full');
+    const used = mats.map((i) => ({ slot: i, id: this.slots[i].units[0].id }));
     for (const i of mats) this.slots[i].units.pop();
     if (this.slots[dest].units.length > 0) dest = this.emptySlot();
     this.slots[dest].units.push(this.newUnit(target));
     this.stats.crafts++;
     this.recompute();
-    this.events.push({ t: 'craft', slot: dest, id: target });
+    this.events.push({ t: 'craft', slot: dest, id: target, mats: used });
     return { ok: true, slot: dest };
   }
 

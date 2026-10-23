@@ -54,7 +54,7 @@ npx expo start       # 폰의 Expo Go(SDK 57)로 QR 스캔, 또는 w 를 눌러 
 | `npm run typecheck` | TypeScript 검사 |
 | `npm run lint` | ESLint (eslint-config-expo, React Compiler 규칙 포함) |
 | `npm test` | 엔진 단위 테스트 (node:test + tsx) |
-| `npm run sim -- smart 30` | 봇 30판 시뮬레이션으로 난이도 확인 (`smart` / `lazy` / `random`, 끝에 `-v` 로 판별 상세) |
+| `npm run sim -- smart 30` | 봇 30판 시뮬레이션으로 난이도 확인 (`smart` / `lazy` / `random`, 끝에 `-v` 를 붙이면 판마다 결과를 보여줍니다) |
 | `npm run sfx` | `assets/audio/*.wav` 효과음·배경음 다시 합성 |
 
 밸런스 숫자는 모두 데이터로 분리돼 있어요: `src/game/engine/config.ts`(경제·확률), `units.ts`(유닛 능력), `waves.ts`(체력 곡선·보스),

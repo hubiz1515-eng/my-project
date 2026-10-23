@@ -2,10 +2,10 @@ import { BlendMode, PaintStyle, Skia, StrokeCap, StrokeJoin, TileMode, type SkCa
 import { BOARD_H, BOARD_W, COLS, ENEMY_LIMIT, ENEMY_WARN, MAX_STACK, ROWS, SLOT_COUNT } from '../engine/config';
 import { ENEMIES, type EnemyKind } from '../engine/enemies';
 import type { Game } from '../engine/game';
-import { slotCenter } from '../engine/layout';
+import { slotCenter, unitOffset } from '../engine/layout';
 import { pointAt } from '../engine/path';
 import type { Enemy, Unit } from '../engine/types';
-import { GRADES, UNITS } from '../engine/units';
+import { GRADES, UNITS, type UnitId } from '../engine/units';
 import { bakeBackdrop, bakeBoard } from './board';
 import { fmtNum } from '../engine/format';
 import { Fx } from './fx';
@@ -75,6 +75,17 @@ interface Death {
   boss: boolean;
 }
 
+interface Ghost {
+  id: UnitId;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  t0: number;
+  dur: number;
+  count: number;
+}
+
 interface Item {
   y: number;
   kind: 0 | 1;
@@ -109,6 +120,10 @@ export class Renderer {
   private faces = new Map<number, number>();
   private lastText = new Map<number, number>();
   private deaths: Death[] = [];
+  /** 합성/조합 때 재료 유닛이 모여드는 연출 */
+  private ghosts: Ghost[] = [];
+  /** 합성/조합으로 새로 생긴 유닛은 재료가 모인 뒤에 튀어나온다 (슬롯별 시작 시각) */
+  private popStart: number[] = Array.from({ length: SLOT_COUNT }, () => -10);
   private items: Item[] = [];
   private flies: { x: number; y: number; ph: number; sp: number }[] = [];
   private slotFlash: { t0: number; color: string }[] = Array.from({ length: SLOT_COUNT }, () => ({ t0: -10, color: '#ffffff' }));
@@ -215,32 +230,51 @@ export class Renderer {
         case 'merge': {
           const { x, y } = slotCenter(ev.slot);
           const gi = GRADES[UNITS[ev.to].grade];
-          this.slotFlash[ev.slot] = { t0: this.t, color: gi.color };
-          fx.ringAt(x, y, gi.color, 0.9, 0.1, 0.35, 0.07);
-          fx.ringAt(x, y, '#ffffff', 0.1, 0.9, 0.5, 0.05);
-          fx.add({ kind: 'glow', x, y, max: 0.55, s0: 0.3, s1: 1.1, color: gi.glow, alpha: 0.9 });
-          fx.burst(x, y, gi.glow, 18, 2.4, 0.06);
-          fx.text(x, y - 0.5, ev.jackpot ? '대박!' : '합성!', ev.jackpot ? '#ffd24d' : '#ffffff', 0.27, true, 1.1);
+          this.slotFlash[ev.slot] = { t0: this.t + 0.2, color: gi.color };
+          this.popStart[ev.slot] = this.t + 0.24;
+          for (let k = 0; k < 3; k++) {
+            const [ox, oy] = unitOffset(3, k);
+            this.ghosts.push({ id: ev.from, x0: x + ox, y0: y + oy, x1: x, y1: y + 0.05, t0: this.t, dur: 0.26, count: 3 });
+          }
+          fx.ringAt(x, y, gi.color, 0.9, 0.1, 0.26, 0.07);
+          fx.add({ kind: 'glow', x, y, max: 0.4, s0: 0.5, s1: 0.1, color: '#ffffff', alpha: 0.8 });
+          // 재료가 모인 뒤(0.24초)에 터지는 연출
+          fx.later(0.24, () => {
+            fx.ringAt(x, y, '#ffffff', 0.1, 0.9, 0.5, 0.05);
+            fx.add({ kind: 'glow', x, y, max: 0.55, s0: 0.3, s1: 1.1, color: gi.glow, alpha: 0.9 });
+            fx.burst(x, y, gi.glow, 18, 2.4, 0.06);
+            fx.text(x, y - 0.5, ev.jackpot ? '대박!' : '합성!', ev.jackpot ? '#ffd24d' : '#ffffff', 0.27, true, 1.1);
+          });
           if (ev.jackpot) {
-            fx.confetti(x, y, 36);
-            fx.flash('#ffe27a', 0.45);
-            fx.kick(0.22);
+            fx.later(0.24, () => {
+              fx.confetti(x, y, 36);
+              fx.flash('#ffe27a', 0.45);
+              fx.kick(0.22);
+            });
           } else if (UNITS[ev.to].grade >= 3) {
-            fx.flash(gi.glow, 0.2);
+            fx.later(0.24, () => fx.flash(gi.glow, 0.2));
           }
           break;
         }
         case 'craft': {
           const { x, y } = slotCenter(ev.slot);
           const gi = GRADES[UNITS[ev.id].grade];
-          this.slotFlash[ev.slot] = { t0: this.t, color: gi.color };
-          for (let k = 0; k < 3; k++) fx.ringAt(x, y, k === 1 ? '#ffffff' : gi.color, 0.1 + k * 0.1, 1.4 + k * 0.4, 0.55 + k * 0.1, 0.07);
-          fx.add({ kind: 'glow', x, y, max: 0.8, s0: 0.5, s1: 2.2, color: gi.glow, alpha: 1 });
-          fx.burst(x, y, gi.glow, 30, 3.4, 0.07);
-          fx.confetti(x, y, 28);
-          fx.flash(gi.glow, 0.6);
-          fx.kick(0.3);
-          fx.text(x, y - 0.55, `${gi.name} 조합!`, gi.color, 0.3, true, 1.4);
+          this.slotFlash[ev.slot] = { t0: this.t + 0.4, color: gi.color };
+          this.popStart[ev.slot] = this.t + 0.42;
+          // 재료 유닛들이 결과 자리로 날아든다
+          for (const m of ev.mats) {
+            const from = slotCenter(m.slot);
+            this.ghosts.push({ id: m.id, x0: from.x, y0: from.y + 0.05, x1: x, y1: y + 0.05, t0: this.t, dur: 0.4, count: 1 });
+          }
+          fx.later(0.4, () => {
+            for (let k = 0; k < 3; k++) fx.ringAt(x, y, k === 1 ? '#ffffff' : gi.color, 0.1 + k * 0.1, 1.4 + k * 0.4, 0.55 + k * 0.1, 0.07);
+            fx.add({ kind: 'glow', x, y, max: 0.8, s0: 0.5, s1: 2.2, color: gi.glow, alpha: 1 });
+            fx.burst(x, y, gi.glow, 30, 3.4, 0.07);
+            fx.confetti(x, y, 28);
+            fx.flash(gi.glow, 0.6);
+            fx.kick(0.3);
+            fx.text(x, y - 0.55, `${gi.name} 조합!`, gi.color, 0.3, true, 1.4);
+          });
           break;
         }
         case 'move': {
@@ -541,6 +575,7 @@ export class Renderer {
     const T = g.time;
     // 죽는 중인 몬스터 (가장 뒤)
     this.drawDeaths(c);
+    this.drawGhosts(c, T);
     for (const it of items) {
       if (it.kind === 0) {
         const faded = view.drag && view.drag.from === it.slot;
@@ -567,7 +602,10 @@ export class Renderer {
       this.faces.set(u.uid, face);
     }
     // 소환 직후 튀어나오는 연출
-    const age = T - u.born;
+    let age = T - u.born;
+    // 합성/조합으로 생긴 유닛은 재료가 모인 뒤에 등장한다
+    if (slot >= 0 && this.t - this.popStart[slot] < 1.2) age = this.t - this.popStart[slot];
+    if (age < 0) return;
     const pop = age < 0.35 ? ease.outBack(Math.max(0, age) / 0.35) : 1;
     // 공격 모션
     let lunge = 0;
@@ -755,6 +793,24 @@ export class Renderer {
         c.drawCircle(sx - 0.01, sy - 0.01, 0.012, p);
       }
     }
+  }
+
+  private drawGhosts(c: SkCanvas, T: number) {
+    const list = this.ghosts;
+    let w = 0;
+    for (let i = 0; i < list.length; i++) {
+      const g = list[i];
+      const k = (this.t - g.t0) / g.dur;
+      if (k >= 1) continue;
+      list[w++] = g;
+      const e = k * k * (3 - 2 * k);
+      const x = g.x0 + (g.x1 - g.x0) * e;
+      const y = g.y0 + (g.y1 - g.y0) * e - Math.sin(k * Math.PI) * 0.18;
+      const u: Unit = { uid: -1 - i, id: g.id, cd: 0, pulse: 0, shotAt: -10, aim: -Math.PI / 2, born: -10 };
+      this.drawUnit(c, u, -1, 0, g.count, T, 1 - k * 0.85, { x, y });
+      if (Math.random() < 0.7) this.fx.add({ kind: 'glow', x, y: y + 0.05, max: 0.25, s0: 0.12, s1: 0, color: GRADES[UNITS[g.id].grade].glow, alpha: 0.7 });
+    }
+    list.length = w;
   }
 
   private drawDeaths(c: SkCanvas) {

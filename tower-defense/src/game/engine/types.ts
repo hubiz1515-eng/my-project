@@ -71,7 +71,7 @@ export interface Projectile {
 export type GameEvent =
   | { t: 'summon'; slot: number; id: UnitId; grade: Grade; forced: boolean }
   | { t: 'merge'; slot: number; from: UnitId; to: UnitId; jackpot: boolean }
-  | { t: 'craft'; slot: number; id: UnitId }
+  | { t: 'craft'; slot: number; id: UnitId; mats: { slot: number; id: UnitId }[] }
   | { t: 'move'; from: number; to: number; swap: boolean }
   | { t: 'sell'; slot: number; id: UnitId; gold: number }
   | { t: 'shoot'; slot: number; index: number; id: UnitId; shot: ShotKind }

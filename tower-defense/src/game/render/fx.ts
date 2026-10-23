@@ -84,6 +84,8 @@ export class Fx {
   flashAlpha = 0;
 
   private pool: Particle[] = [];
+  private timers: { at: number; fn: () => void }[] = [];
+  private clock = 0;
   private paint: SkPaint;
   private strokePaint: SkPaint;
   private textFill: SkPaint;
@@ -106,7 +108,13 @@ export class Fx {
     this.textLine.setColor(col('#1b1530'));
   }
 
+  /** sec 초 뒤에 fn 을 실행한다 (시뮬레이션 시간 기준 — 일시정지하면 같이 멈춘다) */
+  later(sec: number, fn: () => void) {
+    this.timers.push({ at: this.clock + sec, fn });
+  }
+
   clear() {
+    this.timers.length = 0;
     this.particles.length = 0;
     this.texts.length = 0;
     this.bolts.length = 0;
@@ -222,6 +230,14 @@ export class Fx {
   // ───────────────────── 갱신 / 그리기 ─────────────────────
 
   update(dt: number) {
+    this.clock += dt;
+    if (this.timers.length > 0) {
+      const due = this.timers.filter((t) => t.at <= this.clock);
+      if (due.length > 0) {
+        this.timers = this.timers.filter((t) => t.at > this.clock);
+        for (const t of due) t.fn();
+      }
+    }
     const ps = this.particles;
     let w = 0;
     for (let i = 0; i < ps.length; i++) {
