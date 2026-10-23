@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "크리스탈 바스천",
+    "slug": "crystal-bastion",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "crystalbastion",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0a1020",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      ["expo-audio", { "microphonePermission": false }]
+    ]
+  }
+}
