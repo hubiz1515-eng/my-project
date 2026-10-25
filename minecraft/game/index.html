@@ -4031,7 +4031,7 @@ function applySave(o) {
   P.x = o.p[0]; P.y = o.p[1]; P.z = o.p[2]; P.yaw = o.p[3]; P.pitch = o.p[4]; P.fly = !!o.p[5];
   if (o.hb && o.hb.length === 9) {   // 예전 저장의 핫바에는 블록 번호가 들어 있다: 그 블록을 놓는 아이템으로 바꾼다
     var seenHb = {};
-    hotbar = o.hb.map(function (b) { var v = b < ITEM_BASE ? (BLOCK_ITEM[b] || 0) : (IT[b] ? b : 0); if (v && seenHb[v]) v = 0; if (v) seenHb[v] = 1; return v; });
+    hotbar = o.hb.map(function (b) { var v = b < ITEM_BASE ? (BLOCK_ITEM[b] || 0) : (IT[b] ? b : 0); if (!o.bv && v && seenHb[v]) v = 0; if (v) seenHb[v] = 1; return v; });   // 예전 저장은 풀·흙처럼 같은 아이템이 겹칠 수 있어 정리한다
   }
   inv = {};
   if (o.iv) o.iv.forEach(function (p) { if (IT[p[0]]) inv[p[0]] = p[1] | 0; }); else inv[I_WSWORD] = 1;   // 이전 저장 데이터에는 기본 무기만
