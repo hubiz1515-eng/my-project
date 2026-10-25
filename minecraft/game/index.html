@@ -191,14 +191,15 @@ input,textarea{-webkit-user-select:text;user-select:text}   /* 전역 user-selec
 
 <div id="help" class="panel"><div class="card">
   <h2>조작법</h2>
-  <p class="sub">블록을 부수고, 쌓고, 나만의 세계를 만들어 보세요</p>
+  <p class="sub">블록을 캐서 모으고, 쌓고, 나만의 세계를 만들어 보세요</p>
   <p><b>📱 터치</b></p>
   <ul>
     <li>왼쪽 조이스틱: 이동 · ▲ 버튼: 점프 (두 번 누르면 비행)</li>
     <li>화면 드래그: 시점 회전</li>
-    <li>화면 <b>짧게 탭</b>: 블록 놓기</li>
-    <li>화면 <b>길게 누르기</b>: 블록 부수기</li>
-    <li>아래 핫바 탭: 블록 선택 (선택된 칸을 다시 탭하면 블록 목록)</li>
+    <li>화면 <b>짧게 탭</b>: 손에 든 것 쓰기 (블록 놓기 · 공격 · 먹기)</li>
+    <li>화면 <b>길게 누르기</b>: 블록 캐기 (캔 블록은 아이템으로 떨어져 가방에 들어와요)</li>
+    <li>아래 핫바 탭: 손에 들 것 고르기 (선택된 칸을 다시 탭하면 🎒 가방)</li>
+    <li>블록은 <b>무한이 아니에요</b>: 캐거나 만든 만큼만 놓을 수 있어요. 광석은 캐면 자원(다이아·금·석탄…)이 나와요</li>
   </ul>
   <p><b>👾 몬스터</b></p>
   <ul>
@@ -210,7 +211,7 @@ input,textarea{-webkit-user-select:text;user-select:text}   /* 전역 user-selec
   <p><b>🐖 동물 · 아이템 · 무기</b></p>
   <ul>
     <li>낮의 풀밭에는 돼지·소·양·닭이 살아요. 사냥하면 고기·가죽·양털·깃털이 떨어져요 (가까이 가면 주워져요)</li>
-    <li>통나무·돌·석탄·철광석을 캐도 아이템이 나와요. 🎒 가방의 <b>제작</b> 탭에서 검·도끼·활·화살·폭탄·구운 고기를 만들 수 있어요</li>
+    <li>통나무·돌·석탄·철광석을 캐면 아이템이 나와요. 🎒 가방의 <b>제작</b> 탭에서 검·도끼·활·화살·폭탄·구운 고기, 나무 판자·유리·벽돌 같은 건축 블록도 만들 수 있어요</li>
     <li>아이템은 가방에서 핫바에 넣어 써요: 검/도끼는 탭해서 공격, <b>활</b>은 탭해서 발사(화살 필요), <b>폭탄</b>은 탭해서 던지기, <b>음식</b>은 탭해서 먹기 (PC는 우클릭)</li>
   </ul>
   <p><b>🏘 마을 · 주민 · 새 아이템</b></p>
@@ -231,8 +232,8 @@ input,textarea{-webkit-user-select:text;user-select:text}   /* 전역 user-selec
   <p><b>⌨️ 키보드 · 마우스</b></p>
   <ul>
     <li>클릭으로 마우스 잠금 · WASD 이동 · Space 점프(두 번=비행) · Shift 하강</li>
-    <li>좌클릭 부수기 · 우클릭 놓기 · 휠클릭 블록 복사</li>
-    <li>숫자 1~9 / 휠: 블록 선택 · E: 블록 목록 · F: 비행 · Esc: 메뉴</li>
+    <li>좌클릭 캐기·공격 · 우클릭 놓기(손에 든 것 쓰기) · 휠클릭 가방에 있는 블록 가져오기</li>
+    <li>숫자 1~9 / 휠: 손에 들 것 선택 · E: 가방 · F: 비행 · Esc: 메뉴</li>
   </ul>
   <button class="btn main" id="hClose">시작하기</button>
 </div></div>
@@ -386,7 +387,8 @@ var T_GRASS_TOP = 0, T_GRASS_SIDE = 1, T_DIRT = 2, T_STONE = 3, T_COBBLE = 4, T_
     T_FLOWER_R = 115, T_FLOWER_Y = 116, T_TALLGRASS = 117, T_SANDSTONE = 118, T_FENCE = 119,
     T_WHEAT = 128, T_CARROT = 132, T_PUMPKIN_SIDE = 136, T_PUMPKIN_TOP = 137, T_CAMPFIRE_TOP = 138, T_FLAME = 139,
     // 주민
-    T_VFACE = 140, T_VNOSE = 141, T_VROBE = 142, T_VSKIN = 148, T_VHAT = 151;   // 로브 142~147(직업별), 모자 151~156
+    T_VFACE = 140, T_VNOSE = 141, T_VROBE = 142, T_VSKIN = 148, T_VHAT = 151,   // 로브 142~147(직업별), 모자 151~156
+    T_HANDSKIN = 194, T_SLEEVE = 195;   // 1인칭 손
 var TI = { coal: 64, iron: 65, stick: 66, bone: 67, feather: 68, leather: 69, wool: 70, gunpowder: 71, flesh: 72,
            pork: 73, beef: 74, mutton: 75, chicken: 76, cpork: 77, steak: 78, cmutton: 79, cchicken: 80, bandage: 81,
            arrow: 82, wsword: 83, ssword: 84, isword: 85, axe: 86, bow: 87, bomb: 88,
@@ -491,7 +493,8 @@ var PALETTE = [GRASS, DIRT, STONE, COBBLE, SAND, SNOW, LOG, PLANKS, LEAVES, GLAS
 
 /* ======================================================================
  *  아이템 · 인벤토리 · 제작
- *  블록은 id < 100 (창작 모드라 무한), 아이템은 id >= 100 (개수가 있음). 핫바에는 둘 다 넣을 수 있다.
+ *  블록 번호는 id < 100 (월드 안의 블록), 아이템은 id >= 100 (개수가 있음). 블록도 캐서 모아야 쓸 수 있도록
+ *  '그 블록을 놓는 아이템'(BLOCK_ITEM)이 따로 있고, 핫바에는 아이템만 들어간다 (0 = 빈 칸).
  * ==================================================================== */
 var ITEM_BASE = 100, IT = {}, ITEM_IDS = [];
 function defItem(key, name, o) {
@@ -571,13 +574,34 @@ var I_LOG = defItem('log', '통나무', { block: LOG }),
     I_GLOWSTONE = defItem('glowstone', '빛돌', { kind: 'place', place: GLOWSTONE, block: 0 });
 
 [I_TORCH, I_LANTERN, I_CAMPFIRE, I_GLOWSTONE].forEach(function (id) { delete IT[id].block; });
+
+// ---- 블록도 아이템이다: 더 이상 무한으로 꺼내 쓸 수 없고, 캐거나 만들어서 모은 만큼만 놓을 수 있다 ----
+// (저장 데이터의 번호가 어긋나지 않게 아이템 목록 끝에만 추가한다. 광석은 아이템이 없어서 놓을 수 없다)
+var BLOCK_ITEM = {};   // 블록 번호 → 그 블록을 놓는 아이템 번호
+function defBlockItem(bid) {
+  var d = B[bid], flat = d.shape && d.shape !== 'fence';
+  BLOCK_ITEM[bid] = defItem('blk' + bid, d.name, flat ? { kind: 'place', place: bid, tile: d.tile } : { kind: 'place', place: bid, block: bid });
+}
+[DIRT, SAND, SNOW, PLANKS, LEAVES, GLASS, BRICK, WOOLB, OBSIDIAN, ENDSTONE, GRAVEL, PATH, SANDSTONE, STONEBRICK, MOSSY, DPLANKS, FENCE, HAY,
+ BOOKSHELF, CRAFT, FURNACE, PUMPKIN, TNT, WOOLR, WOOLY, WOOLG, WOOLW, FLOWER_R, FLOWER_Y].forEach(defBlockItem);
+IT[I_LOG].kind = 'place'; IT[I_LOG].place = LOG; IT[I_COBBLE].kind = 'place'; IT[I_COBBLE].place = COBBLE;   // 통나무·조약돌도 이제 놓을 수 있다
+BLOCK_ITEM[LOG] = I_LOG; BLOCK_ITEM[COBBLE] = I_COBBLE; BLOCK_ITEM[STONE] = I_COBBLE;
+BLOCK_ITEM[GRASS] = BLOCK_ITEM[DIRT]; BLOCK_ITEM[FARM] = BLOCK_ITEM[DIRT];
+BLOCK_ITEM[FRAME] = I_FRAME; BLOCK_ITEM[LANTERN] = I_LANTERN; BLOCK_ITEM[CAMPFIRE] = I_CAMPFIRE; BLOCK_ITEM[GLOWSTONE] = I_GLOWSTONE;
+[TORCH_F, TORCH_PX, TORCH_NX, TORCH_PZ, TORCH_NZ].forEach(function (i) { BLOCK_ITEM[i] = I_TORCH; });
 var ARMOR_IDS = ITEM_IDS.filter(function (id) { return IT[id].kind === 'armor'; });
 var inv = {};
-inv[I_WSWORD] = 1;
+inv[I_WSWORD] = 1; inv[I_TORCH] = 8; inv[I_BREAD] = 3;
 function invCount(id) { return inv[id] || 0; }
-function giveItem(id, n) { inv[id] = invCount(id) + n; if (id === I_PEARL) pearlTotal += n; dirtySave = true; refreshHotbarCounts(); }
+var AUTO_SLOT = { place: 1, food: 1, potion: 1, seeds: 1 };
+function giveItem(id, n) {
+  var had = invCount(id);
+  inv[id] = had + n; if (id === I_PEARL) pearlTotal += n; dirtySave = true;
+  var e = (!had && IT[id] && AUTO_SLOT[IT[id].kind] && hotbar.indexOf(id) < 0) ? hotbar.indexOf(0) : -1;   // 처음 줍는 블록·음식은 빈 핫바 칸에 들어간다
+  if (e >= 0) { hotbar[e] = id; refreshHotbar(); } else refreshHotbarCounts();
+}
 function takeItem(id, n) { inv[id] = Math.max(0, invCount(id) - n); dirtySave = true; refreshHotbarCounts(); }
-function nameOf(v) { return v >= ITEM_BASE ? IT[v].name : B[v].name; }
+function nameOf(v) { return !v ? '' : v >= ITEM_BASE ? IT[v].name : B[v].name; }
 
 // 제작법: 재료 [아이템, 개수] → 결과
 var RECIPES = [
@@ -629,6 +653,32 @@ var RECIPES = [
   { out: I_GAPPLE, n: 1, need: [[I_APPLE, 1], [I_GOLD, 4]] },
   { out: I_POT_HEAL, n: 1, need: [[I_APPLE, 1], [I_BANDAGE, 1], [I_GOLD, 1]] }
 ];
+// 건축 블록 (캐서 얻을 수 없는 것들은 여기서 만든다)
+(function () {
+  var BI = BLOCK_ITEM;
+  RECIPES.push(
+    { out: BI[PLANKS], n: 4, need: [[I_LOG, 1]] },
+    { out: BI[CRAFT], n: 1, need: [[BI[PLANKS], 4]] },
+    { out: BI[FENCE], n: 3, need: [[BI[PLANKS], 2], [I_STICK, 2]] },
+    { out: BI[DPLANKS], n: 2, need: [[BI[PLANKS], 2], [I_COAL, 1]] },
+    { out: BI[BOOKSHELF], n: 1, need: [[BI[PLANKS], 6], [I_LEATHER, 3]] },
+    { out: BI[STONEBRICK], n: 4, need: [[I_COBBLE, 4]] },
+    { out: BI[FURNACE], n: 1, need: [[I_COBBLE, 8]] },
+    { out: BI[MOSSY], n: 1, need: [[I_COBBLE, 1], [BI[LEAVES], 1]] },
+    { out: BI[BRICK], n: 2, need: [[I_COBBLE, 4], [I_COAL, 1]] },
+    { out: BI[GLASS], n: 2, need: [[BI[SAND], 2], [I_COAL, 1]] },
+    { out: BI[SANDSTONE], n: 1, need: [[BI[SAND], 4]] },
+    { out: BI[PATH], n: 1, need: [[BI[DIRT], 1]] },
+    { out: BI[HAY], n: 1, need: [[I_WHEAT, 9]] },
+    { out: BI[PUMPKIN], n: 1, need: [[I_SEEDS, 6]] },
+    { out: BI[TNT], n: 1, need: [[I_GUNPOWDER, 3], [BI[SAND], 2]] },
+    { out: BI[WOOLW], n: 1, need: [[I_WOOL, 2]] },
+    { out: BI[WOOLR], n: 1, need: [[BI[WOOLW], 1], [BI[FLOWER_R], 1]] },
+    { out: BI[WOOLY], n: 1, need: [[BI[WOOLW], 1], [BI[FLOWER_Y], 1]] },
+    { out: BI[WOOLG], n: 1, need: [[BI[WOOLW], 1], [BI[LEAVES], 1]] },
+    { out: BI[WOOLB], n: 1, need: [[BI[WOOLW], 1], [BI[SNOW], 1]] }
+  );
+})();
 function armorReduce() { var r = 0; for (var i = 0; i < ARMOR_IDS.length; i++) if (invCount(ARMOR_IDS[i]) > 0) r = Math.max(r, IT[ARMOR_IDS[i]].reduce); return r; }   // 갑옷은 가장 좋은 것 하나만 적용
 function canCraft(r) { return r.need.every(function (p) { return invCount(p[0]) >= p[1]; }); }
 function craft(i) {
@@ -1024,6 +1074,8 @@ function buildAtlas() {
   rect(T_VFACE, 2, 3, 13, 3, [72, 52, 40]);   // 한 줄 눈썹
   each(T_VNOSE, function () { var k = n(6); return [186 + k, 136 + k, 100 + k]; });
   each(T_VSKIN, function () { var k = n(6); return [214 + k, 166 + k, 128 + k]; });
+  each(T_HANDSKIN, function () { var k = n(5); return [226 + k, 172 + k, 134 + k]; });
+  each(T_SLEEVE, function (x, y) { var k = n(6); return y < 2 ? [40 + k, 82 + k, 150 + k] : [58 + k, 112 + k, 194 + k]; });
   function robe(i, base, trim, stripe) {
     each(T_VROBE + i, function (x, y) {
       var k = n(7);
@@ -1942,6 +1994,9 @@ function mul(a, b) {
 }
 function rotX(a) { var c = Math.cos(a), s = Math.sin(a); return new Float32Array([1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1]); }
 function rotY(a) { var c = Math.cos(a), s = Math.sin(a); return new Float32Array([c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]); }
+function rotZ(a) { var c = Math.cos(a), s = Math.sin(a); return new Float32Array([c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]); }
+function trans(x, y, z) { return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1]); }
+function scl(a, b, c) { return new Float32Array([a, 0, 0, 0, 0, b, 0, 0, 0, 0, c, 0, 0, 0, 0, 1]); }
 
 /* ---- 큐브 정점 쓰기 (균열 / 파티클 / 하이라이트 공용) ---- */
 function pushCube(a, n, cx, cy, cz, hs, u0, v0, u1, v1, light) {
@@ -1962,7 +2017,7 @@ function pushCube(a, n, cx, cy, cz, hs, u0, v0, u1, v1, light) {
 var P = { x: 0, y: 40, z: 0, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, hw: HW, hh: HH, onGround: false, fly: false, inWater: false, headWater: false };
 var spawn = { x: 0, y: 40, z: 0 };
 var settings = { autoJump: true, fast: false, dist: 4, sound: true, monsters: true };
-var hotbar = [GRASS, DIRT, STONE, COBBLE, PLANKS, LOG, GLASS, BRICK, I_WSWORD], sel = 0;
+var hotbar = [I_WSWORD, I_TORCH, I_BREAD, 0, 0, 0, 0, 0, 0], sel = 0;
 var timeOfDay = 0.18;
 var input = { jump: false, down: false, mx: 0, mz: 0 };
 var btn = { jump: false, down: false };   // 화면 버튼 상태 (키보드와 합쳐 input 으로)
@@ -2106,9 +2161,9 @@ function popUnsupported(x, y, z) {
     popUnsupported(x + dx, y + dy, z + dz);
   }
 }
-function placeBlock(idOverride) {   // idOverride: 아이템에서 놓는 블록 (예: 포털 프레임). 성공하면 true
-  if (!target || (idOverride === undefined && hotbar[sel] >= ITEM_BASE)) return false;
-  var id = idOverride !== undefined ? idOverride : hotbar[sel], tb = getBlock(target.x, target.y, target.z);
+function placeBlock(id) {   // id: 놓을 블록 (아이템의 place). 개수 차감은 부른 쪽(placeItem)이 한다. 성공하면 true
+  if (!target || !id) return false;
+  var tb = getBlock(target.x, target.y, target.z);
   var rt = B[tb].replace === true, x, y, z, nx = target.nx, ny = target.ny, nz = target.nz;
   if (rt) { x = target.x; y = target.y; z = target.z; nx = 0; ny = 1; nz = 0; }   // 풀은 덮어쓴다
   else { x = target.x + nx; y = target.y + ny; z = target.z + nz; }
@@ -2150,7 +2205,7 @@ function activatePortal(cx, y, cz) {
 }
 function placeItem(it) {
   if (!target) return false;   // 조준한 곳이 없으면 다른 동작(공격 등)으로
-  if (placeBlock(it.place)) takeItem(it.id, 1);
+  if (placeBlock(it.place)) { takeItem(it.id, 1); swingHand(); }
   return true;
 }
 // 포털 안에 서 있으면 잠시 뒤 차원 이동 (이동 직후엔 포털에서 벗어나기 전까지 다시 작동하지 않는다)
@@ -2191,7 +2246,10 @@ function pickBlock() {
   if (!target) return;
   var id = getBlock(target.x, target.y, target.z);
   if (id === AIR || id === BEDROCK || id === WATER) return;
-  hotbar[sel] = id; refreshHotbar(); toast(B[id].name);
+  var it = BLOCK_ITEM[id];   // 가방에 있는 블록만 핫바로 가져올 수 있다 (광석처럼 아이템이 없는 건 복사 불가)
+  if (!it) return;
+  if (invCount(it) <= 0) { toast('가방에 ' + IT[it].name + ' 이(가) 없어요'); return; }
+  assignSlot(it);
 }
 function updateMining(dt, now) {
   if (look.id !== -1 && !look.mining && !look.moved && now - look.t0 >= 260) look.mining = true;
@@ -2200,6 +2258,7 @@ function updateMining(dt, now) {
   if (hi && hi.kind === 'bow') { shootBow(hi); mine.on = false; mine.p = 0; return; }
   if (holding && mobTarget) { attackMob(mobTarget); mine.on = false; mine.p = 0; return; }
   if (holding && target) {
+    if (hand.swing < 0.12) swingHand();   // 캐는 동안 계속 휘두른다
     var same = mine.on && mine.x === target.x && mine.y === target.y && mine.z === target.z;
     if (!same) { mine.x = target.x; mine.y = target.y; mine.z = target.z; mine.p = 0; mine.on = true; }
     var bd = B[getBlock(target.x, target.y, target.z)], ht = heldItem(), mul = ht && ht.tool && ht.tool === bd.tool ? ht.power : 1;   // 알맞은 도구는 훨씬 빠르다
@@ -2441,6 +2500,7 @@ function raycastMobs(ox, oy, oz, dx, dy, dz, maxD) {
 function heldItem() { var v = hotbar[sel]; return (v >= ITEM_BASE && invCount(v) > 0) ? IT[v] : null; }
 function attackMob(m) {
   if (attackCd > 0 || dead) return;
+  swingHand();
   if (MOB[m.type].villager) { attackCd = 0.4; openTrade(m); return; }   // 주민은 때리는 대신 거래
   var it = heldItem(), w = it && (it.kind === 'weapon' || it.kind === 'tool') ? it : null;
   attackCd = w ? w.cd : 0.4;
@@ -2483,13 +2543,12 @@ function useItem(it) {
 }
 function tapAction() {
   var it = heldItem();
-  if (it && useItem(it)) return;
-  if (mobTarget) attackMob(mobTarget); else if (hotbar[sel] < ITEM_BASE) placeBlock();
+  if (it && !(it.kind === 'place' && mobTarget) && useItem(it)) { swingHand(); return; }   // 몬스터를 보고 있으면 블록을 놓는 대신 공격
+  if (mobTarget) attackMob(mobTarget);
 }
 function secondaryAction() {   // PC 우클릭
   var it = heldItem();
-  if (it && useItem(it)) return;
-  placeBlock();
+  if (it && useItem(it)) swingHand();
 }
 // 괭이: 풀/흙/흙길을 경작지로
 function useHoe() {
@@ -2593,7 +2652,7 @@ var drops = [], dropBuf = new Float32Array(48 * 144);
 function dropItem(id, n, x, y, z) {
   if (n <= 0) return;
   drops.push({ x: x, y: y, z: z, vx: (Math.random() - 0.5) * 3, vy: 3 + Math.random() * 2, vz: (Math.random() - 0.5) * 3, id: id, n: n, age: 0, hw: 0.12, hh: 0.25, onGround: false });
-  if (drops.length > 48) drops.splice(0, drops.length - 48);
+  if (drops.length > 90) drops.splice(0, drops.length - 90);
 }
 function rollDrops(list, x, y, z) {   // [아이템, 최소, 최대, 확률?]
   if (!list) return;
@@ -2613,6 +2672,11 @@ BLOCK_DROP[LANTERN] = [[I_LANTERN, 1, 1]]; BLOCK_DROP[CAMPFIRE] = [[I_CAMPFIRE, 
 BLOCK_DROP[TALLGRASS] = [[I_SEEDS, 1, 1, 0.18]];
 for (var cdi = 0; cdi < 3; cdi++) { BLOCK_DROP[WHEAT0 + cdi] = [[I_SEEDS, 1, 1]]; BLOCK_DROP[CARROT0 + cdi] = [[I_CARROT, 1, 1]]; }
 BLOCK_DROP[WHEAT0 + 3] = [[I_WHEAT, 1, 2], [I_SEEDS, 1, 3]]; BLOCK_DROP[CARROT0 + 3] = [[I_CARROT, 2, 4]];
+// 나머지 블록은 캐면 그 블록을 얻는다 (풀·경작지는 흙, 돌은 조약돌)
+Object.keys(BLOCK_ITEM).forEach(function (k) { if (!BLOCK_DROP[k]) BLOCK_DROP[k] = [[BLOCK_ITEM[k], 1, 1]]; });
+BLOCK_DROP[LEAVES] = [[BLOCK_ITEM[LEAVES], 1, 1, 0.5], [I_STICK, 1, 1, 0.25], [I_APPLE, 1, 1, 0.05]];
+BLOCK_DROP[GRAVEL] = [[BLOCK_ITEM[GRAVEL], 1, 1], [I_FLINT, 1, 1, 0.3]];
+BLOCK_DROP[PATH] = [[BLOCK_ITEM[DIRT], 1, 1]];
 function updateDrops(dt) {
   for (var i = drops.length - 1; i >= 0; i--) {
     var d = drops[i];
@@ -3374,7 +3438,121 @@ function render(now) {
     for (var wp = 0; wp < wc.water.length; wp++) drawPart(wc.water[wp]);
   }
   gl.depthMask(true); gl.disable(gl.BLEND);
+  drawHand(now, tint, aspect, fovy);
   $('water-tint').style.display = underwater ? 'block' : 'none';
+}
+
+/* ======================================================================
+ *  1인칭: 손에 든 물건 (화면 오른쪽 아래, 걸을 때 흔들리고 휘두르면 움직인다)
+ * ==================================================================== */
+var hand = { swing: 0, equip: 0, last: -1, phase: 0, amp: 0, sky: 1, t: 0, meshes: {} };
+function swingHand() { if (hand.swing < 0.45) hand.swing = 1; }
+function handItemId() { var v = hotbar[sel]; return v && v >= ITEM_BASE && invCount(v) > 0 ? v : 0; }
+// 정점: x y z u v 밝기 (청크와 같은 셰이더), 4개씩 한 면
+function HM() { return { a: [], q: 0 }; }
+function hmQuad(m, p0, p1, p2, p3, u0, v0, u1, v1, light) {
+  var P4 = [p0, p1, p2, p3], UV = [[u0, v1], [u1, v1], [u1, v0], [u0, v0]];
+  for (var k = 0; k < 4; k++) m.a.push(P4[k][0], P4[k][1], P4[k][2], UV[k][0], UV[k][1], light);
+  m.q++;
+}
+function hmBox(m, x0, y0, z0, x1, y1, z1, tiles) {   // tiles: 면 6개 (FACES 순서)
+  for (var f = 0; f < 6; f++) {
+    var F = FACES[f], t = tiles[f], P4 = [];
+    for (var k = 0; k < 4; k++) { var c = F.c[k]; P4.push([c[0] ? x1 : x0, c[1] ? y1 : y0, c[2] ? z1 : z0]); }
+    m.a.push(P4[0][0], P4[0][1], P4[0][2], TU[t], TV[t] + TW, F.s, P4[1][0], P4[1][1], P4[1][2], TU[t] + TW, TV[t] + TW, F.s,
+             P4[2][0], P4[2][1], P4[2][2], TU[t] + TW, TV[t], F.s, P4[3][0], P4[3][1], P4[3][2], TU[t], TV[t], F.s);
+    m.q++;
+  }
+}
+function hmSprite(m, tile) {   // 납작한 아이템: 앞뒤는 그림 그대로, 가장자리는 픽셀 하나씩 세워서 두께를 준다
+  var N = ATLAS_T, h = 0.032, u0 = TU[tile], v0 = TV[tile], u1 = u0 + TW, v1 = v0 + TW, tx = (tile % ATLAS_N) * N, ty = ((tile / ATLAS_N) | 0) * N;
+  hmQuad(m, [-0.5, -0.5, h], [0.5, -0.5, h], [0.5, 0.5, h], [-0.5, 0.5, h], u0, v0, u1, v1, 1);
+  hmQuad(m, [0.5, -0.5, -h], [-0.5, -0.5, -h], [-0.5, 0.5, -h], [0.5, 0.5, -h], u0, v0, u1, v1, 0.9);
+  function solid(i, j) { return i >= 0 && i < N && j >= 0 && j < N && atlasData[((ty + j) * ATLAS_S + tx + i) * 4 + 3] >= 128; }
+  for (var j = 0; j < N; j++) for (var i = 0; i < N; i++) {
+    if (!solid(i, j)) continue;
+    var xl = -0.5 + i / N, xr = xl + 1 / N, yt = 0.5 - j / N, yb = yt - 1 / N, uc = u0 + (i + 0.5) / N * TW, vc = v0 + (j + 0.5) / N * TW;
+    if (!solid(i - 1, j)) hmQuad(m, [xl, yb, h], [xl, yb, -h], [xl, yt, -h], [xl, yt, h], uc, vc, uc, vc, 0.7);
+    if (!solid(i + 1, j)) hmQuad(m, [xr, yb, -h], [xr, yb, h], [xr, yt, h], [xr, yt, -h], uc, vc, uc, vc, 0.7);
+    if (!solid(i, j - 1)) hmQuad(m, [xl, yt, h], [xr, yt, h], [xr, yt, -h], [xl, yt, -h], uc, vc, uc, vc, 0.88);
+    if (!solid(i, j + 1)) hmQuad(m, [xl, yb, -h], [xr, yb, -h], [xr, yb, h], [xl, yb, h], uc, vc, uc, vc, 0.55);
+  }
+}
+function hmUpload(m) {
+  var buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(m.a), gl.STATIC_DRAW);
+  return { buf: buf, quads: m.q };
+}
+function handMesh(v) {   // v: 아이템 번호, 0 = 팔만
+  var c = hand.meshes[v];
+  if (c) return c;
+  var m = HM(), it = v ? IT[v] : null, kind = 'arm';
+  if (!it) { /* 아무것도 안 듦 */ }
+  else if (it.block) { var tl = B[it.block].tiles; hmBox(m, -0.5, -0.5, -0.5, 0.5, 0.5, 0.5, tl); kind = 'block'; }
+  else { hmSprite(m, it.tile); kind = it.kind === 'weapon' || it.kind === 'tool' || it.kind === 'bow' ? 'tool' : 'flat'; }
+  c = it ? hmUpload(m) : { quads: 0 };
+  c.kind = kind; hand.meshes[v] = c;
+  return c;
+}
+var handArm = null;
+function handArmMesh() {
+  if (handArm) return handArm;
+  var sl = HM(), sk = HM(), tS = [T_SLEEVE, T_SLEEVE, T_SLEEVE, T_SLEEVE, T_SLEEVE, T_SLEEVE], tK = [T_HANDSKIN, T_HANDSKIN, T_HANDSKIN, T_HANDSKIN, T_HANDSKIN, T_HANDSKIN];
+  hmBox(sl, -0.5, -0.5, 0, 0.5, 0.5, 6, tS);    // 소매: 손목에서 뒤로 길게
+  hmBox(sk, -0.5, -0.5, -1.3, 0.5, 0.5, 0, tK);   // 손
+  handArm = { sleeve: hmUpload(sl), skin: hmUpload(sk) };
+  return handArm;
+}
+// 손에 든 모양별 자세. x·y: 주먹의 화면 위치 (반너비·반높이 비율), z: 깊이, ry/rx/rz: 물건 회전, s: 크기, px·py: 물건에서 쥐는 곳
+var HAND_ARM = { ry: 0.55, rx: 0.5, w: 0.13, len: 6 };
+var HAND_POSE = {
+  arm:   { x: 0.64, y: -0.66, z: -0.7, ry: 0, rx: 0, rz: 0, s: 0, px: 0, py: 0 },
+  block: { x: 0.54, y: -0.5, z: -0.75, ry: 0.7, rx: 0.25, rz: 0, s: 0.22, px: 0, py: 0 },
+  tool:  { x: 0.56, y: -0.5, z: -0.72, ry: Math.PI + 0.35, rx: 0.2, rz: 1.05, s: 0.5, px: -0.3, py: -0.3 },
+  flat:  { x: 0.56, y: -0.5, z: -0.72, ry: Math.PI + 0.35, rx: 0.15, rz: 0.35, s: 0.5, px: 0, py: -0.3 }
+};
+function drawHand(now, tint, aspect, fovy) {
+  if (dead || loading) return;
+  var dt = Math.min(0.05, hand.t ? (now - hand.t) / 1000 : 0); hand.t = now;
+  var id = handItemId();
+  if (id !== hand.last) { if (hand.last !== -1) hand.equip = 1; hand.last = id; }
+  hand.equip = Math.max(0, hand.equip - dt * 3.6);
+  hand.swing = Math.max(0, hand.swing - dt * 4.2);
+  var hs = Math.hypot(P.vx, P.vz), walk = P.onGround && !P.fly ? Math.min(1, hs / 4) : 0;
+  hand.amp += (walk - hand.amp) * Math.min(1, dt * 8); hand.phase += hs * dt * 1.7;
+  var skyT = openSky(Math.floor(P.x), Math.floor(P.y + EYE), Math.floor(P.z)) ? 1 : 0.3, bl = blockLightAt(Math.floor(P.x), Math.floor(P.y + 1), Math.floor(P.z)) / 15;
+  hand.sky += (skyT - hand.sky) * Math.min(1, dt * 3);
+  var lt = [Math.max(tint[0] * hand.sky, 1.0 * bl, 0.2), Math.max(tint[1] * hand.sky, 0.84 * bl, 0.2), Math.max(tint[2] * hand.sky, 0.62 * bl, 0.22)];
+
+  var mesh = handMesh(id), pose = HAND_POSE[mesh.kind];
+  var tanY = Math.tan(fovy / 2), tanX = tanY * aspect, d = -pose.z;
+  var sw = Math.sin(hand.swing * Math.PI), sw2 = Math.sin(Math.min(1, hand.swing * 1.6) * Math.PI);
+  var bobX = Math.sin(hand.phase) * 0.02 * hand.amp, bobY = -Math.abs(Math.cos(hand.phase)) * 0.022 * hand.amp + Math.sin(now / 900) * 0.004;
+  var fx = tanX * d * pose.x + bobX - sw * 0.1, fy = tanY * d * pose.y + bobY - hand.equip * 0.6 * d * tanY - sw * 0.08, fz = pose.z - sw2 * 0.2;
+  var fist = mul(trans(fx, fy, fz), mul(rotY(-0.2 * sw), rotX(-sw * 1.0)));   // 주먹 자리 (휘두르면 이쪽이 움직인다)
+  gl.clear(gl.DEPTH_BUFFER_BIT);
+  gl.disable(gl.CULL_FACE); gl.disable(gl.BLEND);
+  gl.useProgram(mainP); enableAttribs(3);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, quadIBO);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, atlasTex); gl.uniform1i(U.u_tex, 0);
+  gl.uniform3f(U.u_off, 0, 0, 0); gl.uniform3f(U.u_tint, lt[0], lt[1], lt[2]); gl.uniform3f(U.u_fog, 0, 0, 0); gl.uniform2f(U.u_fogr, 9000, 10000);
+  gl.uniform1f(U.u_alpha, 1); gl.uniform1f(U.u_cut, 0.5);
+  var proj = persp(fovy, aspect, 0.02, 20);
+  function drawMesh(m, M) {
+    if (!m.quads) return;
+    gl.uniformMatrix4fv(U.u_vp, false, mul(proj, M));
+    gl.bindBuffer(gl.ARRAY_BUFFER, m.buf);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 12); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 24, 20);
+    gl.drawElements(gl.TRIANGLES, m.quads * 6, gl.UNSIGNED_SHORT, 0);
+  }
+  var fit = Math.min(1, Math.max(0.55, aspect / 1.6));   // 세로 화면에서는 작게
+  var A = handArmMesh(), w = HAND_ARM.w * fit, armM = mul(fist, mul(rotY(HAND_ARM.ry), mul(rotX(HAND_ARM.rx), scl(w, w, w))));
+  drawMesh(A.sleeve, armM); drawMesh(A.skin, armM);   // 팔 (소매 + 손)
+  if (mesh.quads) {
+    var sc = pose.s * fit;
+    drawMesh(mesh, mul(fist, mul(rotY(pose.ry), mul(rotX(pose.rx), mul(rotZ(pose.rz), mul(scl(sc, sc, sc), trans(-pose.px, -pose.py, 0)))))));
+  }
+  gl.enable(gl.CULL_FACE);
 }
 
 /* ======================================================================
@@ -3615,6 +3793,7 @@ function drawIcon(cv, id) {
   face(d.tiles[0], cx, cy, a, -r / 2, 0, r, 0.42);                       // 오른쪽면
 }
 function drawAnyIcon(cv, v) {   // 블록이면 입체 아이콘, 아이템이면 픽셀아트
+  if (!v) { cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); return; }   // 빈 칸
   if (v < ITEM_BASE && B[v].shape && B[v].shape !== 'fence') {   // 횃불·꽃·작물 등은 평평한 그림
     var fs = cv.width, fc = cv.getContext('2d'), FT = ATLAS_T, ft = B[v].tile;
     fc.setTransform(1, 0, 0, 1, 0, 0); fc.clearRect(0, 0, fs, fs); fc.imageSmoothingEnabled = false;
@@ -3656,7 +3835,7 @@ function toast(msg) {
   var t = $('toast'); t.textContent = msg; t.className = 'on';
   clearTimeout(toastT); toastT = setTimeout(function () { t.className = ''; }, 1400);
 }
-function selectSlot(i) { sel = i; refreshHotbar(); toast(nameOf(hotbar[i])); dirtySave = true; }
+function selectSlot(i) { sel = i; refreshHotbar(); if (hotbar[i]) toast(nameOf(hotbar[i])); dirtySave = true; }
 
 var invTab = 'blocks';
 function assignSlot(v) {   // 선택된 핫바 칸에 넣기 (이미 다른 칸에 있으면 서로 바꿈)
@@ -3698,12 +3877,11 @@ function renderInv() {
   });
   g.style.display = invTab === 'craft' ? 'none' : 'grid'; cl.style.display = invTab === 'craft' ? 'flex' : 'none';
   g.innerHTML = ''; cl.innerHTML = '';
-  if (invTab === 'blocks') {
-    hint.textContent = '고른 블록이 선택된 핫바 칸에 들어가요 (블록은 무한이에요)';
-    PALETTE.forEach(function (id) { g.appendChild(invCell(id, B[id].name.replace(' 블록', ''), 0)); });
-  } else if (invTab === 'items') {
-    var owned = ITEM_IDS.filter(function (id) { return invCount(id) > 0; });
-    hint.textContent = owned.length ? '탭하면 선택된 핫바 칸에 들어가요 (검·활·폭탄·음식은 핫바에서 사용)' : '아직 아이템이 없어요. 동물·몬스터를 사냥하고 나무·돌·광석을 캐 보세요!';
+  if (invTab === 'blocks' || invTab === 'items') {
+    var wantBlocks = invTab === 'blocks';
+    var owned = ITEM_IDS.filter(function (id) { return invCount(id) > 0 && (IT[id].kind === 'place') === wantBlocks; });
+    hint.textContent = owned.length ? '탭하면 선택된 핫바 칸에 들어가요 ' + (wantBlocks ? '(블록은 캐거나 만들어서 모아요)' : '(검·활·폭탄·음식은 핫바에서 사용)')
+      : wantBlocks ? '아직 블록이 없어요. 땅·나무·돌을 캐면 바로 주워져요' : '아직 아이템이 없어요. 동물·몬스터를 사냥하고 나무·돌·광석을 캐 보세요';
     owned.forEach(function (id) { g.appendChild(invCell(id, IT[id].name, invCount(id))); });
   } else {
     hint.textContent = '재료를 모으면 무기와 음식을 만들 수 있어요';
@@ -3812,7 +3990,7 @@ function post(msg) {
 function serialize() {
   function flat(map) { var out = []; map.forEach(function (ed) { ed.m.forEach(function (b, k) { out.push(ed.cx, ed.cz, k, b); }); }); return out; }
   return JSON.stringify({
-    v: 1, seed: SEED, e: flat(overEdits), ee: flat(endEdits), d: dim, ret: retPos ? [retPos.x, retPos.y, retPos.z] : null,
+    v: 1, bv: 2, seed: SEED, e: flat(overEdits), ee: flat(endEdits), d: dim, ret: retPos ? [retPos.x, retPos.y, retPos.z] : null,
     qf: [portalActive ? 1 : 0, visitedEnd ? 1 : 0, crystalsCleared ? 1 : 0, dragonDefeated ? 1 : 0], q: questIdx, pt: pearlTotal, em: eyeMade, dh: dragonHp, dc: crystalMask,
     p: [P.x, P.y, P.z, P.yaw, P.pitch, P.fly ? 1 : 0], hb: hotbar, sel: sel, t: timeOfDay,
     iv: Object.keys(inv).filter(function (k) { return inv[k] > 0; }).map(function (k) { return [+k, inv[k]]; }),
@@ -3851,16 +4029,23 @@ function applySave(o) {
   if (o.qf) { portalActive = !!o.qf[0]; visitedEnd = !!o.qf[1]; crystalsCleared = !!o.qf[2]; dragonDefeated = !!o.qf[3]; }
   questIdx = o.q | 0; pearlTotal = o.pt | 0; eyeMade = o.em | 0; dragonHp = typeof o.dh === 'number' ? o.dh : 120; crystalMask = typeof o.dc === 'number' ? o.dc : 255;
   P.x = o.p[0]; P.y = o.p[1]; P.z = o.p[2]; P.yaw = o.p[3]; P.pitch = o.p[4]; P.fly = !!o.p[5];
-  if (o.hb && o.hb.length === 9) hotbar = o.hb.map(function (b) { return (b >= ITEM_BASE ? IT[b] : (B[b] && b !== AIR)) ? b : STONE; });
+  if (o.hb && o.hb.length === 9) {   // 예전 저장의 핫바에는 블록 번호가 들어 있다: 그 블록을 놓는 아이템으로 바꾼다
+    var seenHb = {};
+    hotbar = o.hb.map(function (b) { var v = b < ITEM_BASE ? (BLOCK_ITEM[b] || 0) : (IT[b] ? b : 0); if (v && seenHb[v]) v = 0; if (v) seenHb[v] = 1; return v; });
+  }
   inv = {};
   if (o.iv) o.iv.forEach(function (p) { if (IT[p[0]]) inv[p[0]] = p[1] | 0; }); else inv[I_WSWORD] = 1;   // 이전 저장 데이터에는 기본 무기만
+  if (!o.bv) {   // 블록이 무한이던 시절의 저장: 한 번만 기본 블록을 나눠 준다
+    [[BLOCK_ITEM[DIRT], 32], [I_COBBLE, 32], [BLOCK_ITEM[PLANKS], 32], [I_LOG, 16], [BLOCK_ITEM[GLASS], 16], [BLOCK_ITEM[BRICK], 16], [I_TORCH, 8]].forEach(function (g) { inv[g[0]] = (inv[g[0]] || 0) + g[1]; });
+    setTimeout(function () { toast('이제 블록은 캐서 모아 써요! 기본 블록을 드렸어요'); }, 2500);
+  }
   sel = clamp(o.sel | 0, 0, 8); timeOfDay = typeof o.t === 'number' ? o.t : 0.18;
   if (o.s) { settings.autoJump = !!o.s[0]; settings.fast = !!o.s[1]; settings.dist = DIST_NAMES[o.s[2]] ? o.s[2] : 4; settings.sound = !!o.s[3]; settings.monsters = o.s[4] === undefined ? true : !!o.s[4]; }
   spawn = findSpawn();
 }
-function resetKit() {   // 새 월드의 시작 장비: 나무 검
-  inv = {}; inv[I_WSWORD] = 1;
-  hotbar = [GRASS, DIRT, STONE, COBBLE, PLANKS, LOG, GLASS, BRICK, I_WSWORD]; sel = 0;
+function resetKit() {   // 새 월드의 시작 장비: 나무 검 · 횃불 · 빵 (블록은 캐서 모은다)
+  inv = {}; inv[I_WSWORD] = 1; inv[I_TORCH] = 8; inv[I_BREAD] = 3;
+  hotbar = [I_WSWORD, I_TORCH, I_BREAD, 0, 0, 0, 0, 0, 0]; sel = 0;
 }
 function freshWorld() {
   resetKit();
@@ -4255,6 +4440,7 @@ window.blockcraft = {
   cloud: function () { return { avail: cloud.avail, on: cloud.on, nick: cloud.nick, rev: cloud.rev, state: cloud.state, conflict: cloud.conflict, dirty: cloud.dirty }; }, saveNow: saveNow,
   craftKey: function (key) { for (var i = 0; i < RECIPES.length; i++) if (IT[RECIPES[i].out].key === key) return craft(i); return false; }, armorReduce: armorReduce, doTradeByIndex: function (prof, idx) { return doTrade(PROFS[prof].trades[idx]); }, tradeCount: function (prof) { return PROFS[prof].trades.length; }, villageBlocks: function (x, z) { var st = sitesNear(x, z, 1, 1); return st.length ? villageAt(st[0]).blocks : 0; }, villageNpcs: function (x, z) { var st = sitesNear(x, z, 1, 1); return st.length ? villageAt(st[0]).npcs : []; },
   chunkHash: function (cx, cz) { var c = world.chunks.get(ckey(cx, cz)); if (!c) return null; var h = 2166136261; for (var i = 0; i < c.data.length; i++) h = Math.imul(h ^ c.data[i], 16777619); return h >>> 0; }, regen: function (cx, cz) { world.chunks.delete(ckey(cx, cz)); genChunk(cx, cz); }, villageSites: function (x, z, w) { return sitesNear(x, z, w, 0).map(function (st) { return { x: st.x, z: st.z, G: st.G, desert: st.desert }; }); },
+  handState: function () { return { id: handItemId(), swing: hand.swing, equip: hand.equip, kind: handMesh(handItemId()).kind, quads: handMesh(handItemId()).quads }; }, handPose: HAND_POSE, handArm: HAND_ARM, BLOCK_DROP: BLOCK_DROP, RECIPES: RECIPES, IT: IT, pickBlock: pickBlock, swingHand: swingHand, blockItem: BLOCK_ITEM,
   mineSeconds: function (id) { var bd = B[id], ht = heldItem(), mul = ht && ht.tool && ht.tool === bd.tool ? ht.power : 1; return bd.hard / mul; }, cropTick: function (n) { for (var i = 0; i < n; i++) { cropT = 2; updateCrops(0.01); } }, openTrade: function (id) { var m = mobs.filter(function (x) { return x.id === id; })[0]; if (m) openTrade(m); }, tradeRows: function () { return document.querySelectorAll('#trList .rec').length; },
   blockLightAt: blockLightAt, nearestVillageInfo: function () { return nearestVillage(P.x, P.z); }, fxState: function () { return { speed: fx.speed, night: fx.night }; }, useItemById: function (id) { return useItem(IT[id]); }, primeTnt: primeTnt, compassText: compassText, clockText: clockText, crops: function () { var o = 0; world.chunks.forEach(function (c) { o += c.crops ? c.crops.length / 3 : 0; }); return o; }, bombList: function () { return bombs.length; },
   dim: function () { return dim; }, enterEnd: enterEnd, exitEnd: exitEnd, setupEnd: setupEnd, endTopAt: endTopAt, armorReduce: armorReduce,
