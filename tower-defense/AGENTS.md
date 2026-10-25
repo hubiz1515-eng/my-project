@@ -8,6 +8,7 @@
 ```bash
 npm run typecheck && npm run lint && npm test   # 작업을 끝내기 전에 모두 통과해야 함
 npm run sim -- smart 30                          # 밸런스 변경 시: 봇 시뮬레이션으로 난이도 곡선 확인
+npm run build:html                               # 게임 전체를 HTML 한 파일로 → dist-single/lucky-guardians.html (서버 없이 file:// 로 열림)
 npx expo install <pkg>                           # 의존성은 SDK 호환 버전으로 (네트워크가 막혀 있으면 expo/bundledNativeModules.json 의 버전으로 npm install)
 ```
 
@@ -30,6 +31,14 @@ npx expo install <pkg>                           # 의존성은 SDK 호환 버�
 - `useAnimatedValue` 는 react-native-web 에 없습니다 → `src/ui/useAnimatedValue.ts`.
 - Skia 의 `SkPath` 변경 메서드는 deprecated 입니다 → `Skia.PathBuilder.Make()` (`render/draw.ts` 의 `newPath`).
 - 매 프레임 만든 Picture 는 `BoardCanvas` 에서 지연 `dispose()` 합니다. 새 per-frame 객체를 만들면 같은 식으로 정리하세요.
+
+## 단일 HTML 빌드 — 건드릴 때 꼭 확인
+
+- `EXPO_PUBLIC_SINGLE=1` 일 때만 `metro.config.js` 가 `expo-router` → `src/single/expo-router-shim.ts`(주소 해시 라우터), `expo-router/entry` → `src/single/entry.tsx` 로 바꿉니다. 일반 빌드는 그대로 Expo Router 입니다.
+- 앱 코드는 `expo-router` 에서 `router.push/replace/back`, `useLocalSearchParams` 만 씁니다. 다른 API 를 쓰면 shim 에도 추가하세요. 새 화면은 `src/single/SingleApp.tsx` 의 `ROUTES` 에도 등록.
+- 웹에서 에셋(`require('…wav')`, 폰트)은 번들 안의 `"/assets/…"` 문자열일 뿐이라서, `scripts/build-single-html.mjs` 가 이걸 `__TD("…")` 로 바꾸고 파일 내용은 gzip+base64 로 HTML 에 넣습니다. wasm 은 `index.js` 의 `locateFile` 이 `__TD` 를 씁니다.
+- 앱 공통 준비(폰트·저장·효과음)는 `src/ui/AppShell.tsx` — `_layout.tsx` 와 단일 빌드가 공유합니다.
+- 확인: `dist-single/lucky-guardians.html` 을 `file://` 로 열어(`?debug&manual&seed=5#/game` 도 가능) 외부 요청이 없고 콘솔 에러가 없는지 봅니다.
 
 ## 화면 확인 방법 (소프트웨어 WebGL 환경)
 

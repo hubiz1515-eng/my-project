@@ -4,7 +4,9 @@ import { Platform } from 'react-native';
 
 if (Platform.OS === 'web') {
   const { LoadSkiaWeb } = require('@shopify/react-native-skia/lib/module/web');
-  LoadSkiaWeb({ locateFile: (file) => `/${file}` }).then(() => require('expo-router/entry'));
+  // 단일 HTML 빌드는 wasm 을 파일 안에 담아 두고 window.__TD(이름) 으로 blob 주소를 돌려준다.
+  const locate = (file) => (globalThis.__TD ? globalThis.__TD(file) : `/${file}`);
+  LoadSkiaWeb({ locateFile: locate }).then(() => require('expo-router/entry'));
 } else {
   require('expo-router/entry');
 }

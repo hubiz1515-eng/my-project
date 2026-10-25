@@ -45,6 +45,8 @@ npx expo start       # 폰의 Expo Go(SDK 57)로 QR 스캔, 또는 w 를 눌러 
 
 - 웹: `npx expo start --web` (데스크톱에서도 폰 비율로 가운데 정렬됩니다)
 - 정적 웹 빌드: `npx expo export -p web` → `dist/`
+- **HTML 파일 하나로 빌드: `npm run build:html` → `dist-single/lucky-guardians.html`** (약 7MB). 코드·WASM·폰트·효과음이 전부 들어 있어서 서버 없이 더블클릭(`file://`)으로 열리고,
+  폰으로 옮겨서 브라우저로 열어도 됩니다. 최신 Chrome/Safari/Edge/Firefox 가 필요합니다(압축 해제에 `DecompressionStream` 사용). 기록·설정은 브라우저(localStorage)에 저장돼요.
 - 네이티브 빌드(EAS)를 하려면 `app.json` 에 `ios.bundleIdentifier` / `android.package` 를 정해서 넣어 주세요. (아직 비워 둠)
 
 ## 개발 명령
@@ -55,6 +57,7 @@ npx expo start       # 폰의 Expo Go(SDK 57)로 QR 스캔, 또는 w 를 눌러 
 | `npm run lint` | ESLint (eslint-config-expo, React Compiler 규칙 포함) |
 | `npm test` | 엔진 단위 테스트 (node:test + tsx) |
 | `npm run sim -- smart 30` | 봇 30판 시뮬레이션으로 난이도 확인 (`smart` / `lazy` / `random`, 끝에 `-v` 를 붙이면 판마다 결과를 보여줍니다) |
+| `npm run build:html` | 게임 전체를 HTML 한 파일로 만들기 (`dist-single/`, git 에는 올리지 않음) |
 | `npm run sfx` | `assets/audio/*.wav` 효과음·배경음 다시 합성 |
 
 밸런스 숫자는 모두 데이터로 분리돼 있어요: `src/game/engine/config.ts`(경제·확률), `units.ts`(유닛 능력), `waves.ts`(체력 곡선·보스),
@@ -66,6 +69,7 @@ npx expo start       # 폰의 Expo Go(SDK 57)로 QR 스캔, 또는 w 를 눌러 
 ```
 src/
   app/                 Expo Router 화면 (index=타이틀, game, almanac, dev/*=개발 전용)
+  single/              단일 HTML 빌드 전용: expo-router 대체(주소 해시 라우터)와 진입점
   game/
     engine/            순수 TypeScript 게임 로직 (RN/Skia import 금지, 시드 고정으로 재현 가능)
       game.ts          Game 클래스: 소환·합성·조합·웨이브·전투·룰렛·이벤트 큐

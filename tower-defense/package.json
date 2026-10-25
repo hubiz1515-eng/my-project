@@ -13,7 +13,8 @@
     "test": "tsx --test tests/*.test.ts",
     "sim": "tsx scripts/sim.ts",
     "sfx": "node scripts/generate-sfx.mjs",
-    "postinstall": "setup-skia-web"
+    "postinstall": "setup-skia-web",
+    "build:html": "node scripts/build-single-html.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/jua": "0.4.1",

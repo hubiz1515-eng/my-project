@@ -27,3 +27,6 @@ yarn-error.*
 
 # Skia 웹용 WASM (npm install 의 postinstall 이 node_modules 에서 복사한다)
 /public/canvaskit.wasm
+
+# 단일 HTML 빌드 결과물
+/dist-single
